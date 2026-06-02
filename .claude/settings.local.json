@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan migrate:*)",
+      "Bash(php artisan db:seed:*)",
+      "Bash(npm install:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(php artisan:*)",
+      "Bash(npm run build:*)",
+      "Bash(composer dump-autoload:*)",
+      "Bash(powershell -Command \"\\(Get-Content ''resources\\\\views\\\\frontend\\\\home.blade.php''\\) -replace '' opacity-0\"\"'', ''\"\"'' | Set-Content ''resources\\\\views\\\\frontend\\\\home.blade.php''\")",
+      "Bash(node -e:*)",
+      "Bash(curl:*)",
+      "Bash(xargs:*)",
+      "Bash(composer require:*)",
+      "Bash(Select-String -Pattern \"sport\")",
+      "Bash(npx vite:*)",
+      "WebFetch(domain:site.api.espn.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(php:*)",
+      "Bash(python -c:*)",
+      "Bash(python:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:safepay-docs.netlify.app)",
+      "WebFetch(domain:apidocs.getsafepay.com)",
+      "WebFetch(domain:gist.github.com)",
+      "Bash(find /c/xampp/htdocs/portfolio-website/database/migrations -name \"*.php\" -exec grep -l \"product\\\\|order\\\\|payment\" {} ;)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:gist.githubusercontent.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:fireship.io)",
+      "WebFetch(domain:fireship.dev)",
+      "Bash(npm list:*)",
+      "Bash(find C:xampphtdocsportfolio-website -name *.php -type f -exec grep -l \"ComplianceCore\\\\|compliance\" {})",
+      "Bash(2)",
+      "Bash(php artisan tinker --execute=\":*)"
+    ]
+  }
+}

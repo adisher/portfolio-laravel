@@ -1,0 +1,10 @@
+vendor/
+node_modules/
+storage/
+public/build/
+.git/
+database/backups/
+tests/coverage/
+*.log
+*.min.js
+*.min.css
