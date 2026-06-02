@@ -17,13 +17,13 @@ jobs:
 
       - name: Add Hostinger to known hosts
         run: |
-          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -p 65002 185.212.70.29 >> ~/.ssh/known_hosts
 
       - name: Deploy
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} << EOF
+          ssh -p 65002 u109241241@185.212.70.29 << EOF
             set -e
             cd $DEPLOY_PATH
             git pull origin main
