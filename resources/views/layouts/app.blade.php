@@ -129,6 +129,7 @@
                         </div>
 
                         {{-- Dark Mode Toggle --}}
+                        @feature('feature.dark_mode_toggle')
                         <button x-data="darkMode" @click="toggle()" class="nav-link" aria-label="Toggle dark mode">
                             {{-- Sun icon (shown in dark mode) --}}
                             <svg x-show="isDark" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,6 +142,7 @@
                                     d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
                             </svg>
                         </button>
+                        @endfeature
                     </div>
                 </div>
 
@@ -194,10 +196,12 @@
                 @endfeature
 
                 {{-- Mobile Dark Mode Toggle --}}
+                @feature('feature.dark_mode_toggle')
                 <button x-data="darkMode" @click="toggle()" class="mobile-nav-link flex items-center justify-between w-full">
                     <span>Dark Mode</span>
                     <span x-text="isDark ? 'On' : 'Off'" class="text-sm text-soft-dark"></span>
                 </button>
+                @endfeature
             </div>
         </div>
     </nav>
