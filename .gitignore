@@ -28,4 +28,4 @@ python-scraper/*.pyc
 *.pyc
 __pycache__/
 venv/
-"portfolio_db.sql" 
+portfolio_db.sql
