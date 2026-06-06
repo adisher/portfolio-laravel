@@ -28,8 +28,11 @@ class AutoPublishService
 
     /**
      * Run the auto-publish process.
+     *
+     * @param bool     $dryRun Simulate without publishing
+     * @param int|null $max    Override daily limit and publish up to this many posts
      */
-    public function run(bool $dryRun = false): array
+    public function run(bool $dryRun = false, ?int $max = null): array
     {
         $settings = AutoPublishSetting::getInstance();
 
@@ -37,7 +40,8 @@ class AutoPublishService
             return ['status' => 'disabled', 'message' => 'Auto-publish is disabled'];
         }
 
-        if (!$settings->canPublishMore()) {
+        // Only enforce daily limit when no --max override is given
+        if ($max === null && !$settings->canPublishMore()) {
             return [
                 'status' => 'limit_reached',
                 'message' => 'Daily publish limit reached',
@@ -54,8 +58,8 @@ class AutoPublishService
             'posts' => [],
         ];
 
-        // Get eligible articles
-        $articles = $this->getEligibleArticles($settings);
+        // Get eligible articles — use override limit or settings limit
+        $articles = $this->getEligibleArticles($settings, $max);
 
         if ($articles->isEmpty()) {
             return [
@@ -64,8 +68,14 @@ class AutoPublishService
             ];
         }
 
+        $publishedCount = 0;
+
         foreach ($articles as $article) {
-            if (!$settings->canPublishMore()) {
+            // Stop if we hit the max override or the daily limit (when no override)
+            if ($max !== null && $publishedCount >= $max) {
+                break;
+            }
+            if ($max === null && !$settings->canPublishMore()) {
                 break;
             }
 
@@ -79,6 +89,7 @@ class AutoPublishService
                         'action' => 'would_publish',
                     ];
                     $results['published']++;
+                    $publishedCount++;
                     continue;
                 }
 
@@ -87,6 +98,7 @@ class AutoPublishService
                 if ($post) {
                     $settings->incrementPostCount();
                     $results['published']++;
+                    $publishedCount++;
                     $results['posts'][] = [
                         'article_id' => $article->id,
                         'post_id' => $post->id,
@@ -109,9 +121,13 @@ class AutoPublishService
 
     /**
      * Get eligible articles for publishing.
+     *
+     * @param int|null $maxOverride Use this limit instead of the daily remaining count
      */
-    protected function getEligibleArticles(AutoPublishSetting $settings)
+    protected function getEligibleArticles(AutoPublishSetting $settings, ?int $maxOverride = null)
     {
+        $limit = $maxOverride ?? $settings->remaining_posts;
+
         return CollectedArticle::where('status', 'approved')
             ->where('is_duplicate', false)
             ->whereNull('blog_post_id')
@@ -121,7 +137,7 @@ class AutoPublishService
                 $query->where('auto_publish', true);
             })
             ->orderByDesc('relevance_score')
-            ->limit($settings->remaining_posts)
+            ->limit($limit)
             ->get();
     }
 

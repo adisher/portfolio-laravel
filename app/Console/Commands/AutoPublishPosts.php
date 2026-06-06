@@ -8,23 +8,35 @@ use Illuminate\Console\Command;
 class AutoPublishPosts extends Command
 {
     protected $signature = 'posts:auto-publish
-        {--max= : Override maximum posts to publish}
+        {--max= : Override maximum posts to publish (bypasses daily limit)}
+        {--reset-limit : Reset todays publish counter before running}
         {--dry-run : Preview what would be published without actually publishing}';
 
     protected $description = 'Auto-publish approved articles as blog posts';
 
     public function handle(AutoPublishService $publishService): int
     {
-        $dryRun = $this->option('dry-run');
-        $max = $this->option('max');
+        $dryRun     = $this->option('dry-run');
+        $max        = $this->option('max') ? (int) $this->option('max') : null;
+        $resetLimit = $this->option('reset-limit');
 
         if ($dryRun) {
             $this->info('DRY RUN - No posts will be published');
         }
 
+        if ($resetLimit) {
+            $settings = \App\Models\AutoPublishSetting::getInstance();
+            $settings->update(['posts_published_today' => 0, 'last_publish_date' => now()->toDateString()]);
+            $this->info('Daily counter reset to 0.');
+        }
+
+        if ($max !== null) {
+            $this->info("Max override: publishing up to {$max} posts (daily limit bypassed).");
+        }
+
         $this->info('Starting auto-publish process...');
 
-        $result = $publishService->run($dryRun);
+        $result = $publishService->run($dryRun, $max);
 
         switch ($result['status']) {
             case 'disabled':
