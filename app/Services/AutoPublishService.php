@@ -165,9 +165,9 @@ class AutoPublishService
 
         // Create the blog post
         $post = BlogPost::create([
-            'title' => $content['title'] ?? $article->title,
+            'title' => !empty($content['title']) ? $content['title'] : trim($article->title),
             'slug' => Str::slug($article->title),
-            'excerpt' => $content['tldr'] ?? Str::limit(strip_tags($article->description), 200),
+            'excerpt' => !empty($content['tldr']) ? $content['tldr'] : Str::limit(strip_tags($article->description ?? ''), 280),
             'content' => $content['content'] ?? $this->generateBasicContent($article)['content'],
             'category_id' => $article->assigned_category_id,
             'user_id' => $author?->id,

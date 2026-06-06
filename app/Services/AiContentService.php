@@ -292,27 +292,47 @@ PROMPT;
      */
     protected function parseTransformationResponse(string $response, CollectedArticle $article): array
     {
-        // Clean up the response
         $content = trim($response);
 
-        // Generate a suggested title if not present
+        // Extract headline from first # line — Claude puts it at the top
         $title = $article->title;
+        if (preg_match('/^#\s+(.+)/m', $content, $m)) {
+            $title = trim($m[1]);
+            // Strip the headline from body so it's not doubled in rendering
+            $content = trim(preg_replace('/^#\s+.+\n+/m', '', $content, 1));
+        }
 
-        // Extract TL;DR if present
-        $tldr = '';
-        if (preg_match('/## TL;DR\s*\n(.+?)(?=\n##|\z)/s', $content, $matches)) {
-            $tldr = trim($matches[1]);
+        // Try to extract a TL;DR section if Claude included one
+        $excerpt = '';
+        if (preg_match('/##\s*TL;DR\s*\n(.+?)(?=\n##|\z)/si', $content, $matches)) {
+            $excerpt = trim(strip_tags($matches[1]));
+        }
+
+        // Fallback: use the first non-heading paragraph as the excerpt
+        if (empty($excerpt)) {
+            foreach (explode("\n", $content) as $line) {
+                $line = trim($line);
+                if (!empty($line) && !str_starts_with($line, '#') && strlen($line) > 60) {
+                    $excerpt = \Illuminate\Support\Str::limit(strip_tags($line), 280);
+                    break;
+                }
+            }
+        }
+
+        // Final fallback: use the original RSS description
+        if (empty($excerpt)) {
+            $excerpt = \Illuminate\Support\Str::limit(strip_tags($article->description ?? ''), 280);
         }
 
         return [
-            'title' => $title,
-            'content' => $content,
-            'tldr' => $tldr,
-            'original_title' => $article->title,
-            'original_url' => $article->url,
+            'title'           => $title,
+            'content'         => $content,
+            'tldr'            => $excerpt,
+            'original_title'  => $article->title,
+            'original_url'    => $article->url,
             'original_author' => $article->author,
             'original_source' => $article->rssSource?->name,
-            'generated_at' => now()->toIso8601String(),
+            'generated_at'    => now()->toIso8601String(),
         ];
     }
 
