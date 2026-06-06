@@ -172,7 +172,7 @@ class AiContentService
     /**
      * Call the Claude API.
      */
-    protected function callApi(string $prompt, int $maxTokens = 1500): ?array
+    protected function callApi(string $prompt, int $maxTokens = 2500): ?array
     {
         if (!$this->apiKey) {
             Log::error('Anthropic API key not configured');
