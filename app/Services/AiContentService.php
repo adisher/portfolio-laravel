@@ -23,6 +23,50 @@ class AiContentService
     }
 
     /**
+     * Fetch full article text from the original URL.
+     * Falls back to the RSS description if fetching fails.
+     */
+    protected function fetchFullContent(CollectedArticle $article): string
+    {
+        if (empty($article->url)) {
+            return $article->description ?? '';
+        }
+
+        try {
+            $response = Http::timeout(15)
+                ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; Portfolio-Bot/1.0)'])
+                ->get($article->url);
+
+            if (!$response->successful()) {
+                return $article->description ?? '';
+            }
+
+            $html = $response->body();
+
+            // Strip scripts, styles, nav, footer, header, aside
+            $html = preg_replace('/<(script|style|nav|footer|header|aside|form|iframe)[^>]*>.*?<\/\1>/si', '', $html);
+
+            // Strip all remaining HTML tags
+            $text = strip_tags($html);
+
+            // Collapse whitespace
+            $text = preg_replace('/\s+/', ' ', $text);
+            $text = trim($text);
+
+            // Limit to ~6000 chars to stay within token budget
+            if (strlen($text) > 6000) {
+                $text = substr($text, 0, 6000) . '...';
+            }
+
+            return strlen($text) > 200 ? $text : ($article->description ?? '');
+
+        } catch (Exception $e) {
+            Log::info("Could not fetch full content for article {$article->id}: " . $e->getMessage());
+            return $article->description ?? '';
+        }
+    }
+
+    /**
      * Transform a collected article into blog post content.
      */
     public function transformArticle(CollectedArticle $article): ?array
@@ -34,7 +78,10 @@ class AiContentService
         }
 
         $settings = AutoPublishSetting::getInstance();
-        $prompt = $this->buildTransformationPrompt($article, $settings);
+
+        // Fetch the full article content from the original URL
+        $fullContent = $this->fetchFullContent($article);
+        $prompt = $this->buildTransformationPrompt($article, $settings, $fullContent);
 
         try {
             $response = $this->callApi($prompt);
@@ -159,60 +206,62 @@ class AiContentService
     }
 
     /**
-     * Build the transformation prompt.
+     * Build the transformation prompt using full article content.
      */
-    protected function buildTransformationPrompt(CollectedArticle $article, AutoPublishSetting $settings): string
+    protected function buildTransformationPrompt(CollectedArticle $article, AutoPublishSetting $settings, string $fullContent = ''): string
     {
-        $sections = [];
-
-        if ($settings->include_tldr) {
-            $sections[] = "## TL;DR\n[Write a 2-3 sentence summary of the key points]";
-        }
-
-        if ($settings->include_key_insights) {
-            $sections[] = "## Key Insights\n- [Insight 1]\n- [Insight 2]\n- [Insight 3]";
-        }
-
-        $sections[] = "## Analysis\n[Write 2-3 paragraphs of original analysis and commentary on this topic. Add your perspective on why this matters to developers and tech professionals.]";
-
-        if ($settings->include_faq_section) {
-            $sections[] = "## FAQ\n**Q: [Relevant question 1]?**\nA: [Direct answer]\n\n**Q: [Relevant question 2]?**\nA: [Direct answer]";
-        }
-
-        $sectionsText = implode("\n\n", $sections);
-
+        $sourceContent = !empty($fullContent) ? $fullContent : ($article->description ?? '');
         $categoryContext = $article->assignedCategory
-            ? "This article is for the '{$article->assignedCategory->name}' category."
-            : "";
+            ? "Category: {$article->assignedCategory->name}"
+            : '';
+
+        $sourceLine = trim(implode(' at ', array_filter([
+            $article->author,
+            $article->rssSource?->name,
+        ])));
 
         return <<<PROMPT
-You are a tech blogger writing for a personal brand website focused on AI, web development, and technology.
+You are Adil Sher, a full stack developer based in Islamabad who writes a personal tech blog. You write in a first-person, opinionated developer voice. Your style is direct, analytical, and grounded in real production experience. You share genuine takes, not surface-level summaries.
 
-Transform the following article summary into an engaging blog post. Write in a professional but approachable tone. Add original analysis and insights.
+Your task: read the original article content below and write a full blog post about its topic from your personal perspective as a working developer.
 
-**Original Article:**
+**Original Article**
 Title: {$article->title}
 Source: {$article->rssSource?->name}
 Author: {$article->author}
-Description: {$article->description}
-
+URL: {$article->url}
 {$categoryContext}
 
-**Write the blog post with these sections:**
+**Full Article Content:**
+{$sourceContent}
 
-{$sectionsText}
+---
 
-## Source Attribution
-*This article discusses content originally published by {$article->author} at {$article->rssSource?->name}. [Read the original article]({$article->url})*
+**Write the blog post following this exact structure:**
 
-**Important guidelines:**
-- Write original analysis, don't just summarize
-- Use clear, scannable formatting with short paragraphs
-- Include actionable insights for developers
-- Keep the total content between 400-800 words
-- Make the content AI-friendly with clear structure
+1. A creative, opinionated headline that is NOT the original article title. Frame it from your perspective (e.g. "Why I Changed My Mind About X", "The CSS Feature I've Been Waiting For", "A Question That Changed How I Think About Y").
 
-Return ONLY the markdown content, no additional commentary.
+2. An opening hook (2-3 paragraphs). Start with a personal anecdote, a question, or an observation from your own work that connects to this topic. Make the reader feel you genuinely encountered this.
+
+3. The core topic explained through your lens. Use section headings (## Heading). Break down what the original article is about but explain it through your own understanding and experience. What does this mean for someone actually building things in production?
+
+4. Your own analysis section (## My Take / ## What This Means in Practice / similar). What do you agree with? What would you do differently? What questions does this raise for you?
+
+5. If the topic involves code, include a practical code snippet with explanation.
+
+6. A closing section with your next step or a question for the reader.
+
+7. End with this source line exactly:
+*Source: This post was inspired by "{$article->title}" by {$sourceLine}. [Read the original article]({$article->url})*
+
+**Rules:**
+- Write in first person throughout (I, my, we)
+- Total length: 600-900 words
+- Use ## headings for sections, no H1
+- Short paragraphs (2-4 sentences max)
+- Do not reproduce large sections of the original verbatim
+- Sound like a developer who read the article and has genuine thoughts about it
+- Return ONLY the markdown content starting with the headline. No preamble.
 PROMPT;
     }
 
