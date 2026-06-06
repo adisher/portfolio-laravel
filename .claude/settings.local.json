@@ -48,7 +48,9 @@
       "Read(//c/Program Files \\(x86\\)/LibreOffice/program/**)",
       "Bash(pip install *)",
       "Bash(git -C C:/xampp/htdocs/portfolio-website show fe9e05d --stat)",
-      "Bash(git -C C:/xampp/htdocs/portfolio-website show e128920 --stat)"
+      "Bash(git -C C:/xampp/htdocs/portfolio-website show e128920 --stat)",
+      "Bash(git -C C:/xampp/htdocs/portfolio-website status --short)",
+      "Bash(git -C C:/xampp/htdocs/portfolio-website log --oneline -6)"
     ]
   }
 }
