@@ -64,7 +64,7 @@ class AiBudgetService
         // Create usage log
         $log = AiUsageLog::create([
             'service' => $service,
-            'model' => config('blog_automation.ai.model', 'claude-3-5-haiku-20241022'),
+            'model' => config('blog_automation.ai.model', 'claude-haiku-4-5-20251001'),
             'input_tokens' => $inputTokens,
             'output_tokens' => $outputTokens,
             'cost_usd' => $cost,
