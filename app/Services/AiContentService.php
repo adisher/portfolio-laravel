@@ -19,7 +19,7 @@ class AiContentService
     {
         $this->budgetService = $budgetService;
         $this->apiKey = config('blog_automation.ai.api_key', env('ANTHROPIC_API_KEY'));
-        $this->model = config('blog_automation.ai.model', 'claude-3-haiku-20240307');
+        $this->model = config('blog_automation.ai.model', 'claude-3-5-haiku-20241022');
     }
 
     /**

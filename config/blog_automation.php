@@ -48,8 +48,8 @@ return [
     'ai' => [
         'enabled' => env('AI_ENHANCEMENT_ENABLED', true),
         'provider' => 'anthropic',
-        'model' => env('AI_MODEL', 'claude-3-haiku-20240307'),
-        'api_key' => env('CLAUDE_API_KEY', env('ANTHROPIC_API_KEY')),
+        'model' => env('AI_MODEL', 'claude-3-5-haiku-20241022'),
+        'api_key' => env('CLAUDE_API_KEY'),
         'budget_alert_email' => env('AI_BUDGET_ALERT_EMAIL', 'adilsher973@gmail.com'),
         'monthly_budget' => env('AI_MONTHLY_BUDGET', 1.00),
     ],

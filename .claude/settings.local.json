@@ -35,7 +35,18 @@
       "Bash(npm list:*)",
       "Bash(find C:xampphtdocsportfolio-website -name *.php -type f -exec grep -l \"ComplianceCore\\\\|compliance\" {})",
       "Bash(2)",
-      "Bash(php artisan tinker --execute=\":*)"
+      "Bash(php artisan tinker --execute=\":*)",
+      "Bash(git -C C:/xampp/htdocs/portfolio-website status --short public/build/)",
+      "Bash(git -C C:/xampp/htdocs/portfolio-website log --oneline -5)",
+      "Bash(git -C C:/xampp/htdocs/portfolio-website show --stat ec047c8)",
+      "Bash(git -C C:/xampp/htdocs/portfolio-website show --stat a99605b)",
+      "Bash(ls \"D:\\\\awais\\\\adilsherdotpro\\\\Resume\\\\\" 2>&1 || echo \"Directory not found or error\")",
+      "Bash(npm root *)",
+      "Bash(cp C:/Users/user/resume_build.js C:/Users/user/resume_work/resume_build.js)",
+      "Bash(node resume_build.js)",
+      "Read(//c/Program Files/LibreOffice/program/**)",
+      "Read(//c/Program Files \\(x86\\)/LibreOffice/program/**)",
+      "Bash(pip install *)"
     ]
   }
 }
