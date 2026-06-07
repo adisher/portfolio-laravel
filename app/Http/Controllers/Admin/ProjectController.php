@@ -22,7 +22,7 @@ class ProjectController extends Controller
 
     public function create()
     {
-        $categories = Category::active()->get();
+        $categories = Category::active()->forProjects()->get();
         $tags       = Tag::all();
 
         return view('admin.projects.create', compact('categories', 'tags'));
@@ -95,7 +95,7 @@ class ProjectController extends Controller
 
     public function edit(Project $project)
     {
-        $categories = Category::active()->get();
+        $categories = Category::active()->forProjects()->get();
         $tags       = Tag::all();
         $project->load('images');
 

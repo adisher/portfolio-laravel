@@ -17,6 +17,7 @@ class ProjectController extends Controller
             ->paginate(12);
 
         $categories = Category::active()
+            ->forProjects()
             ->withCount(['projects' => function ($query) {
                 $query->where('is_published', true);
             }])
@@ -56,7 +57,7 @@ class ProjectController extends Controller
 
     public function category($slug)
     {
-        $category = Category::active()->where('slug', $slug)->firstOrFail();
+        $category = Category::active()->forProjects()->where('slug', $slug)->firstOrFail();
 
         $projects = Project::published()
             ->notOwnProducts()
@@ -68,6 +69,7 @@ class ProjectController extends Controller
 
         // Get other categories for the "Explore Other Categories" section
         $relatedCategories = Category::active()
+            ->forProjects()
             ->where('id', '!=', $category->id)
             ->withCount(['projects' => function ($query) {
                 $query->where('is_published', true);

@@ -63,7 +63,7 @@
             <a href="{{ route('blog.index') }}" class="filter-btn">
                 All Articles
             </a>
-            @foreach(\App\Models\Category::active()->withCount('blogPosts')->having('blog_posts_count', '>', 0)->get()
+            @foreach(\App\Models\Category::active()->forBlog()->withCount(['blogPosts' => fn($q) => $q->where('status','published')])->orderBy('name')->get()
             as $cat)
             <a href="{{ route('blog.category', $cat->slug) }}"
                 class="filter-btn {{ $cat->id === $category->id ? 'active' : '' }}">

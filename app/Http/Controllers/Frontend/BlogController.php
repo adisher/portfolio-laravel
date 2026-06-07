@@ -18,7 +18,9 @@ class BlogController extends Controller
             ->paginate(10);
 
         $categories = Category::active()
-            ->withCount('blogPosts')
+            ->forBlog()
+            ->withCount(['blogPosts' => fn($q) => $q->where('status', 'published')])
+            ->orderBy('name')
             ->get();
 
         $popularTags = Tag::withCount('blogPosts')
@@ -50,8 +52,8 @@ class BlogController extends Controller
 
     public function category($slug)
     {
-        $category = Category::active()->where('slug', $slug)->firstOrFail();
-        
+        $category = Category::active()->forBlog()->where('slug', $slug)->firstOrFail();
+
         $posts = BlogPost::published()
             ->where('category_id', $category->id)
             ->with(['category', 'tags', 'user'])
@@ -98,8 +100,9 @@ class BlogController extends Controller
 
         // Get sidebar data
         $categories = Category::active()
-            ->withCount('blogPosts')
-            ->orderBy('blog_posts_count', 'desc')
+            ->forBlog()
+            ->withCount(['blogPosts' => fn($q) => $q->where('status', 'published')])
+            ->orderBy('name')
             ->get();
 
         $popularTags = Tag::withCount('blogPosts')

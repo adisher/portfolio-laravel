@@ -50,7 +50,9 @@
       "Bash(git -C C:/xampp/htdocs/portfolio-website show fe9e05d --stat)",
       "Bash(git -C C:/xampp/htdocs/portfolio-website show e128920 --stat)",
       "Bash(git -C C:/xampp/htdocs/portfolio-website status --short)",
-      "Bash(git -C C:/xampp/htdocs/portfolio-website log --oneline -6)"
+      "Bash(git -C C:/xampp/htdocs/portfolio-website log --oneline -6)",
+      "Bash(sed -i 's/$categories = Category::active\\(\\)->get\\(\\);/$categories = Category::active\\(\\)->forBlog\\(\\)->get\\(\\);/g' app/Http/Controllers/Admin/BlogPostController.php)",
+      "Bash(sed -i 's/$categories = Category::active\\(\\)->get\\(\\);/$categories = Category::active\\(\\)->forProjects\\(\\)->get\\(\\);/g' app/Http/Controllers/Admin/ProjectController.php)"
     ]
   }
 }

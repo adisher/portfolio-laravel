@@ -34,7 +34,7 @@
             <select name="category"
                 class="form-select rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700">
                 <option value="">All Categories</option>
-                @foreach(\App\Models\Category::active()->get() as $category)
+                @foreach(\App\Models\Category::active()->forProjects()->get() as $category)
                 <option value="{{ $category->id }}" {{ request('category')==$category->id ? 'selected' : '' }}>
                     {{ $category->name }}
                 </option>

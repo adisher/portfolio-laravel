@@ -36,7 +36,7 @@ class BlogPostController extends Controller
 
     public function create()
     {
-        $categories = Category::active()->get();
+        $categories = Category::active()->forBlog()->get();
         $tags       = Tag::all();
 
         return view('admin.blog-posts.create', compact('categories', 'tags'));
@@ -100,7 +100,7 @@ class BlogPostController extends Controller
 
     public function edit(BlogPost $blogPost)
     {
-        $categories = Category::active()->get();
+        $categories = Category::active()->forBlog()->get();
         $tags       = Tag::all();
 
         return view('admin.blog-posts.edit', compact('blogPost', 'categories', 'tags'));

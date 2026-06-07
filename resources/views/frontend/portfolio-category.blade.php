@@ -59,7 +59,7 @@
             <a href="{{ route('portfolio.index') }}" class="filter-btn">
                 All Projects
             </a>
-            @foreach(\App\Models\Category::active()->withCount('projects')->having('projects_count', '>', 0)->get() as $cat)
+            @foreach(\App\Models\Category::active()->forProjects()->withCount('projects')->having('projects_count', '>', 0)->get() as $cat)
             <a href="{{ route('portfolio.category', $cat->slug) }}" 
                class="filter-btn {{ $cat->id === $category->id ? 'active' : '' }}">
                 {{ $cat->name }} ({{ $cat->projects_count }})
