@@ -52,7 +52,10 @@
       "Bash(git -C C:/xampp/htdocs/portfolio-website status --short)",
       "Bash(git -C C:/xampp/htdocs/portfolio-website log --oneline -6)",
       "Bash(sed -i 's/$categories = Category::active\\(\\)->get\\(\\);/$categories = Category::active\\(\\)->forBlog\\(\\)->get\\(\\);/g' app/Http/Controllers/Admin/BlogPostController.php)",
-      "Bash(sed -i 's/$categories = Category::active\\(\\)->get\\(\\);/$categories = Category::active\\(\\)->forProjects\\(\\)->get\\(\\);/g' app/Http/Controllers/Admin/ProjectController.php)"
+      "Bash(sed -i 's/$categories = Category::active\\(\\)->get\\(\\);/$categories = Category::active\\(\\)->forProjects\\(\\)->get\\(\\);/g' app/Http/Controllers/Admin/ProjectController.php)",
+      "Bash(ls \"D:/awais/adilsherdotpro/Resume/~\\\\$il Sher - Resume 2026.docx\" 2>/dev/null && echo \"STILL OPEN IN WORD\" || echo \"NOT LOCKED - safe to write\")",
+      "Bash(sed 's|D:/awais/adilsherdotpro/Resume/Adil Sher - Resume 2026.docx|C:/Users/user/resume_work/test_output.docx|' resume_build.js)",
+      "Bash(node test_build.js)"
     ]
   }
 }
