@@ -29,10 +29,13 @@ class AutoPublishService
     /**
      * Run the auto-publish process.
      *
-     * @param bool     $dryRun Simulate without publishing
-     * @param int|null $max    Override daily limit and publish up to this many posts
+     * Publishes the newest-fetched qualifying articles, balanced so each blog
+     * category receives at least the configured number of posts per day.
+     *
+     * @param bool     $dryRun         Simulate without publishing
+     * @param int|null $perCategoryMax Override posts-per-category-per-day
      */
-    public function run(bool $dryRun = false, ?int $max = null): array
+    public function run(bool $dryRun = false, ?int $perCategoryMax = null): array
     {
         $settings = AutoPublishSetting::getInstance();
 
@@ -40,15 +43,9 @@ class AutoPublishService
             return ['status' => 'disabled', 'message' => 'Auto-publish is disabled'];
         }
 
-        // Only enforce daily limit when no --max override is given
-        if ($max === null && !$settings->canPublishMore()) {
-            return [
-                'status' => 'limit_reached',
-                'message' => 'Daily publish limit reached',
-                'published_today' => $settings->posts_published_today,
-                'max_per_day' => $settings->max_posts_per_day,
-            ];
-        }
+        $perCategory   = $perCategoryMax ?? (int) config('blog_automation.publishing.per_category_per_day', 1);
+        $freshnessDays = (int) config('blog_automation.publishing.freshness_days', 30);
+        $minScore      = $settings->min_score_for_auto_publish;
 
         $results = [
             'status' => 'success',
@@ -58,87 +55,72 @@ class AutoPublishService
             'posts' => [],
         ];
 
-        // Get eligible articles — use override limit or settings limit
-        $articles = $this->getEligibleArticles($settings, $max);
+        $categories = Category::active()->forBlog()->get();
 
-        if ($articles->isEmpty()) {
-            return [
-                'status' => 'no_articles',
-                'message' => 'No eligible articles to publish',
-            ];
+        foreach ($categories as $category) {
+            // How many curated posts already published today in this category
+            $publishedToday = BlogPost::where('category_id', $category->id)
+                ->where('source_type', 'curated')
+                ->whereDate('published_at', now()->toDateString())
+                ->count();
+
+            $toPublish = max(0, $perCategory - $publishedToday);
+            if ($toPublish === 0) {
+                continue;
+            }
+
+            // Newest-fetched qualifying articles for this category, within freshness window
+            $articles = CollectedArticle::where('status', 'approved')
+                ->where('is_duplicate', false)
+                ->whereNull('blog_post_id')
+                ->where('assigned_category_id', $category->id)
+                ->where('relevance_score', '>=', $minScore)
+                ->where('created_at', '>=', now()->subDays($freshnessDays))
+                ->whereHas('rssSource', fn($q) => $q->where('auto_publish', true))
+                ->orderByDesc('created_at')
+                ->limit($toPublish)
+                ->get();
+
+            foreach ($articles as $article) {
+                try {
+                    if ($dryRun) {
+                        $results['posts'][] = [
+                            'article_id' => $article->id,
+                            'title' => $article->title,
+                            'score' => $article->relevance_score,
+                            'category' => $category->name,
+                            'action' => 'would_publish',
+                        ];
+                        $results['published']++;
+                        continue;
+                    }
+
+                    $post = $this->publishArticle($article, $settings);
+
+                    if ($post) {
+                        $results['published']++;
+                        $results['posts'][] = [
+                            'article_id' => $article->id,
+                            'post_id' => $post->id,
+                            'title' => $post->title,
+                            'slug' => $post->slug,
+                            'category' => $category->name,
+                        ];
+                    } else {
+                        $results['skipped']++;
+                    }
+                } catch (\Exception $e) {
+                    Log::error("Auto-publish failed for article {$article->id}: " . $e->getMessage());
+                    $results['errors']++;
+                }
+            }
         }
 
-        $publishedCount = 0;
-
-        foreach ($articles as $article) {
-            // Stop if we hit the max override or the daily limit (when no override)
-            if ($max !== null && $publishedCount >= $max) {
-                break;
-            }
-            if ($max === null && !$settings->canPublishMore()) {
-                break;
-            }
-
-            try {
-                if ($dryRun) {
-                    $results['posts'][] = [
-                        'article_id' => $article->id,
-                        'title' => $article->title,
-                        'score' => $article->relevance_score,
-                        'category' => $article->assignedCategory?->name,
-                        'action' => 'would_publish',
-                    ];
-                    $results['published']++;
-                    $publishedCount++;
-                    continue;
-                }
-
-                $post = $this->publishArticle($article, $settings);
-
-                if ($post) {
-                    $settings->incrementPostCount();
-                    $results['published']++;
-                    $publishedCount++;
-                    $results['posts'][] = [
-                        'article_id' => $article->id,
-                        'post_id' => $post->id,
-                        'title' => $post->title,
-                        'slug' => $post->slug,
-                        'category' => $post->category?->name,
-                    ];
-                } else {
-                    $results['skipped']++;
-                }
-
-            } catch (\Exception $e) {
-                Log::error("Auto-publish failed for article {$article->id}: " . $e->getMessage());
-                $results['errors']++;
-            }
+        if ($results['published'] === 0 && empty($results['posts'])) {
+            return ['status' => 'no_articles', 'message' => 'No eligible articles to publish'];
         }
 
         return $results;
-    }
-
-    /**
-     * Get eligible articles for publishing.
-     *
-     * @param int|null $maxOverride Use this limit instead of the daily remaining count
-     */
-    protected function getEligibleArticles(AutoPublishSetting $settings, ?int $maxOverride = null)
-    {
-        $limit = $maxOverride ?? $settings->remaining_posts;
-
-        return CollectedArticle::where('status', 'approved')
-            ->where('is_duplicate', false)
-            ->whereNull('blog_post_id')
-            ->whereNotNull('assigned_category_id')
-            ->where('relevance_score', '>=', $settings->min_score_for_auto_publish)
-            ->whereHas('rssSource', function ($query) {
-                $query->where('auto_publish', true);
-            })
-            ->orderByDesc('relevance_score')
-            ->limit($limit)
-            ->get();
     }
 
     /**

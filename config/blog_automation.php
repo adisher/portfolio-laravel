@@ -22,6 +22,12 @@ return [
         'min_score' => env('AUTO_PUBLISH_MIN_SCORE', 85),
         'require_review_below' => env('AUTO_PUBLISH_REVIEW_BELOW', 75),
         'times' => ['09:00', '13:00', '17:00'],
+
+        // Publish at least this many posts per blog category per day
+        'per_category_per_day' => env('AUTO_PUBLISH_PER_CATEGORY', 1),
+
+        // Only auto-publish articles fetched within this many days (freshness cap)
+        'freshness_days' => env('AUTO_PUBLISH_FRESHNESS_DAYS', 30),
     ],
 
     /*

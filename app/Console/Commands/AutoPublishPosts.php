@@ -8,43 +8,31 @@ use Illuminate\Console\Command;
 class AutoPublishPosts extends Command
 {
     protected $signature = 'posts:auto-publish
-        {--max= : Override maximum posts to publish (bypasses daily limit)}
-        {--reset-limit : Reset todays publish counter before running}
+        {--per-category= : Override posts published per category per day}
         {--dry-run : Preview what would be published without actually publishing}';
 
-    protected $description = 'Auto-publish approved articles as blog posts';
+    protected $description = 'Auto-publish newest articles, balanced per blog category';
 
     public function handle(AutoPublishService $publishService): int
     {
-        $dryRun     = $this->option('dry-run');
-        $max        = $this->option('max') ? (int) $this->option('max') : null;
-        $resetLimit = $this->option('reset-limit');
+        $dryRun      = $this->option('dry-run');
+        $perCategory = $this->option('per-category') ? (int) $this->option('per-category') : null;
 
         if ($dryRun) {
             $this->info('DRY RUN - No posts will be published');
         }
 
-        if ($resetLimit) {
-            $settings = \App\Models\AutoPublishSetting::getInstance();
-            $settings->update(['posts_published_today' => 0, 'last_publish_date' => now()->toDateString()]);
-            $this->info('Daily counter reset to 0.');
-        }
-
-        if ($max !== null) {
-            $this->info("Max override: publishing up to {$max} posts (daily limit bypassed).");
+        if ($perCategory !== null) {
+            $this->info("Override: publishing up to {$perCategory} post(s) per category.");
         }
 
         $this->info('Starting auto-publish process...');
 
-        $result = $publishService->run($dryRun, $max);
+        $result = $publishService->run($dryRun, $perCategory);
 
         switch ($result['status']) {
             case 'disabled':
                 $this->warn('Auto-publish is disabled. Enable it in settings.');
-                return Command::SUCCESS;
-
-            case 'limit_reached':
-                $this->info("Daily publish limit reached ({$result['published_today']}/{$result['max_per_day']})");
                 return Command::SUCCESS;
 
             case 'no_articles':

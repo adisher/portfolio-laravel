@@ -49,21 +49,10 @@ Schedule::command('articles:process --auto-approve --limit=200')
     ->runInBackground()
     ->withoutOverlapping();
 
-// Auto-publish at 9 AM
+// Auto-publish — once daily at 9 AM, publishes newest article per blog category.
+// Per-category quota means a single run fills every category for the day.
 Schedule::command('posts:auto-publish')
     ->dailyAt('09:00')
-    ->onOneServer()
-    ->runInBackground();
-
-// Auto-publish at 1 PM
-Schedule::command('posts:auto-publish')
-    ->dailyAt('13:00')
-    ->onOneServer()
-    ->runInBackground();
-
-// Auto-publish at 5 PM
-Schedule::command('posts:auto-publish')
-    ->dailyAt('17:00')
     ->onOneServer()
     ->runInBackground();
 
