@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\BlogPost;
 use App\Models\Category;
+use App\Models\FeatureFlag;
 use App\Models\Project;
-use App\Models\Sport;
 use App\Models\SportMatch;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
@@ -43,12 +43,7 @@ class SitemapController extends Controller
             ->add(Url::create(route('contact'))
                 ->setLastModificationDate(now())
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
-                ->setPriority(0.7))
-            
-            ->add(Url::create(route('rss-feeds'))
-                ->setLastModificationDate(now())
-                ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
-                ->setPriority(0.5));
+                ->setPriority(0.7));
 
         // Add published projects
         Project::published()
@@ -110,42 +105,33 @@ class SitemapController extends Controller
                 }
             });
 
-        // Add sports index page
-        $sitemap->add(
-            Url::create(route('sports.index'))
-                ->setLastModificationDate(now())
-                ->setChangeFrequency(Url::CHANGE_FREQUENCY_HOURLY)
-                ->setPriority(0.9)
-        );
-
-        // Add sport category pages
-        Sport::active()->each(function ($sport) use ($sitemap) {
+        // Add sports pages — only when the sports section is enabled
+        if (FeatureFlag::enabled('page.sports')) {
             $sitemap->add(
-                Url::create(route('sports.sport', $sport->slug))
+                Url::create(route('sports.index'))
                     ->setLastModificationDate(now())
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_HOURLY)
-                    ->setPriority(0.8)
+                    ->setPriority(0.9)
             );
-        });
 
-        // Add match pages (recent + upcoming)
-        SportMatch::whereIn('status', ['live', 'completed', 'scheduled'])
-            ->where('scheduled_at', '>=', now()->subDays(30))
-            ->with('sport')
-            ->chunk(100, function ($matches) use ($sitemap) {
-                foreach ($matches as $match) {
-                    $sitemap->add(
-                        Url::create(route('sports.match', [$match->sport->slug, $match->slug]))
-                            ->setLastModificationDate($match->updated_at)
-                            ->setChangeFrequency(
-                                $match->status === 'live'
-                                    ? Url::CHANGE_FREQUENCY_ALWAYS
-                                    : Url::CHANGE_FREQUENCY_DAILY
-                            )
-                            ->setPriority($match->status === 'live' ? 0.9 : 0.7)
-                    );
-                }
-            });
+            // Add match pages (recent + upcoming)
+            SportMatch::whereIn('status', ['live', 'completed', 'scheduled'])
+                ->where('scheduled_at', '>=', now()->subDays(30))
+                ->chunk(100, function ($matches) use ($sitemap) {
+                    foreach ($matches as $match) {
+                        $sitemap->add(
+                            Url::create(route('sports.match', $match->slug))
+                                ->setLastModificationDate($match->updated_at)
+                                ->setChangeFrequency(
+                                    $match->status === 'live'
+                                        ? Url::CHANGE_FREQUENCY_ALWAYS
+                                        : Url::CHANGE_FREQUENCY_DAILY
+                                )
+                                ->setPriority($match->status === 'live' ? 0.9 : 0.7)
+                        );
+                    }
+                });
+        }
 
         return $sitemap->toResponse(request());
     }
@@ -270,40 +256,32 @@ class SitemapController extends Controller
                 }
             });
 
-        // Add sports pages
-        $sitemap->add(
-            Url::create(route('sports.index'))
-                ->setLastModificationDate(now())
-                ->setChangeFrequency(Url::CHANGE_FREQUENCY_HOURLY)
-                ->setPriority(0.9)
-        );
-
-        Sport::active()->each(function ($sport) use ($sitemap) {
+        // Add sports pages — only when the sports section is enabled
+        if (FeatureFlag::enabled('page.sports')) {
             $sitemap->add(
-                Url::create(route('sports.sport', $sport->slug))
+                Url::create(route('sports.index'))
                     ->setLastModificationDate(now())
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_HOURLY)
-                    ->setPriority(0.8)
+                    ->setPriority(0.9)
             );
-        });
 
-        SportMatch::whereIn('status', ['live', 'completed', 'scheduled'])
-            ->where('scheduled_at', '>=', now()->subDays(30))
-            ->with('sport')
-            ->chunk(100, function ($matches) use ($sitemap) {
-                foreach ($matches as $match) {
-                    $sitemap->add(
-                        Url::create(route('sports.match', [$match->sport->slug, $match->slug]))
-                            ->setLastModificationDate($match->updated_at)
-                            ->setChangeFrequency(
-                                $match->status === 'live'
-                                    ? Url::CHANGE_FREQUENCY_ALWAYS
-                                    : Url::CHANGE_FREQUENCY_DAILY
-                            )
-                            ->setPriority($match->status === 'live' ? 0.9 : 0.7)
-                    );
-                }
-            });
+            SportMatch::whereIn('status', ['live', 'completed', 'scheduled'])
+                ->where('scheduled_at', '>=', now()->subDays(30))
+                ->chunk(100, function ($matches) use ($sitemap) {
+                    foreach ($matches as $match) {
+                        $sitemap->add(
+                            Url::create(route('sports.match', $match->slug))
+                                ->setLastModificationDate($match->updated_at)
+                                ->setChangeFrequency(
+                                    $match->status === 'live'
+                                        ? Url::CHANGE_FREQUENCY_ALWAYS
+                                        : Url::CHANGE_FREQUENCY_DAILY
+                                )
+                                ->setPriority($match->status === 'live' ? 0.9 : 0.7)
+                        );
+                    }
+                });
+        }
 
         // Save sitemap to public directory
         $sitemap->writeToFile(public_path('sitemap.xml'));
