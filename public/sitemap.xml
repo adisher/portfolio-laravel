@@ -1,33 +1,263 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
     <url>
-    <loc>http://localhost:8000</loc>
-    <lastmod>2025-08-09T07:09:53+00:00</lastmod>
+    <loc>http://localhost</loc>
+    <lastmod>2026-06-10T15:02:42+05:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
             </url>
     <url>
-    <loc>http://localhost:8000/about</loc>
-    <lastmod>2025-08-09T07:09:53+00:00</lastmod>
+    <loc>http://localhost/about</loc>
+    <lastmod>2026-06-10T15:02:42+05:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
             </url>
     <url>
-    <loc>http://localhost:8000/portfolio</loc>
-    <lastmod>2025-08-09T07:09:53+00:00</lastmod>
+    <loc>http://localhost/portfolio</loc>
+    <lastmod>2026-06-10T15:02:42+05:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
             </url>
     <url>
-    <loc>http://localhost:8000/blog</loc>
-    <lastmod>2025-08-09T07:09:53+00:00</lastmod>
+    <loc>http://localhost/blog</loc>
+    <lastmod>2026-06-10T15:02:42+05:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
             </url>
     <url>
-    <loc>http://localhost:8000/contact</loc>
-    <lastmod>2025-08-09T07:09:53+00:00</lastmod>
+    <loc>http://localhost/contact</loc>
+    <lastmod>2026-06-10T15:02:42+05:00</lastmod>
     <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+            </url>
+    <url>
+    <loc>http://localhost/portfolio/deikhlo</loc>
+    <lastmod>2026-05-22T17:59:26+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+    <image:loc>http://localhost/storage/projects/bPoKxGzCUChTNE8JbL7XBfxwLWsgJypWWygbsFhl.jpg</image:loc>
+    <image:caption>Deikhlo</image:caption>
+</image:image>
+        </url>
+    <url>
+    <loc>http://localhost/portfolio/real-mind-psychotherapy</loc>
+    <lastmod>2026-05-22T17:43:53+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/portfolio/amir-boutique</loc>
+    <lastmod>2026-05-13T01:58:15+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+    <image:loc>http://localhost/storage/projects/TtYxXsWygfORwjLePozMNTUeDeG8aUv2vb3hWMpa.jpg</image:loc>
+    <image:caption>Amir Boutique</image:caption>
+</image:image>
+        </url>
+    <url>
+    <loc>http://localhost/portfolio/zong-mobile-tv</loc>
+    <lastmod>2026-04-13T01:10:29+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+    <image:loc>http://localhost/storage/projects/ZmgxhnSmzs0xZn1Y49fkodtipfe6waHxrBifOA1K.jpg</image:loc>
+    <image:caption>Zong Mobile TV</image:caption>
+</image:image>
+        </url>
+    <url>
+    <loc>http://localhost/portfolio/deikho-reels</loc>
+    <lastmod>2026-04-13T01:09:42+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+    <image:loc>http://localhost/storage/projects/NIsIGVhkgYHY8HklDO9d6n3rOLwHEsbEPskd9IOb.jpg</image:loc>
+    <image:caption>Deikho Reels</image:caption>
+</image:image>
+        </url>
+    <url>
+    <loc>http://localhost/portfolio/assist-me-ai</loc>
+    <lastmod>2026-04-11T20:47:59+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+    <image:loc>http://localhost/storage/projects/FuZNjg5xabS1c4taghZUS4qoSi4zjVLTy63kWSzI.jpg</image:loc>
+    <image:caption>OZGPT</image:caption>
+</image:image>
+        </url>
+    <url>
+    <loc>http://localhost/portfolio/compliancecore</loc>
+    <lastmod>2026-03-30T01:03:20+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+    <image:loc>http://localhost/storage/projects/YCAPK8votnFW3l5dkN4ZyYzPMKQWCZZIQIpDQJ8Z.jpg</image:loc>
+    <image:caption>ComplianceCore</image:caption>
+</image:image>
+        </url>
+    <url>
+    <loc>http://localhost/portfolio/biolink-pro</loc>
+    <lastmod>2026-03-06T15:52:42+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+    <image:loc>http://localhost/storage/projects/WjzdknMrkOrNRwCS48avvagblMsRzUKSZd74T3yE.jpg</image:loc>
+    <image:caption>BioLink Pro</image:caption>
+</image:image>
+        </url>
+    <url>
+    <loc>http://localhost/portfolio/panacloud-bootcamp</loc>
+    <lastmod>2025-08-16T18:50:53+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+    <image:loc>http://localhost/storage/projects/JcR7PHC0DlAWcllrWNW7UehaIDZ3l8jlfUsQPzZr.png</image:loc>
+    <image:caption>Panacloud Bootcamp</image:caption>
+</image:image>
+        </url>
+    <url>
+    <loc>http://localhost/blog/introducing-chatgpt-and-whisper-apis</loc>
+    <lastmod>2026-06-06T18:38:20+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/introducing-parental-controls</loc>
+    <lastmod>2026-06-06T18:38:04+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/introducing-chatgpt-go-now-available-worldwide</loc>
+    <lastmod>2026-06-06T18:37:47+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/growing-impact-and-scale-with-chatgpt</loc>
+    <lastmod>2026-06-06T18:37:31+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/taisei-corporation-shapes-the-next-generation-of-talent-with-chatgpt</loc>
+    <lastmod>2026-06-06T18:37:15+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/gpt-51-a-smarter-more-conversational-chatgpt</loc>
+    <lastmod>2026-06-06T18:36:59+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/introducing-gpt-4o-and-more-tools-to-chatgpt-free-users</loc>
+    <lastmod>2026-06-06T18:36:41+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/expanding-data-residency-access-to-business-customers-worldwide</loc>
+    <lastmod>2026-06-06T18:36:24+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/instacart-and-openai-partner-on-ai-shopping-experiences</loc>
+    <lastmod>2026-06-06T18:36:08+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/our-approach-to-advertising-and-expanding-access-to-chatgpt</loc>
+    <lastmod>2026-06-06T18:35:51+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/fighting-the-new-york-times-invasion-of-user-privacy</loc>
+    <lastmod>2026-06-06T18:35:35+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/openais-new-economic-analysis</loc>
+    <lastmod>2026-01-31T16:40:39+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/the-washington-post-partners-with-openai-on-search-content</loc>
+    <lastmod>2026-01-31T12:36:31+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/from-boxed-in-to-boundless-my-take-on-pwa-window-controls-overlay</loc>
+    <lastmod>2025-10-05T11:26:16+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/the-four-css-properties-challenge-what-your-choices-say-about-you</loc>
+    <lastmod>2025-10-05T11:21:16+05:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>http://localhost/portfolio/category/ecommerce</loc>
+    <lastmod>2025-08-07T16:42:52+05:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+            </url>
+    <url>
+    <loc>http://localhost/portfolio/category/portfolio</loc>
+    <lastmod>2025-08-07T16:42:52+05:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+            </url>
+    <url>
+    <loc>http://localhost/portfolio/category/business</loc>
+    <lastmod>2025-08-07T16:42:52+05:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+            </url>
+    <url>
+    <loc>http://localhost/portfolio/category/entertainment</loc>
+    <lastmod>2025-08-07T16:42:52+05:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+            </url>
+    <url>
+    <loc>http://localhost/portfolio/category/technology</loc>
+    <lastmod>2025-08-07T16:42:52+05:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/category/web-development</loc>
+    <lastmod>2026-01-31T10:52:38+05:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+            </url>
+    <url>
+    <loc>http://localhost/blog/category/ai-machine-learning</loc>
+    <lastmod>2026-01-31T10:52:38+05:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+            </url>
+    <url>
+    <loc>http://localhost/portfolio/category/saas</loc>
+    <lastmod>2026-03-26T17:51:26+05:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+            </url>
+    <url>
+    <loc>http://localhost/portfolio/category/ott</loc>
+    <lastmod>2026-03-30T18:47:41+05:00</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
 </urlset>

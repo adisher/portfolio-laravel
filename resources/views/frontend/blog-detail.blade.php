@@ -2,6 +2,13 @@
 
 @section('title', $post->meta_title ?: $post->title . ' - Blog')
 @section('description', $post->meta_description ?: $post->excerpt)
+@section('og_type', 'article')
+@if($post->featured_image)
+@section('og_image', \Illuminate\Support\Facades\Storage::url($post->featured_image))
+@endif
+@if($post->published_at)
+@section('og_published_time', $post->published_at->toIso8601String())
+@endif
 
 @push('schema')
 <x-schema.article :post="$post" />

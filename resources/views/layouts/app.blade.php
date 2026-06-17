@@ -26,20 +26,23 @@
     <link rel="sitemap" type="application/xml" href="{{ url('/sitemap.xml') }}">
 
     <!-- Open Graph Meta Tags -->
-    <meta property="og:type" content="website">
+    <meta property="og:type" content="@yield('og_type', 'website')">
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:title" content="@yield('title', 'Portfolio - Full Stack Developer')">
     <meta property="og:description"
         content="@yield('description', 'Professional portfolio showcasing web development projects and technical expertise')">
-    <meta property="og:image" content="{{ asset('og-image.png') }}">
+    <meta property="og:image" content="@yield('og_image', asset('og-image.png'))">
     <meta property="og:site_name" content="{{ config('app.name') }}">
+    @hasSection('og_published_time')
+    <meta property="article:published_time" content="@yield('og_published_time')">
+    @endif
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="{{ url()->current() }}">
     <meta name="twitter:title" content="@yield('title', 'Portfolio - Full Stack Developer')">
     <meta name="twitter:description" content="@yield('description', 'Professional portfolio showcasing web development projects and technical expertise')">
-    <meta name="twitter:image" content="{{ asset('og-image.png') }}">
+    <meta name="twitter:image" content="@yield('og_image', asset('og-image.png'))">
 
     @stack('meta')
 

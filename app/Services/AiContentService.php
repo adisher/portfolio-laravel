@@ -6,6 +6,8 @@ use App\Models\CollectedArticle;
 use App\Models\AutoPublishSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Exception;
 
 class AiContentService
@@ -23,46 +25,113 @@ class AiContentService
     }
 
     /**
-     * Fetch full article text from the original URL.
-     * Falls back to the RSS description if fetching fails.
+     * Fetch the source article once, returning both the cleaned text and a
+     * stored featured image (extracted from og:image / twitter:image).
+     *
+     * @return array{text: string, image: ?string}
      */
-    protected function fetchFullContent(CollectedArticle $article): string
+    protected function fetchSource(CollectedArticle $article): array
     {
-        if (empty($article->url)) {
-            return $article->description ?? '';
+        $fallback = ['text' => $article->description ?? '', 'image' => null];
+
+        $url = trim($article->url ?? '');
+        if (empty($url)) {
+            return $fallback;
         }
 
         try {
             $response = Http::timeout(15)
                 ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; Portfolio-Bot/1.0)'])
-                ->get($article->url);
+                ->get($url);
 
             if (!$response->successful()) {
-                return $article->description ?? '';
+                return $fallback;
             }
 
             $html = $response->body();
 
-            // Strip scripts, styles, nav, footer, header, aside
-            $html = preg_replace('/<(script|style|nav|footer|header|aside|form|iframe)[^>]*>.*?<\/\1>/si', '', $html);
+            // Extract + store the article's social image before stripping tags
+            $image = $this->extractAndStoreImage($html, $article);
 
-            // Strip all remaining HTML tags
-            $text = strip_tags($html);
+            // Strip scripts, styles, nav, footer, header, aside for text extraction
+            $clean = preg_replace('/<(script|style|nav|footer|header|aside|form|iframe)[^>]*>.*?<\/\1>/si', '', $html);
+            $text = trim(preg_replace('/\s+/', ' ', strip_tags($clean)));
 
-            // Collapse whitespace
-            $text = preg_replace('/\s+/', ' ', $text);
-            $text = trim($text);
-
-            // Limit to ~6000 chars to stay within token budget
             if (strlen($text) > 6000) {
                 $text = substr($text, 0, 6000) . '...';
             }
 
-            return strlen($text) > 200 ? $text : ($article->description ?? '');
+            return [
+                'text' => strlen($text) > 200 ? $text : ($article->description ?? ''),
+                'image' => $image,
+            ];
 
         } catch (Exception $e) {
-            Log::info("Could not fetch full content for article {$article->id}: " . $e->getMessage());
-            return $article->description ?? '';
+            Log::info("Could not fetch source for article {$article->id}: " . $e->getMessage());
+            return $fallback;
+        }
+    }
+
+    /**
+     * Extract og:image / twitter:image from page HTML, download it, and store
+     * it on the public disk. Returns the storage path or null on any failure.
+     */
+    public function extractAndStoreImage(string $html, CollectedArticle $article): ?string
+    {
+        $imageUrl = null;
+        $patterns = [
+            '/<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']/i',
+            '/<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']/i',
+            '/<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)["\']/i',
+        ];
+        foreach ($patterns as $p) {
+            if (preg_match($p, $html, $m)) {
+                $imageUrl = html_entity_decode($m[1]);
+                break;
+            }
+        }
+        if (!$imageUrl) {
+            return null;
+        }
+
+        // Resolve protocol-relative and root-relative URLs
+        if (str_starts_with($imageUrl, '//')) {
+            $imageUrl = 'https:' . $imageUrl;
+        } elseif (str_starts_with($imageUrl, '/')) {
+            $parts = parse_url(trim($article->url ?? ''));
+            $imageUrl = ($parts['scheme'] ?? 'https') . '://' . ($parts['host'] ?? '') . $imageUrl;
+        }
+
+        try {
+            $img = Http::timeout(15)->withHeaders(['User-Agent' => 'Mozilla/5.0'])->get($imageUrl);
+            if (!$img->successful()) {
+                return null;
+            }
+
+            $body = $img->body();
+            if (strlen($body) < 2000) {
+                return null; // too small — likely a tracking pixel or placeholder
+            }
+
+            $ct = (string) $img->header('Content-Type');
+            if (!str_contains($ct, 'image')) {
+                return null;
+            }
+            $ext = match (true) {
+                str_contains($ct, 'png')  => 'png',
+                str_contains($ct, 'webp') => 'webp',
+                str_contains($ct, 'gif')  => 'gif',
+                default                    => 'jpg',
+            };
+
+            $path = 'blog/' . Str::slug(Str::limit($article->title, 50, '')) . '-' . $article->id . '.' . $ext;
+            Storage::disk('public')->put($path, $body);
+
+            return $path;
+
+        } catch (Exception $e) {
+            Log::info("Could not download image for article {$article->id}: " . $e->getMessage());
+            return null;
         }
     }
 
@@ -79,9 +148,9 @@ class AiContentService
 
         $settings = AutoPublishSetting::getInstance();
 
-        // Fetch the full article content from the original URL
-        $fullContent = $this->fetchFullContent($article);
-        $prompt = $this->buildTransformationPrompt($article, $settings, $fullContent);
+        // Fetch the source once: cleaned text + stored featured image
+        $source = $this->fetchSource($article);
+        $prompt = $this->buildTransformationPrompt($article, $settings, $source['text']);
 
         try {
             $response = $this->callApi($prompt);
@@ -92,6 +161,9 @@ class AiContentService
 
             // Parse the response
             $content = $this->parseTransformationResponse($response['content'], $article);
+
+            // Attach the stored featured image (if one was extracted)
+            $content['image'] = $source['image'];
 
             // Log usage
             $this->budgetService->logUsage(

@@ -55,7 +55,8 @@
       "Bash(sed -i 's/$categories = Category::active\\(\\)->get\\(\\);/$categories = Category::active\\(\\)->forProjects\\(\\)->get\\(\\);/g' app/Http/Controllers/Admin/ProjectController.php)",
       "Bash(ls \"D:/awais/adilsherdotpro/Resume/~\\\\$il Sher - Resume 2026.docx\" 2>/dev/null && echo \"STILL OPEN IN WORD\" || echo \"NOT LOCKED - safe to write\")",
       "Bash(sed 's|D:/awais/adilsherdotpro/Resume/Adil Sher - Resume 2026.docx|C:/Users/user/resume_work/test_output.docx|' resume_build.js)",
-      "Bash(node test_build.js)"
+      "Bash(node test_build.js)",
+      "Bash(node resume_build_backend.js)"
     ]
   }
 }
