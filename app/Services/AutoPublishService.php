@@ -149,7 +149,7 @@ class AutoPublishService
         $post = BlogPost::create([
             'title' => !empty($content['title']) ? $content['title'] : trim($article->title),
             'slug' => Str::slug($article->title),
-            'featured_image' => $content['image'] ?? null,
+            'featured_image' => $content['image'] ?? $this->categoryDefaultImage($article),
             'excerpt' => !empty($content['tldr']) ? $content['tldr'] : Str::limit(strip_tags($article->description ?? ''), 280),
             'content' => $content['content'] ?? $this->generateBasicContent($article)['content'],
             'category_id' => $article->assigned_category_id,
@@ -183,6 +183,20 @@ class AutoPublishService
         Log::info("Auto-published article {$article->id} as blog post {$post->id}");
 
         return $post;
+    }
+
+    /**
+     * Branded per-category fallback image when no usable source image exists.
+     */
+    protected function categoryDefaultImage(CollectedArticle $article): ?string
+    {
+        $slug = $article->assignedCategory?->slug;
+        if (!$slug) {
+            return null;
+        }
+
+        $path = 'blog-defaults/' . $slug . '.svg';
+        return \Illuminate\Support\Facades\Storage::disk('public')->exists($path) ? $path : null;
     }
 
     /**

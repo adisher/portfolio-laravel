@@ -3,7 +3,7 @@
 @section('title', $post->meta_title ?: $post->title . ' - Blog')
 @section('description', $post->meta_description ?: $post->excerpt)
 @section('og_type', 'article')
-@if($post->featured_image)
+@if($post->featured_image && !\Illuminate\Support\Str::endsWith($post->featured_image, '.svg'))
 @section('og_image', \Illuminate\Support\Facades\Storage::url($post->featured_image))
 @endif
 @if($post->published_at)
@@ -273,6 +273,27 @@
         </div>
     </div>
 </article>
+
+<!-- Author / Work-with-me CTA (internal links to cornerstone pages) -->
+<section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+    <div class="card p-6 lg:p-8 bg-gradient-to-br from-midnight to-ocean text-soft-light">
+        <div class="flex flex-col md:flex-row md:items-center gap-6">
+            <div class="flex-1">
+                <h3 class="text-xl font-bold text-soft-light mb-2">Written by Adil Sher</h3>
+                <p class="text-soft text-sm leading-relaxed">
+                    Full stack developer building high-traffic platforms, AI services, and custom web applications.
+                    Explore my <a href="{{ route('portfolio.index') }}" class="text-teal hover:underline font-medium">portfolio</a>,
+                    learn <a href="{{ route('about') }}" class="text-teal hover:underline font-medium">about my background</a>,
+                    or <a href="{{ route('contact') }}" class="text-teal hover:underline font-medium">get in touch</a>.
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-3 flex-shrink-0">
+                <a href="{{ route('portfolio.index') }}" class="btn-primary text-sm">View Portfolio</a>
+                <a href="{{ route('contact') }}" class="btn-secondary border-soft/30 text-soft-light hover:border-teal hover:text-teal text-sm">Contact</a>
+            </div>
+        </div>
+    </div>
+</section>
 
 <!-- Related Posts -->
 @if($relatedPosts->count())

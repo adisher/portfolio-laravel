@@ -62,6 +62,12 @@ Schedule::command('articles:cleanup --days=30 --include-duplicates')
     ->onOneServer()
     ->runInBackground();
 
+// Ensure every blog category has a branded fallback image - Sundays at 4 AM
+Schedule::command('blog:generate-category-images')
+    ->weeklyOn(0, '04:00')
+    ->onOneServer()
+    ->runInBackground();
+
 // Monthly AI budget reset - 1st of each month at midnight
 Schedule::call(function () {
     app(AiBudgetService::class)->resetMonthlyUsage();

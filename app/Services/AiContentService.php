@@ -117,6 +117,12 @@ class AiContentService
             if (!str_contains($ct, 'image')) {
                 return null;
             }
+
+            // Quality gate: reject images too small to look sharp on the post hero
+            $dims = @getimagesizefromstring($body);
+            if (!$dims || $dims[0] < 800) {
+                return null;
+            }
             $ext = match (true) {
                 str_contains($ct, 'png')  => 'png',
                 str_contains($ct, 'webp') => 'webp',

@@ -41,11 +41,25 @@ class BlogController extends Controller
         // Increment view count
         $post->increment('views');
 
+        // Related posts: same category first, then fill to 3 with recent posts
         $relatedPosts = BlogPost::published()
+            ->with(['category'])
             ->where('category_id', $post->category_id)
             ->where('id', '!=', $post->id)
+            ->latest('published_at')
             ->take(3)
             ->get();
+
+        if ($relatedPosts->count() < 3) {
+            $exclude = $relatedPosts->pluck('id')->push($post->id)->all();
+            $fillers = BlogPost::published()
+                ->with(['category'])
+                ->whereNotIn('id', $exclude)
+                ->latest('published_at')
+                ->take(3 - $relatedPosts->count())
+                ->get();
+            $relatedPosts = $relatedPosts->concat($fillers);
+        }
 
         return view('frontend.blog-detail', compact('post', 'relatedPosts'));
     }
