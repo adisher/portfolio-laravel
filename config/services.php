@@ -45,4 +45,8 @@ return [
             : 'https://sandbox.api.getsafepay.com',
     ],
 
+    'pexels' => [
+        'api_key' => env('PEXELS_API_KEY'),
+    ],
+
 ];
