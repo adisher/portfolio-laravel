@@ -443,7 +443,7 @@
                 <div class="overflow-hidden">
                     <img src="{{ Storage::url($post->featured_image) }}"
                          alt="{{ $post->title }}"
-                         class="w-full h-48 object-cover img-zoom"
+                         class="w-full aspect-video object-cover img-zoom"
                          loading="lazy">
                 </div>
                 @endif

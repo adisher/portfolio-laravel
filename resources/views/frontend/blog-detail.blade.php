@@ -212,9 +212,9 @@
 
     <!-- Featured Image -->
     @if($post->featured_image)
-    <div class="w-full">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 lg:-mt-14 relative z-10">
         <img src="{{ Storage::url($post->featured_image) }}" alt="{{ $post->title }}"
-            class="w-full h-64 lg:h-96 object-cover">
+            class="w-full aspect-video object-cover rounded-xl shadow-xl">
     </div>
     @endif
 
@@ -309,7 +309,7 @@
                 @if($relatedPost->featured_image)
                 <div class="overflow-hidden">
                     <img src="{{ Storage::url($relatedPost->featured_image) }}" alt="{{ $relatedPost->title }}"
-                        class="w-full h-48 object-cover img-zoom">
+                        class="w-full aspect-video object-cover img-zoom">
                 </div>
                 @endif
                 <div class="p-6">

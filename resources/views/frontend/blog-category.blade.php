@@ -75,63 +75,61 @@
 </section>
 
 <!-- Blog Content -->
-<section class="section-padding bg-white dark:bg-gray-900">
+<section class="section-padding bg-soft-light dark:bg-midnight">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         @if($posts->count())
-        <div class="space-y-8">
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($posts as $post)
-            <article class="card overflow-hidden hover:shadow-lg transition-shadow">
-                <div class="md:flex">
-                    @if($post->featured_image)
-                    <div class="md:w-80 md:flex-shrink-0">
-                        <img src="{{ Storage::url($post->featured_image) }}" alt="{{ $post->title }}"
-                            class="w-full h-48 md:h-full object-cover">
+            <article class="card card-hover overflow-hidden flex flex-col">
+                @if($post->featured_image)
+                <a href="{{ route('blog.show', $post->slug) }}" class="block overflow-hidden">
+                    <img src="{{ Storage::url($post->featured_image) }}" alt="{{ $post->title }}"
+                        class="w-full aspect-video object-cover img-zoom" loading="lazy">
+                </a>
+                @endif
+
+                <div class="p-6 flex flex-col flex-1">
+                    <div class="flex items-center flex-wrap gap-2 mb-3">
+                        <span class="inline-block px-3 py-1 text-xs font-medium rounded-full"
+                            style="background-color: {{ $post->category->color }}20; color: {{ $post->category->color }}">
+                            {{ $post->category->name }}
+                        </span>
+                        <time class="text-sm text-soft-dark dark:text-soft">
+                            {{ $post->published_at->format('M j, Y') }}
+                        </time>
+                        <span class="text-soft/30">•</span>
+                        <span class="text-sm text-soft-dark dark:text-soft">
+                            {{ $post->reading_time }} min read
+                        </span>
                     </div>
-                    @endif
 
-                    <div class="p-6 md:p-8 flex-1">
-                        <div class="flex items-center mb-3">
-                            <span class="inline-block px-3 py-1 text-sm font-medium rounded-full mr-3"
-                                style="background-color: {{ $post->category->color }}20; color: {{ $post->category->color }}">
-                                {{ $post->category->name }}
+                    <h2 class="text-xl font-bold text-midnight dark:text-soft-light mb-3 leading-snug">
+                        <a href="{{ route('blog.show', $post->slug) }}"
+                            class="hover:text-teal dark:hover:text-teal transition-colors">
+                            {{ $post->title }}
+                        </a>
+                    </h2>
+
+                    <p class="text-soft-dark dark:text-soft text-sm mb-4 line-clamp-3 flex-1">
+                        {{ $post->excerpt }}
+                    </p>
+
+                    <div class="flex items-center justify-between mt-auto pt-2">
+                        <a href="{{ route('blog.show', $post->slug) }}"
+                            class="text-teal hover:text-teal-dark font-medium text-sm transition-colors">
+                            Read More →
+                        </a>
+
+                        @if($post->tags->count())
+                        <div class="flex flex-wrap gap-1">
+                            @foreach($post->tags->take(2) as $tag)
+                            <span class="text-xs px-2 py-1 rounded-full"
+                                style="background-color: {{ $tag->color }}20; color: {{ $tag->color }}">
+                                {{ $tag->name }}
                             </span>
-                            <time class="text-sm text-gray-500 dark:text-gray-400">
-                                {{ $post->published_at->format('M j, Y') }}
-                            </time>
-                            <span class="mx-2 text-gray-300">•</span>
-                            <span class="text-sm text-gray-500 dark:text-gray-400">
-                                {{ $post->reading_time }} min read
-                            </span>
+                            @endforeach
                         </div>
-
-                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-                            <a href="{{ route('blog.show', $post->slug) }}"
-                                class="hover:text-blue-600 dark:hover:text-blue-400">
-                                {{ $post->title }}
-                            </a>
-                        </h2>
-
-                        <p class="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">
-                            {{ $post->excerpt }}
-                        </p>
-
-                        <div class="flex items-center justify-between">
-                            <a href="{{ route('blog.show', $post->slug) }}"
-                                class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
-                                Read More →
-                            </a>
-
-                            @if($post->tags->count())
-                            <div class="flex flex-wrap gap-1">
-                                @foreach($post->tags->take(3) as $tag)
-                                <span class="text-xs px-2 py-1 rounded-full"
-                                    style="background-color: {{ $tag->color }}20; color: {{ $tag->color }}">
-                                    {{ $tag->name }}
-                                </span>
-                                @endforeach
-                            </div>
-                            @endif
-                        </div>
+                        @endif
                     </div>
                 </div>
             </article>
