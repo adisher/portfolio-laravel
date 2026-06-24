@@ -251,6 +251,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     // Analytics routes
     Route::prefix('analytics')->name('analytics.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\AnalyticsController::class, 'index'])->name('index');
+        Route::get('/search', [\App\Http\Controllers\Admin\AnalyticsController::class, 'search'])->name('search');
         Route::get('/realtime', [\App\Http\Controllers\Admin\AnalyticsController::class, 'realtime'])->name('realtime');
         Route::get('/export', [\App\Http\Controllers\Admin\AnalyticsController::class, 'export'])->name('export');
     });

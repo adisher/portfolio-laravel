@@ -8,6 +8,7 @@ use App\Models\PageView;
 use App\Models\ContactAnalytic;
 use App\Models\Project;
 use App\Models\BlogPost;
+use App\Services\GscService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -34,6 +35,10 @@ class AnalyticsController extends Controller
         $topCountries = Visitor::getTopCountries(10);
         $trafficSources = Visitor::getTrafficSources();
         $browserStats = Visitor::getBrowserBreakdown();
+
+        // Country breakdown (first-party visits)
+        $countryBreakdown = PageView::getCountryBreakdown($days);
+        $countryByPage = PageView::getCountryByPage($days);
         
         // Get contact analytics
         $contactStats = $this->getContactStats($days);
@@ -57,8 +62,35 @@ class AnalyticsController extends Controller
             'contactSources',
             'contactTrends',
             'performanceStats',
+            'countryBreakdown',
+            'countryByPage',
             'days'
         ));
+    }
+
+    /**
+     * Google Search Console search performance.
+     */
+    public function search(Request $request, GscService $gsc)
+    {
+        $days = (int) $request->get('period', 28);
+
+        if (!$gsc->isConfigured()) {
+            return view('admin.analytics.search', [
+                'configured' => false,
+                'days'       => $days,
+            ]);
+        }
+
+        return view('admin.analytics.search', [
+            'configured' => true,
+            'days'       => $days,
+            'summary'    => $gsc->summary($days),
+            'trend'      => $gsc->trend($days),
+            'topQueries' => $gsc->topQueries($days),
+            'topPages'   => $gsc->topPages($days),
+            'byCountry'  => $gsc->byCountry($days),
+        ]);
     }
 
     public function realtime()

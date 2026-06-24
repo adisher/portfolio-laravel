@@ -138,4 +138,43 @@ class PageView extends Model
             ->limit($limit)
             ->get();
     }
+
+    /**
+     * Overall visits grouped by visitor country.
+     */
+    public static function getCountryBreakdown($days = 30, $limit = 15)
+    {
+        return static::notBot()
+            ->where('page_views.created_at', '>=', now()->subDays($days))
+            ->join('visitors', 'page_views.visitor_id', '=', 'visitors.id')
+            ->whereNotNull('visitors.country')
+            ->where('visitors.country', '!=', 'Local')
+            ->select('visitors.country', DB::raw('count(*) as views'))
+            ->groupBy('visitors.country')
+            ->orderBy('views', 'desc')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Per-page country breakdown: each URL with its top visitor countries.
+     * Returns a collection keyed by url => collection of {country, views}.
+     */
+    public static function getCountryByPage($days = 30, $pageLimit = 10)
+    {
+        $rows = static::notBot()
+            ->where('page_views.created_at', '>=', now()->subDays($days))
+            ->join('visitors', 'page_views.visitor_id', '=', 'visitors.id')
+            ->whereNotNull('visitors.country')
+            ->where('visitors.country', '!=', 'Local')
+            ->select('page_views.url', 'page_views.page_title', 'visitors.country', DB::raw('count(*) as views'))
+            ->groupBy('page_views.url', 'page_views.page_title', 'visitors.country')
+            ->orderBy('views', 'desc')
+            ->get();
+
+        // Group by url, keep the busiest pages first
+        return $rows->groupBy('url')
+            ->sortByDesc(fn($group) => $group->sum('views'))
+            ->take($pageLimit);
+    }
 }

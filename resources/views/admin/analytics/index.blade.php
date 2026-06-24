@@ -277,6 +277,30 @@
     </div>
 </div>
 
+<!-- Visits by Country, per Page -->
+<div class="admin-card p-6 mb-8">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Visits by Country, per Page</h2>
+        <span class="text-xs text-gray-400">Actual visitor location (populates going forward)</span>
+    </div>
+    @forelse($countryByPage as $url => $rows)
+    <div class="mb-4 pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0 last:mb-0 last:pb-0">
+        <div class="text-sm font-medium text-gray-900 dark:text-white truncate mb-2">
+            {{ \Illuminate\Support\Str::after($url, 'adilsher.pro') ?: $url }}
+        </div>
+        <div class="flex flex-wrap gap-2">
+            @foreach($rows->sortByDesc('views')->take(6) as $row)
+            <span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                {{ $row->country }} <span class="font-semibold">{{ number_format($row->views) }}</span>
+            </span>
+            @endforeach
+        </div>
+    </div>
+    @empty
+    <p class="text-gray-500 dark:text-gray-400 text-sm">No country data yet. Visitor locations populate as new traffic arrives.</p>
+    @endforelse
+</div>
+
 @endsection
 
 @push('scripts')

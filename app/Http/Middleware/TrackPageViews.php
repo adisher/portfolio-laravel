@@ -12,14 +12,18 @@ class TrackPageViews
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $response = $next($request);
+        return $next($request);
+    }
 
-        // Only track successful GET requests for non-admin pages
+    /**
+     * Runs after the response is sent to the browser, so geolocation and
+     * DB writes never add latency to the page load.
+     */
+    public function terminate(Request $request, Response $response): void
+    {
         if ($this->shouldTrack($request, $response)) {
             $this->trackPageView($request);
         }
-
-        return $response;
     }
 
     private function shouldTrack(Request $request, Response $response): bool

@@ -49,4 +49,9 @@ return [
         'api_key' => env('PEXELS_API_KEY'),
     ],
 
+    'gsc' => [
+        'site_url'    => env('GSC_SITE_URL'),
+        'credentials' => env('GSC_CREDENTIALS_PATH'),
+    ],
+
 ];

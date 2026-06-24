@@ -100,13 +100,24 @@ class Visitor extends Model
 
     public static function getCountryFromIP($ip)
     {
-        // Simple country detection - you can integrate with services like ipapi.co
-        if ($ip === '127.0.0.1' || $ip === '::1') {
+        if (empty($ip) || $ip === '127.0.0.1' || $ip === '::1') {
             return 'Local';
         }
-        
-        // For now, return null - can be enhanced with IP geolocation service
-        return null;
+
+        // Cache per IP for 30 days so repeat visitors and rate limits are handled
+        return \Illuminate\Support\Facades\Cache::remember("geoip:{$ip}", now()->addDays(30), function () use ($ip) {
+            try {
+                $response = \Illuminate\Support\Facades\Http::timeout(2)
+                    ->get("http://ip-api.com/json/{$ip}", ['fields' => 'status,country']);
+
+                if ($response->successful() && $response->json('status') === 'success') {
+                    return $response->json('country');
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::info("GeoIP lookup failed for {$ip}: " . $e->getMessage());
+            }
+            return null;
+        });
     }
 
     // Analytics Methods
