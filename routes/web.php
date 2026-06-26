@@ -206,6 +206,9 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/about', [\App\Http\Controllers\Admin\AboutController::class, 'edit'])->name('about.edit');
     Route::put('/about', [\App\Http\Controllers\Admin\AboutController::class, 'update'])->name('about.update');
 
+    // Work Items (marketing manuals)
+    Route::resource('work-items', \App\Http\Controllers\Admin\WorkItemController::class);
+
     // Admin Contact Routes
     Route::controller(AdminContactController::class)->group(function () {
         Route::get('contacts', 'index')->name('contacts.index');
