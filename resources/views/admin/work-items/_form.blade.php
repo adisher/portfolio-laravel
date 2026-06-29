@@ -76,6 +76,10 @@
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">How It Helps <span class="text-gray-400">(the solution / your approach)</span></label>
             <textarea name="how_it_helps" rows="3" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">{{ old('how_it_helps', $wi->how_it_helps ?? '') }}</textarea>
         </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Call To Action <span class="text-gray-400">(what you want the reader to do)</span></label>
+            <textarea name="call_to_action" rows="2" placeholder="e.g. Get in touch to see it in action..." class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">{{ old('call_to_action', $wi->call_to_action ?? '') }}</textarea>
+        </div>
     </div>
 </div>
 
@@ -83,7 +87,9 @@
 @php
     $lists = [
         'pain_points'     => ['Pain Points', 'The problems this addresses'],
+        'objections'      => ['Objections', 'Hesitations a prospect has (and you can preempt)'],
         'key_outcomes'    => ['Key Outcomes / Proof', 'Results, metrics, evidence'],
+        'proof_links'     => ['Proof Links', 'Demo video, case study, testimonials (URLs)'],
         'differentiators' => ['Differentiators', 'Why you / why this'],
         'target_keywords' => ['Target Keywords', 'Search terms people use for the pain'],
         'article_angles'  => ['Article Angles', 'Content hooks / ideas'],

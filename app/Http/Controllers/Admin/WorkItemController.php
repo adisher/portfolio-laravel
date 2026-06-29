@@ -77,11 +77,14 @@ class WorkItemController extends Controller
             'tagline'         => 'nullable|string|max:500',
             'target_audience' => 'nullable|string',
             'how_it_helps'    => 'nullable|string',
+            'call_to_action'  => 'nullable|string',
             'tech_stack'      => 'nullable|string|max:500',
             'url'             => 'nullable|url|max:500',
             'notes'           => 'nullable|string',
             'pain_points'     => 'nullable|array',
+            'objections'      => 'nullable|array',
             'key_outcomes'    => 'nullable|array',
+            'proof_links'     => 'nullable|array',
             'differentiators' => 'nullable|array',
             'target_keywords' => 'nullable|array',
             'article_angles'  => 'nullable|array',
@@ -90,7 +93,7 @@ class WorkItemController extends Controller
         $validated['active'] = $request->boolean('active');
         $validated['sort_order'] = (int) ($request->input('sort_order', 0));
 
-        foreach (['pain_points', 'key_outcomes', 'differentiators', 'target_keywords', 'article_angles'] as $field) {
+        foreach (['pain_points', 'objections', 'key_outcomes', 'proof_links', 'differentiators', 'target_keywords', 'article_angles'] as $field) {
             $validated[$field] = $this->cleanList($request->input($field, []));
         }
 

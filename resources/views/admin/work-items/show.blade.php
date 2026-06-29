@@ -25,6 +25,7 @@
 @php
     $listBlocks = [
         'pain_points'     => ['Pain Points', 'text-red-500'],
+        'objections'      => ['Objections', 'text-orange-500'],
         'key_outcomes'    => ['Key Outcomes / Proof', 'text-green-500'],
         'differentiators' => ['Differentiators', 'text-teal-500'],
         'article_angles'  => ['Article Angles', 'text-purple-500'],
@@ -43,23 +44,38 @@
         <p class="text-xs uppercase tracking-wide text-gray-400 mb-1">How It Helps</p>
         <p class="text-sm text-gray-700 dark:text-gray-300 mb-4 whitespace-pre-line">{{ $workItem->how_it_helps }}</p>
         @endif
+        @if($workItem->call_to_action)
+        <p class="text-xs uppercase tracking-wide text-gray-400 mb-1">Call To Action</p>
+        <p class="text-sm text-gray-700 dark:text-gray-300 mb-4 whitespace-pre-line">{{ $workItem->call_to_action }}</p>
+        @endif
         @if($workItem->tech_stack)
         <p class="text-xs uppercase tracking-wide text-gray-400 mb-1">Tech Stack</p>
         <p class="text-sm text-gray-700 dark:text-gray-300">{{ $workItem->tech_stack }}</p>
         @endif
     </div>
 
-    {{-- Target keywords --}}
+    {{-- Target keywords + proof links --}}
     <div class="admin-card p-6">
         <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-3">Target Keywords</h2>
         @if(!empty($workItem->target_keywords))
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap gap-2 mb-5">
             @foreach($workItem->target_keywords as $kw)
             <span class="text-xs px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">{{ $kw }}</span>
             @endforeach
         </div>
         @else
-        <p class="text-sm text-gray-400">None set.</p>
+        <p class="text-sm text-gray-400 mb-5">None set.</p>
+        @endif
+
+        <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-3">Proof Links</h2>
+        @if(!empty($workItem->proof_links))
+        <ul class="space-y-1">
+            @foreach($workItem->proof_links as $link)
+            <li><a href="{{ $link }}" target="_blank" class="text-sm text-teal hover:underline break-all">{{ $link }}</a></li>
+            @endforeach
+        </ul>
+        @else
+        <p class="text-sm text-gray-400">None yet (demo video, case study, testimonials go here).</p>
         @endif
     </div>
 
