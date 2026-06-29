@@ -47,17 +47,16 @@
                     </div>
 
                     <div>
-                        <label for="content" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Content *
                         </label>
-                        <textarea id="content" name="content" rows="20" required
-                            class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white @error('content') border-red-500 @enderror"
-                            placeholder="Write your blog post content here...">{{ old('content') }}</textarea>
+                        {{-- Hidden field that submits markdown; the visual editor mounts below and syncs into it --}}
+                        <textarea id="content" name="content" class="hidden">{{ old('content') }}</textarea>
+                        <div id="markdown-editor"></div>
                         @error('content')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">You can use markdown syntax for
-                            formatting.</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Write naturally; use the toolbar for formatting.</p>
                     </div>
                 </div>
             </div>
@@ -230,6 +229,7 @@
 @endsection
 
 @push('scripts')
+@vite('resources/js/editor.js')
 <script>
     // Auto-set publish date when status changes to published
 document.getElementById('status').addEventListener('change', function() {

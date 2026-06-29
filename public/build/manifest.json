@@ -2207,7 +2207,7 @@
     "isDynamicEntry": true
   },
   "resources/css/app.css": {
-    "file": "assets/app-CsN2a9J6.css",
+    "file": "assets/app-CNFaLD8i.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "names": [
@@ -2228,6 +2228,15 @@
     ],
     "css": [
       "assets/app-ERKQmrdL.css"
+    ]
+  },
+  "resources/js/editor.js": {
+    "file": "assets/editor-nqFYqmrF.js",
+    "name": "editor",
+    "src": "resources/js/editor.js",
+    "isEntry": true,
+    "css": [
+      "assets/editor-DlLYIQaD.css"
     ]
   }
 }
