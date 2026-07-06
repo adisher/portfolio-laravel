@@ -90,7 +90,25 @@ class BlogPostController extends Controller
             $post->tags()->sync($request->tags);
         }
 
+        $this->ensureFeaturedImage($post);
+
         return redirect()->route('admin.blog-posts.index')->with('success', 'Blog post created successfully');
+    }
+
+    /**
+     * When a post is published without a featured image, source a relevant
+     * one from Pexels (same as the curated pipeline). Silent on failure.
+     */
+    protected function ensureFeaturedImage(BlogPost $post): void
+    {
+        if ($post->status !== 'published' || !empty($post->featured_image)) {
+            return;
+        }
+
+        $image = app(\App\Services\PexelsImageService::class)->fetchForBlogPost($post);
+        if ($image) {
+            $post->update(['featured_image' => $image]);
+        }
     }
 
     public function show(BlogPost $blogPost)
@@ -154,6 +172,8 @@ class BlogPostController extends Controller
         if ($request->has('tags')) {
             $blogPost->tags()->sync($request->tags);
         }
+
+        $this->ensureFeaturedImage($blogPost->refresh());
 
         return redirect()->route('admin.blog-posts.index')->with('success', 'Blog post updated successfully');
     }

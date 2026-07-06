@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BlogPost;
 use App\Models\CollectedArticle;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -31,18 +32,40 @@ class PexelsImageService
     ];
 
     /**
-     * Find a relevant Pexels image for an article, normalize it to 16:9,
+     * Find a relevant Pexels image for a collected article, normalize to 16:9,
      * store it on the public disk, and return the storage path (or null).
      */
     public function fetchForArticle(CollectedArticle $article): ?string
+    {
+        return $this->searchAndStore(
+            $this->buildQuery($article),
+            Str::slug(Str::limit($article->title ?? 'post', 50, '')) . '-' . $article->id
+        );
+    }
+
+    /**
+     * Find a relevant Pexels image for a blog post (e.g. an original article
+     * published with no image). Same 16:9 normalization and storage.
+     */
+    public function fetchForBlogPost(BlogPost $post): ?string
+    {
+        return $this->searchAndStore(
+            $this->buildQueryForPost($post),
+            Str::slug(Str::limit($post->title ?? 'post', 50, '')) . '-' . $post->id
+        );
+    }
+
+    /**
+     * Core: search Pexels for a query, download a landscape result, normalize,
+     * store, and return the path. Returns null on any failure.
+     */
+    protected function searchAndStore(string $query, string $filenameBase): ?string
     {
         $key = config('services.pexels.api_key');
         if (empty($key)) {
             Log::warning('Pexels API key not configured');
             return null;
         }
-
-        $query = $this->buildQuery($article);
 
         try {
             $response = Http::withHeaders(['Authorization' => $key])
@@ -72,26 +95,36 @@ class PexelsImageService
                 return null;
             }
 
-            return $this->downloadAndStore($imageUrl, $article);
+            return $this->downloadAndStore($imageUrl, $filenameBase);
 
         } catch (Exception $e) {
-            Log::info("Pexels fetch error for article {$article->id}: " . $e->getMessage());
+            Log::info("Pexels fetch error for {$filenameBase}: " . $e->getMessage());
             return null;
         }
     }
 
     /**
-     * Build a search query: prefer article tags, else category base query,
-     * lightly refined with a significant title keyword.
+     * Build a search query from a collected article: category base query,
+     * refined with a significant title keyword.
      */
     protected function buildQuery(CollectedArticle $article): string
     {
         $slug = $article->assignedCategory?->slug;
         $base = $this->categoryQueries[$slug] ?? 'technology';
-
-        // CollectedArticle has no tags relation; use the category base query.
-        // Refine with one notable title keyword (>4 chars, not a stop word).
         $keyword = $this->significantKeyword($article->title ?? '');
+
+        return trim($keyword !== '' ? ($base . ' ' . $keyword) : $base);
+    }
+
+    /**
+     * Build a search query from a blog post: category base query, refined with
+     * a significant title keyword (same style as curated posts).
+     */
+    protected function buildQueryForPost(BlogPost $post): string
+    {
+        $slug = $post->category?->slug;
+        $base = $this->categoryQueries[$slug] ?? 'technology';
+        $keyword = $this->significantKeyword($post->title ?? '');
 
         return trim($keyword !== '' ? ($base . ' ' . $keyword) : $base);
     }
@@ -114,7 +147,7 @@ class PexelsImageService
     /**
      * Download the image and center-crop/resize it to canonical 16:9.
      */
-    protected function downloadAndStore(string $imageUrl, CollectedArticle $article): ?string
+    protected function downloadAndStore(string $imageUrl, string $filenameBase): ?string
     {
         try {
             $resp = Http::timeout(20)->withHeaders(['User-Agent' => 'Mozilla/5.0'])->get($imageUrl);
@@ -135,14 +168,13 @@ class PexelsImageService
             $jpeg = ob_get_clean();
             imagedestroy($normalized);
 
-            $slugPart = Str::slug(Str::limit($article->title ?? 'post', 50, ''));
-            $path = 'blog/' . $slugPart . '-' . $article->id . '.jpg';
+            $path = 'blog/' . $filenameBase . '.jpg';
             Storage::disk('public')->put($path, $jpeg);
 
             return $path;
 
         } catch (Exception $e) {
-            Log::info("Pexels download error for article {$article->id}: " . $e->getMessage());
+            Log::info("Pexels download error for {$filenameBase}: " . $e->getMessage());
             return null;
         }
     }
