@@ -156,6 +156,7 @@ Route::prefix('portfolio')->name('portfolio.')->middleware('feature:page.portfol
 Route::prefix('blog')->name('blog.')->middleware('feature:page.blog')->group(function () {
     Route::get('/', [BlogController::class, 'index'])->name('index');
     Route::get('/search', [BlogController::class, 'search'])->name('search');
+    Route::get('/proof-of-work', [BlogController::class, 'proofOfWork'])->name('proof-of-work');
     Route::get('/category/{slug}', [BlogController::class, 'category'])->name('category');
     Route::get('/{slug}', [BlogController::class, 'show'])->name('show');
 });

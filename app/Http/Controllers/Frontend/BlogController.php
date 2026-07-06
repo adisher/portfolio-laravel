@@ -31,6 +31,17 @@ class BlogController extends Controller
         return view('frontend.blog', compact('posts', 'categories', 'popularTags'));
     }
 
+    public function proofOfWork()
+    {
+        $posts = BlogPost::published()
+            ->where('source_type', 'original')
+            ->with(['category', 'tags', 'user'])
+            ->latest('published_at')
+            ->paginate(9);
+
+        return view('frontend.proof-of-work', compact('posts'));
+    }
+
     public function show($slug)
     {
         $post = BlogPost::published()

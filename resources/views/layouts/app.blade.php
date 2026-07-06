@@ -93,8 +93,12 @@
                         @endfeature
                         @feature('nav.blog')
                         <a href="{{ route('blog.index') }}"
-                            class="nav-link {{ request()->routeIs('blog.*') ? 'active' : '' }}">
+                            class="nav-link {{ request()->routeIs('blog.*') && !request()->routeIs('blog.proof-of-work') ? 'active' : '' }}">
                             Blog
+                        </a>
+                        <a href="{{ route('blog.proof-of-work') }}"
+                            class="nav-link {{ request()->routeIs('blog.proof-of-work') ? 'active' : '' }}">
+                            Proof of Work
                         </a>
                         @endfeature
                         @feature('nav.sports')
@@ -177,8 +181,12 @@
                 @endfeature
                 @feature('nav.blog')
                 <a href="{{ route('blog.index') }}"
-                    class="mobile-nav-link {{ request()->routeIs('blog.*') ? 'active' : '' }}">
+                    class="mobile-nav-link {{ request()->routeIs('blog.*') && !request()->routeIs('blog.proof-of-work') ? 'active' : '' }}">
                     Blog
+                </a>
+                <a href="{{ route('blog.proof-of-work') }}"
+                    class="mobile-nav-link {{ request()->routeIs('blog.proof-of-work') ? 'active' : '' }}">
+                    Proof of Work
                 </a>
                 @endfeature
                 @feature('nav.sports')
@@ -248,6 +256,7 @@
                         @endfeature
                         @feature('nav.blog')
                         <li><a href="{{ route('blog.index') }}" class="text-soft hover:text-teal transition-colors">Blog</a></li>
+                        <li><a href="{{ route('blog.proof-of-work') }}" class="text-soft hover:text-teal transition-colors">Proof of Work</a></li>
                         @endfeature
                         @feature('nav.sports')
                         <li><a href="{{ route('sports.index') }}" class="text-soft hover:text-teal transition-colors">Live Sports</a></li>
