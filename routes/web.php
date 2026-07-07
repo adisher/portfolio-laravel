@@ -209,6 +209,8 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     // Work Items (marketing manuals)
     Route::resource('work-items', \App\Http\Controllers\Admin\WorkItemController::class);
+    Route::post('work-items/{workItem}/generate-article', [\App\Http\Controllers\Admin\WorkItemController::class, 'generateArticle'])
+        ->name('work-items.generate-article');
 
     // Admin Contact Routes
     Route::controller(AdminContactController::class)->group(function () {

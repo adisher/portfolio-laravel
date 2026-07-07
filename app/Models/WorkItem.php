@@ -10,8 +10,8 @@ class WorkItem extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'type', 'project_id', 'active', 'sort_order',
-        'tagline', 'target_audience', 'how_it_helps', 'call_to_action', 'tech_stack', 'url', 'notes',
+        'name', 'type', 'project_id', 'blog_category_id', 'active', 'sort_order',
+        'tagline', 'target_audience', 'how_it_helps', 'call_to_action', 'tech_stack', 'url', 'notes', 'stories',
         'pain_points', 'objections', 'key_outcomes', 'proof_links',
         'differentiators', 'target_keywords', 'article_angles',
     ];
@@ -30,6 +30,11 @@ class WorkItem extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function blogCategory()
+    {
+        return $this->belongsTo(Category::class, 'blog_category_id');
     }
 
     public function scopeActive($query)

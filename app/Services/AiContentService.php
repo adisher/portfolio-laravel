@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CollectedArticle;
 use App\Models\AutoPublishSetting;
+use App\Models\WorkItem;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -164,7 +165,7 @@ class AiContentService
     /**
      * Call the Claude API.
      */
-    protected function callApi(string $prompt, int $maxTokens = 2500): ?array
+    protected function callApi(string $prompt, int $maxTokens = 2500, ?string $model = null): ?array
     {
         if (!$this->apiKey) {
             Log::error('Anthropic API key not configured');
@@ -175,8 +176,8 @@ class AiContentService
             'x-api-key' => $this->apiKey,
             'anthropic-version' => '2023-06-01',
             'content-type' => 'application/json',
-        ])->timeout(60)->post($this->apiUrl, [
-            'model' => $this->model,
+        ])->timeout(90)->post($this->apiUrl, [
+            'model' => $model ?? $this->model,
             'max_tokens' => $maxTokens,
             'messages' => [
                 ['role' => 'user', 'content' => $prompt]
@@ -194,6 +195,136 @@ class AiContentService
             'content' => $data['content'][0]['text'] ?? '',
             'input_tokens' => $data['usage']['input_tokens'] ?? 0,
             'output_tokens' => $data['usage']['output_tokens'] ?? 0,
+        ];
+    }
+
+    /**
+     * Generate a first-person original marketing article from a work-item
+     * manual and a chosen article angle. Returns [title, content, excerpt]
+     * or null on failure. The caller creates the draft post.
+     */
+    public function generateFromWorkItem(WorkItem $workItem, string $angle): ?array
+    {
+        if (!$this->isEnabled()) {
+            Log::warning('Original article generation skipped: AI disabled or budget exhausted');
+            return null;
+        }
+
+        $prompt = $this->buildWorkItemPrompt($workItem, $angle);
+        $model  = config('blog_automation.ai.original_model', $this->model);
+
+        try {
+            $response = $this->callApi($prompt, 3000, $model);
+            if (!$response) {
+                return null;
+            }
+
+            $this->budgetService->logUsage(
+                'original_article',
+                $response['input_tokens'],
+                $response['output_tokens'],
+                null,
+                null,
+                ['work_item_id' => $workItem->id, 'angle' => $angle],
+                [],
+                true
+            );
+
+            return $this->parseGeneratedArticle($response['content']);
+
+        } catch (Exception $e) {
+            Log::error('Work item article generation failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Build the rich, voice-matched prompt for an original article.
+     */
+    protected function buildWorkItemPrompt(WorkItem $wi, string $angle): string
+    {
+        $list = fn($arr) => empty($arr) ? '(none)' : "- " . implode("\n- ", $arr);
+
+        $painPoints     = $list($wi->pain_points ?? []);
+        $objections     = $list($wi->objections ?? []);
+        $outcomes       = $list($wi->key_outcomes ?? []);
+        $differentiators = $list($wi->differentiators ?? []);
+        $keywords       = $list($wi->target_keywords ?? []);
+        $primaryKeyword = $wi->target_keywords[0] ?? '';
+        $stories        = trim((string) $wi->stories) !== '' ? $wi->stories : '(no personal stories provided; keep it grounded and specific without inventing biographical details)';
+        $cta            = trim((string) $wi->call_to_action) !== '' ? $wi->call_to_action : 'Invite the reader to get in touch if this is their problem.';
+
+        return <<<PROMPT
+You are Adil Sher, a full stack developer, writing an original article for your personal blog's "Proof of Work" section. These pieces market your skills through genuine, problem-led storytelling. This is not a summary or a news post. It is your own considered writing.
+
+Write the article for this angle:
+"{$angle}"
+
+This article is about your work item: {$wi->name}.
+What it is: {$wi->tagline}
+Who it is for: {$wi->target_audience}
+How it helps: {$wi->how_it_helps}
+
+The real pain points it addresses:
+{$painPoints}
+
+Objections and hesitations a reader might have (address the relevant ones naturally, do not list them):
+{$objections}
+
+What makes it different / your engineering judgment:
+{$differentiators}
+
+Proof and outcomes you can reference:
+{$outcomes}
+
+Real stories and personal details to weave in where they fit (this is what keeps the piece authentic, not generic):
+{$stories}
+
+The soft call to action to land near the end:
+{$cta}
+
+Target search keyword to write around naturally: {$primaryKeyword}
+
+VOICE AND RULES (follow strictly):
+- First person, opinionated, grounded in real experience. Sound like a thoughtful builder sharing genuine insight, not a marketer.
+- Lead with the reader's pain or a real moment, deliver genuine value (teach how to think about the problem), and only then present your work as the natural answer. Roughly 80 percent value, 20 percent pitch.
+- The pitch must be keen, not desperate: confident, specific about who it is for, and honest about the product's stage. Never beg.
+- Be creative and unique. Do not follow a rigid template or use obvious section formulas. Let the piece breathe.
+- Weave the real stories in naturally where they strengthen the point. Do not fabricate biographical facts beyond what is given.
+- NEVER use em dashes anywhere. Use commas, colons, or periods instead.
+- 900 to 1100 words. Markdown formatting. Use ## for section headings. Put the article's headline as a single # line at the very top (create a compelling headline based on the angle, not a copy of it).
+- Return only the article markdown, starting with the # headline. No preamble, no notes.
+PROMPT;
+    }
+
+    /**
+     * Parse a generated article into title, content, and excerpt.
+     */
+    protected function parseGeneratedArticle(string $response): array
+    {
+        $content = trim($response);
+        $title = '';
+
+        // Headline is the first # line
+        if (preg_match('/^#\s+(.+)/m', $content, $m)) {
+            $title = trim($m[1]);
+            $content = trim(preg_replace('/^#\s+.+\n+/m', '', $content, 1));
+        }
+
+        // Excerpt: first substantial non-heading paragraph
+        $excerpt = '';
+        foreach (explode("\n", $content) as $line) {
+            $line = trim($line);
+            if (!empty($line) && !str_starts_with($line, '#') && strlen($line) > 60) {
+                $excerpt = \Illuminate\Support\Str::limit(strip_tags($line), 280);
+                break;
+            }
+        }
+
+        return [
+            'title'   => $title,
+            'content' => $content,
+            'excerpt' => $excerpt,
         ];
     }
 

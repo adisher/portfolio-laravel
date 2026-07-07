@@ -83,11 +83,14 @@ class ComplianceCoreSeeder extends Seeder
                 'How to make AI you can actually trust inside a compliance workflow',
             ],
 
+            'stories' => "ComplianceCore didn't start as a product. It started as a take-home task in a job interview. The role went to a candidate with more experience building systems like this one, and I didn't get it. But the problem stuck with me long after the process ended, so I kept building and refined it well past anything the task asked for. What kept me going was the realization that the interesting problem was never 'can AI read the documents,' it was 'can you build something actually trustworthy when being wrong is expensive.'",
+
             'notes' => 'Status: private beta. No live AI demo (token cost); a demo video for prospects is pending and will go in Proof Links. Live demo reserved for actual demo bookings.',
         ];
 
         // Link to the existing portfolio project by name (IDs differ per env)
         $data['project_id'] = Project::where('title', 'ComplianceCore')->value('id');
+        $data['blog_category_id'] = \App\Models\Category::where('slug', 'ai-machine-learning')->value('id');
 
         WorkItem::updateOrCreate(['name' => 'ComplianceCore'], $data);
     }

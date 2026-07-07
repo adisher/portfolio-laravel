@@ -22,6 +22,47 @@
     </div>
 </div>
 
+@if(session('error'))
+<div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{{ session('error') }}</div>
+@endif
+@if(session('success'))
+<div class="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400 text-sm">{{ session('success') }}</div>
+@endif
+
+{{-- Generate an article --}}
+<div class="admin-card p-6 mb-6 border-l-4 border-teal">
+    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Generate an Article</h2>
+    <p class="text-xs text-gray-400 mb-4">Pick an angle. The AI drafts a first-person article from this manual and its stories, then drops it in the editor for you to review and publish.</p>
+
+    @if(empty($workItem->article_angles))
+    <p class="text-sm text-gray-500">Add some <strong>Article Angles</strong> to this manual first, then you can generate from them.</p>
+    @else
+    <form action="{{ route('admin.work-items.generate-article', $workItem) }}" method="POST"
+        x-data="{ submitting: false }" @submit="submitting = true">
+        @csrf
+        <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+            <div class="flex-1">
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Article angle</label>
+                <select name="angle" required
+                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+                    @foreach($workItem->article_angles as $angle)
+                    <option value="{{ $angle }}">{{ $angle }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button type="submit" :disabled="submitting"
+                class="btn-primary text-sm whitespace-nowrap disabled:opacity-60">
+                <span x-show="!submitting">Generate Draft</span>
+                <span x-show="submitting" x-cloak>Generating... (up to 30s)</span>
+            </button>
+        </div>
+        @unless($workItem->blog_category_id)
+        <p class="text-xs text-amber-500 mt-2">Tip: set a <strong>Blog Category</strong> on this manual so generated articles file automatically.</p>
+        @endunless
+    </form>
+    @endif
+</div>
+
 @php
     $listBlocks = [
         'pain_points'     => ['Pain Points', 'text-red-500'],
@@ -98,6 +139,13 @@
     </div>
     @endforeach
 </div>
+
+@if($workItem->stories)
+<div class="admin-card p-6 mt-6">
+    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-3">Stories &amp; Real Details</h2>
+    <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">{{ $workItem->stories }}</p>
+</div>
+@endif
 
 @if($workItem->notes)
 <div class="admin-card p-6 mt-6">

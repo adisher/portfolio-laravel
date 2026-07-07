@@ -35,6 +35,15 @@
             </select>
         </div>
         <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Blog Category <span class="text-gray-400">(where generated articles file)</span></label>
+            <select name="blog_category_id" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+                <option value="">None</option>
+                @foreach(\App\Models\Category::forBlog()->orderBy('name')->get() as $bc)
+                <option value="{{ $bc->id }}" {{ (string) old('blog_category_id', $wi->blog_category_id ?? '') === (string) $bc->id ? 'selected' : '' }}>{{ $bc->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Live URL <span class="text-gray-400">(optional)</span></label>
             <input type="url" name="url" value="{{ old('url', $wi->url ?? '') }}" placeholder="https://..."
                 class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
@@ -116,6 +125,14 @@
     </div>
 </div>
 @endforeach
+
+{{-- ── Stories ── --}}
+<div class="admin-card p-6 mb-6">
+    <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-1 pb-2 border-b border-gray-200 dark:border-gray-700">Stories &amp; Real Details</h2>
+    <p class="text-xs text-gray-400 mt-2 mb-3">Real anecdotes, origin story, opinions, personal details. This is the authentic raw material the AI weaves into generated articles, so they do not read generic.</p>
+    <textarea name="stories" rows="6" placeholder="e.g. I built this from a take-home interview task. The role went to someone else, but the problem stuck with me and I kept refining it..."
+        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">{{ old('stories', $wi->stories ?? '') }}</textarea>
+</div>
 
 {{-- ── Notes ── --}}
 <div class="admin-card p-6 mb-6">

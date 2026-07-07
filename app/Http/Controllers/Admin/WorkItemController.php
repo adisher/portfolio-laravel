@@ -64,6 +64,43 @@ class WorkItemController extends Controller
     }
 
     /**
+     * Generate a draft original article from a work item + chosen angle.
+     */
+    public function generateArticle(Request $request, WorkItem $workItem)
+    {
+        $angle = $request->input('angle');
+
+        if (!in_array($angle, $workItem->article_angles ?? [], true)) {
+            return back()->with('error', 'Please choose one of this work item\'s article angles.');
+        }
+
+        $result = app(\App\Services\AiContentService::class)->generateFromWorkItem($workItem, $angle);
+
+        if (!$result || empty($result['content'])) {
+            return back()->with('error', 'Article generation failed. Check the AI budget/key configuration and try again.');
+        }
+
+        $wordCount = str_word_count(strip_tags($result['content']));
+
+        $post = \App\Models\BlogPost::create([
+            'title'            => $result['title'] ?: ($workItem->name . ' article'),
+            'excerpt'          => $result['excerpt'] ?: \Illuminate\Support\Str::limit(strip_tags($workItem->tagline ?? ''), 200),
+            'content'          => $result['content'],
+            'category_id'      => $workItem->blog_category_id,
+            'user_id'          => auth()->id(),
+            'status'           => 'draft',
+            'source_type'      => 'original',
+            'meta_title'       => \Illuminate\Support\Str::limit($result['title'] ?: $workItem->name, 60, ''),
+            'meta_description' => \Illuminate\Support\Str::limit(strip_tags($workItem->tagline ?: $result['excerpt']), 155),
+            'meta_keywords'    => !empty($workItem->target_keywords) ? $workItem->target_keywords : null,
+            'reading_time'     => max(1, (int) ceil($wordCount / 200)),
+        ]);
+
+        return redirect()->route('admin.blog-posts.edit', $post)
+            ->with('success', 'Draft generated. Review it, personalize it, and publish when ready.');
+    }
+
+    /**
      * Validate and normalize the form data, cleaning the list fields.
      */
     protected function validateData(Request $request): array
@@ -72,6 +109,8 @@ class WorkItemController extends Controller
             'name'            => 'required|string|max:255',
             'type'            => 'required|in:product,service,project,skill',
             'project_id'      => 'nullable|exists:projects,id',
+            'blog_category_id' => 'nullable|exists:categories,id',
+            'stories'         => 'nullable|string',
             'active'          => 'nullable|boolean',
             'sort_order'      => 'nullable|integer',
             'tagline'         => 'nullable|string|max:500',

@@ -55,6 +55,8 @@ return [
         'enabled' => env('AI_ENHANCEMENT_ENABLED', true),
         'provider' => 'anthropic',
         'model' => env('AI_MODEL', 'claude-haiku-4-5-20251001'),
+        // Stronger model for flagship original articles (weekly cadence = negligible cost)
+        'original_model' => env('AI_ORIGINAL_MODEL', 'claude-sonnet-4-6'),
         'api_key' => env('CLAUDE_API_KEY'),
         'budget_alert_email' => env('AI_BUDGET_ALERT_EMAIL', 'adilsher973@gmail.com'),
         'monthly_budget' => env('AI_MONTHLY_BUDGET', 1.00),
