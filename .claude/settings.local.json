@@ -61,7 +61,9 @@
       "Bash(cd C:/xampp/htdocs/portfolio-website && echo \"=== Fonts in project ===\" && find . -name \"*.ttf\" -not -path \"./node_modules/*\" 2>/dev/null | head; echo \"=== System fonts \\(Windows\\) ===\" && ls /c/Windows/Fonts/arial*.ttf /c/Windows/Fonts/segoeui*.ttf 2>/dev/null | head; echo \"=== public images dir ===\" && ls public/ | grep -iE \"image|img|logo|og\" | head)",
       "Bash(php -l app/Console/Commands/GenerateBlogCategoryImages.php)",
       "Bash(php -l app/Services/AutoPublishService.php)",
-      "Bash(php -l app/Services/AiContentService.php)"
+      "Bash(php -l app/Services/AiContentService.php)",
+      "Bash(php artisan tinker '--execute= *)",
+      "Bash(php artisan *)"
     ]
   }
 }
