@@ -61,8 +61,7 @@ class BioLinkProWorkItemSeeder extends Seeder
             ],
 
             'proof_links' => [
-                ['label' => 'Live demo', 'url' => 'https://portfolio-one-live.vercel.app/'],
-                // Screenshots can be added here.
+                'https://portfolio-one-live.vercel.app/',
             ],
 
             'differentiators' => [
