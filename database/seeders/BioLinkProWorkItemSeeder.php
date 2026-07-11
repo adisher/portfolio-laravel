@@ -88,6 +88,13 @@ class BioLinkProWorkItemSeeder extends Seeder
                 'The case against subscriptions for the small tools you use every day',
             ],
 
+            // Opening hooks: real, verified events to open an article with (add a
+            // source in the text). Order by priority, best real event first. Curated
+            // in the admin; leave empty to have the generator write an unnamed scene.
+            'hooks' => [
+                // e.g. 'In <year>, <platform> shut down its free tier and creators lost their bio pages overnight (source: <url>)',
+            ],
+
             'stories' => "BioLink Pro came from a simple frustration: every link-in-bio tool wanted a monthly subscription to unlock the basics, a custom domain, decent themes, removing their logo, and none of them actually let you own your page. I wanted something a creator could deploy once, brand as their own, and never pay rent on again. So I built the thing I wished existed: a full bio-link page with a visual admin, real analytics, and a one-click deploy, that you own outright.",
 
             'notes' => 'Status: LIVE and testable (https://portfolio-one-live.vercel.app/), so the CTA is a genuine "try it before you buy." Tech stack confirmed. TODO before generating an article: replace or expand `stories` with the real specific origin (when it was built, first real user, any usage or sales numbers) for authenticity. Pricing is one-time: Personal $29, Commercial $79.',

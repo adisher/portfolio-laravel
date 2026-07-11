@@ -41,14 +41,28 @@
         x-data="{ submitting: false }" @submit="submitting = true">
         @csrf
         <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
-            <div class="flex-1">
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Article angle</label>
-                <select name="angle" required
-                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
-                    @foreach($workItem->article_angles as $angle)
-                    <option value="{{ $angle }}">{{ $angle }}</option>
-                    @endforeach
-                </select>
+            <div class="flex-1 grid grid-cols-1 {{ empty($workItem->hooks) ? '' : 'sm:grid-cols-2' }} gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Article angle</label>
+                    <select name="angle" required
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+                        @foreach($workItem->article_angles as $angle)
+                        <option value="{{ $angle }}">{{ $angle }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @unless(empty($workItem->hooks))
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Opening hook</label>
+                    <select name="hook"
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+                        @foreach($workItem->hooks as $hook)
+                        <option value="{{ $hook }}">{{ \Illuminate\Support\Str::limit($hook, 70) }}</option>
+                        @endforeach
+                        <option value="">None (concrete unnamed scene)</option>
+                    </select>
+                </div>
+                @endunless
             </div>
             <button type="submit" :disabled="submitting"
                 class="btn-primary text-sm whitespace-nowrap disabled:opacity-60">
@@ -70,6 +84,7 @@
         'key_outcomes'    => ['Key Outcomes / Proof', 'text-green-500'],
         'differentiators' => ['Differentiators', 'text-teal-500'],
         'article_angles'  => ['Article Angles', 'text-purple-500'],
+        'hooks'           => ['Opening Hooks', 'text-blue-500'],
     ];
 @endphp
 

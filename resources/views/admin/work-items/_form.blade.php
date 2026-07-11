@@ -102,6 +102,7 @@
         'differentiators' => ['Differentiators', 'Why you / why this'],
         'target_keywords' => ['Target Keywords', 'Search terms people use for the pain'],
         'article_angles'  => ['Article Angles', 'Content hooks / ideas'],
+        'hooks'           => ['Opening Hooks', 'Real events to open an article with (add a source). Order by priority: best real event first. The generator opens with the one you pick, or writes a concrete unnamed scene if you pick none.'],
     ];
 @endphp
 @foreach($lists as $field => [$label, $hint])

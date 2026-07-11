@@ -13,7 +13,7 @@ class WorkItem extends Model
         'name', 'type', 'project_id', 'blog_category_id', 'active', 'sort_order',
         'tagline', 'target_audience', 'how_it_helps', 'call_to_action', 'tech_stack', 'url', 'notes', 'stories',
         'pain_points', 'objections', 'key_outcomes', 'proof_links',
-        'differentiators', 'target_keywords', 'article_angles',
+        'differentiators', 'target_keywords', 'article_angles', 'hooks',
     ];
 
     protected $casts = [
@@ -25,6 +25,7 @@ class WorkItem extends Model
         'differentiators' => 'array',
         'target_keywords' => 'array',
         'article_angles'  => 'array',
+        'hooks'           => 'array',
     ];
 
     public function project()

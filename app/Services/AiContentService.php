@@ -203,14 +203,14 @@ class AiContentService
      * manual and a chosen article angle. Returns [title, content, excerpt]
      * or null on failure. The caller creates the draft post.
      */
-    public function generateFromWorkItem(WorkItem $workItem, string $angle): ?array
+    public function generateFromWorkItem(WorkItem $workItem, string $angle, ?string $hook = null): ?array
     {
         if (!$this->isEnabled()) {
             Log::warning('Original article generation skipped: AI disabled or budget exhausted');
             return null;
         }
 
-        $prompt = $this->buildWorkItemPrompt($workItem, $angle);
+        $prompt = $this->buildWorkItemPrompt($workItem, $angle, $hook);
         $model  = config('blog_automation.ai.original_model', $this->model);
 
         try {
@@ -225,7 +225,7 @@ class AiContentService
                 $response['output_tokens'],
                 null,
                 null,
-                ['work_item_id' => $workItem->id, 'angle' => $angle],
+                ['work_item_id' => $workItem->id, 'angle' => $angle, 'hook' => $hook],
                 [],
                 true
             );
@@ -241,7 +241,7 @@ class AiContentService
     /**
      * Build the rich, voice-matched prompt for an original article.
      */
-    protected function buildWorkItemPrompt(WorkItem $wi, string $angle): string
+    protected function buildWorkItemPrompt(WorkItem $wi, string $angle, ?string $hook = null): string
     {
         $list = fn($arr) => empty($arr) ? '(none)' : "- " . implode("\n- ", $arr);
 
@@ -253,6 +253,12 @@ class AiContentService
         $primaryKeyword = $wi->target_keywords[0] ?? '';
         $stories        = trim((string) $wi->stories) !== '' ? $wi->stories : '(no personal stories provided; keep it grounded and specific without inventing biographical details)';
         $cta            = trim((string) $wi->call_to_action) !== '' ? $wi->call_to_action : 'Invite the reader to get in touch if this is their problem.';
+
+        // Opening instruction: a real event if one was chosen, otherwise a concrete unnamed scene.
+        $hook = trim((string) $hook);
+        $opening = $hook !== ''
+            ? "Open the article with this real event, which is true and verified. Lead with it as the reader's point of view, make its consequence concrete, then move into the problem it illustrates before you get anywhere near your solution:\n\"{$hook}\"\nYou may name what is stated in this hook, but do not add any further named companies, dates, numbers, or events around it that are not given here."
+            : "Open with a specific, concrete scene: one person, one moment, one vivid consequence (for example a single dead link on an already-printed business card). Do NOT open with a generic \"there is a moment most people hit\" framing, and do NOT name any real company, product, event, date, or statistic, because none has been verified for you. Keep the scene true-to-life but unnamed.";
 
         return <<<PROMPT
 You are Adil Sher, a full stack developer, writing an original article for your personal blog's "Proof of Work" section. These pieces market your skills through genuine, problem-led storytelling. This is not a summary or a news post. It is your own considered writing.
@@ -285,13 +291,19 @@ The soft call to action to land near the end:
 
 Target search keyword to write around naturally: {$primaryKeyword}
 
+HOW TO OPEN (this sets up the whole piece):
+{$opening}
+After the opening, put the reader inside the problem, deliver the genuine value, and only then present your work as the natural answer.
+
 VOICE AND RULES (follow strictly):
 - First person, opinionated, grounded in real experience. Sound like a thoughtful builder sharing genuine insight, not a marketer.
+- Do not invent facts. Never state a named company, product, event, date, or statistic unless it appears above in the hook, the stories, or the proof. When in doubt, write a concrete but unnamed scene instead.
 - Lead with the reader's pain or a real moment, deliver genuine value (teach how to think about the problem), and only then present your work as the natural answer. Roughly 80 percent value, 20 percent pitch.
 - The pitch must be keen, not desperate: confident, specific about who it is for, and honest about the product's stage. Never beg.
 - Be creative and unique. Do not follow a rigid template or use obvious section formulas. Let the piece breathe.
 - Weave the real stories in naturally where they strengthen the point. Do not fabricate biographical facts beyond what is given.
 - NEVER use em dashes anywhere. Use commas, colons, or periods instead.
+- Where a real product screenshot would prove a point better than prose can (for example the live page, the admin panel, an analytics dashboard, a theme picker, drag-and-drop links), insert a placement marker on its own line in this exact format: [[screenshot: short description of what the image should show]]. Put it immediately after the paragraph it illustrates. Use 2 to 4 of these across the whole piece, one per idea, and never two in a row. These are placeholders a human will replace with a real screenshot, so do not use Markdown image syntax and do not invent image URLs. Only add a marker where an actual screenshot of this product would plausibly exist.
 - 900 to 1100 words. Markdown formatting. Use ## for section headings. Put the article's headline as a single # line at the very top (create a compelling headline based on the angle, not a copy of it).
 - Return only the article markdown, starting with the # headline. No preamble, no notes.
 PROMPT;

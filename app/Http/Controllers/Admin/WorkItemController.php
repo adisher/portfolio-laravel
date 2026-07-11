@@ -74,7 +74,14 @@ class WorkItemController extends Controller
             return back()->with('error', 'Please choose one of this work item\'s article angles.');
         }
 
-        $result = app(\App\Services\AiContentService::class)->generateFromWorkItem($workItem, $angle);
+        // Optional opening hook. Empty means "let the AI write a concrete unnamed scene."
+        // Only a hook curated on this work item is allowed through (no free-text events).
+        $hook = $request->input('hook');
+        if ($hook !== null && $hook !== '' && !in_array($hook, $workItem->hooks ?? [], true)) {
+            return back()->with('error', 'Please choose one of this work item\'s hooks, or none.');
+        }
+
+        $result = app(\App\Services\AiContentService::class)->generateFromWorkItem($workItem, $angle, $hook ?: null);
 
         if (!$result || empty($result['content'])) {
             return back()->with('error', 'Article generation failed. Check the AI budget/key configuration and try again.');
@@ -127,12 +134,13 @@ class WorkItemController extends Controller
             'differentiators' => 'nullable|array',
             'target_keywords' => 'nullable|array',
             'article_angles'  => 'nullable|array',
+            'hooks'           => 'nullable|array',
         ]);
 
         $validated['active'] = $request->boolean('active');
         $validated['sort_order'] = (int) ($request->input('sort_order', 0));
 
-        foreach (['pain_points', 'objections', 'key_outcomes', 'proof_links', 'differentiators', 'target_keywords', 'article_angles'] as $field) {
+        foreach (['pain_points', 'objections', 'key_outcomes', 'proof_links', 'differentiators', 'target_keywords', 'article_angles', 'hooks'] as $field) {
             $validated[$field] = $this->cleanList($request->input($field, []));
         }
 
