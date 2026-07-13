@@ -88,11 +88,17 @@ class BioLinkProWorkItemSeeder extends Seeder
                 'The case against subscriptions for the small tools you use every day',
             ],
 
-            // Opening hooks: real, verified events to open an article with (add a
-            // source in the text). Order by priority, best real event first. Curated
-            // in the admin; leave empty to have the generator write an unnamed scene.
+            // Opening hooks: real, verified events to open an article with (source
+            // included). Order by priority, best real event first. Curated in the
+            // admin; leave empty to have the generator write an unnamed scene.
             'hooks' => [
-                // e.g. 'In <year>, <platform> shut down its free tier and creators lost their bio pages overnight (source: <url>)',
+                'In February 2026, Bento.me, a link-in-bio platform Linktree had bought two years earlier, was shut down: users were locked out, all their content was deleted, and every Bento bio-link now silently redirects to Linktree\'s own website (source: taplink.at/en/blog/bento-me-over.html).',
+                'In December 2023 Linktree acquired Koji, a link-in-bio platform used by more than 150,000 creators that had raised nearly $40 million, and shut it down weeks later on January 31, 2024 (source: techcrunch.com, 2023-12-14).',
+                'Shopify retired Linkpop, its own link-in-bio product, on July 7, 2025 with no reason given and no migration path, and existing pages simply stopped working (source: coywolf.com).',
+                'Tap Bio told its users it would shut down on October 31, 2026, after which accounts are locked and every user page is deleted; it stopped accepting new signups as soon as it announced (source: taplink.at/en/blog/tap-bio-over.html).',
+                'In 2025 Linktree, the market leader, raised its prices and added a 12 percent fee on creator sales, a reminder that on a platform you rent, the terms can change under you at any time (source: techcrunch.com, 2025-04-23).',
+                'In December 2022, X (then Twitter) briefly banned link-in-bio services outright: for a few days, simply having a Linktree or lnk.bio link in your bio could get your account suspended, until creator backlash forced a reversal (source: tubefilter.com, 2022-12-19).',
+                'On August 25, 2025, Google shut down its goo.gl URL shortener and let millions of previously shared short links start returning 404 errors, proof that even a link you handed out everywhere can simply stop resolving when it lives on someone else\'s service (source: developers.googleblog.com).',
             ],
 
             'stories' => "BioLink Pro came from a simple frustration: every link-in-bio tool wanted a monthly subscription to unlock the basics, a custom domain, decent themes, removing their logo, and none of them actually let you own your page. I wanted something a creator could deploy once, brand as their own, and never pay rent on again. So I built the thing I wished existed: a full bio-link page with a visual admin, real analytics, and a one-click deploy, that you own outright.",

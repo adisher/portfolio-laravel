@@ -63,7 +63,11 @@
       "Bash(php -l app/Services/AutoPublishService.php)",
       "Bash(php -l app/Services/AiContentService.php)",
       "Bash(php artisan tinker '--execute= *)",
-      "Bash(php artisan *)"
+      "Bash(php artisan *)",
+      "WebSearch",
+      "WebFetch(domain:taplink.at)",
+      "WebFetch(domain:coywolf.com)",
+      "WebFetch(domain:www.tubefilter.com)"
     ]
   }
 }
