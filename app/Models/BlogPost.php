@@ -99,11 +99,26 @@ class BlogPost extends Model implements Feedable
 
     public function getRenderedContentAttribute()
     {
-        $converter = new CommonMarkConverter([
+        // External links (our citations) get a 'ref-link' class so they can be
+        // styled as small, unobtrusive references. Internal links are untouched.
+        $host = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
+
+        $environment = new \League\CommonMark\Environment\Environment([
             'html_input' => 'strip',
             'allow_unsafe_links' => false,
+            'external_link' => [
+                'internal_hosts' => $host,
+                'open_in_new_window' => true,
+                'html_class' => 'ref-link',
+                'noopener' => 'external',
+                'noreferrer' => 'external',
+            ],
         ]);
+        $environment->addExtension(new \League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension());
+        $environment->addExtension(new \League\CommonMark\Extension\ExternalLink\ExternalLinkExtension());
 
-        return $converter->convert($this->content)->getContent();
+        return (new \League\CommonMark\MarkdownConverter($environment))
+            ->convert($this->content)
+            ->getContent();
     }
 }

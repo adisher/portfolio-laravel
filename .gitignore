@@ -30,3 +30,4 @@ __pycache__/
 venv/
 portfolio_db.sql
 storage/app/google
+scripts/screenshots/out

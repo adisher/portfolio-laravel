@@ -67,7 +67,8 @@
       "WebSearch",
       "WebFetch(domain:taplink.at)",
       "WebFetch(domain:coywolf.com)",
-      "WebFetch(domain:www.tubefilter.com)"
+      "WebFetch(domain:www.tubefilter.com)",
+      "Bash(git rev-list *)"
     ]
   }
 }

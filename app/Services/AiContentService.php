@@ -253,12 +253,26 @@ class AiContentService
         $primaryKeyword = $wi->target_keywords[0] ?? '';
         $stories        = trim((string) $wi->stories) !== '' ? $wi->stories : '(no personal stories provided; keep it grounded and specific without inventing biographical details)';
         $cta            = trim((string) $wi->call_to_action) !== '' ? $wi->call_to_action : 'Invite the reader to get in touch if this is their problem.';
+        $voices         = $list($wi->voices ?? []);
+
+        // Screenshot library: constrain markers to a fixed set of slugs when the
+        // product defines one, otherwise fall back to free-form descriptions.
+        $shots = array_values(array_filter(array_map('trim', $wi->screenshots ?? []), fn($s) => $s !== ''));
+        $screenshotRule = empty($shots)
+            ? "- Where a real product screenshot would prove a point better than prose can, insert a marker on its own line as [[screenshot: short description of what the image should show]], immediately after the paragraph it illustrates. Use 2 to 4 across the piece, one per idea, and never two in a row. A human adds the real image, so do not use Markdown image syntax or invent image URLs."
+            : "- Product screenshots: this product has a fixed screenshot library. Where one proves a point better than prose, insert a marker on its own line as [[screenshot: slug]] using ONLY a slug from this list (the exact text before the dash), placed immediately after the paragraph it illustrates:\n" . ("  - " . implode("\n  - ", $shots)) . "\nUse 2 to 4 markers total, one per idea, never two in a row, and never invent a slug that is not in this list.";
 
         // Opening instruction: a real event if one was chosen, otherwise a concrete unnamed scene.
         $hook = trim((string) $hook);
         $opening = $hook !== ''
-            ? "Open the article with this real event, which is true and verified. Lead with it as the reader's point of view, make its consequence concrete, then move into the problem it illustrates before you get anywhere near your solution:\n\"{$hook}\"\nYou may name what is stated in this hook, but do not add any further named companies, dates, numbers, or events around it that are not given here."
-            : "Open with a specific, concrete scene: one person, one moment, one vivid consequence (for example a single dead link on an already-printed business card). Do NOT open with a generic \"there is a moment most people hit\" framing, and do NOT name any real company, product, event, date, or statistic, because none has been verified for you. Keep the scene true-to-life but unnamed.";
+            ? "Open the article with this real event, which is true and verified. Lead with it as the reader's point of view, make its consequence concrete, then move into the problem it illustrates before you get anywhere near your solution:\n\"{$hook}\"\nName only what this hook states; do not invent extra companies, dates, or numbers around it beyond the material you are given elsewhere in this prompt."
+            : "Open with a specific, concrete scene: one person, one moment, one vivid consequence (for example a single dead link on an already-printed business card). Do NOT open with a generic \"there is a moment most people hit\" framing. Keep the opening SCENE itself unnamed and invent no real names in it. You may still cite the verified events in the supporting pattern once you are past the opening.";
+
+        // Supporting pattern: the other real events (not the lead hook), so the piece
+        // can show this is a pattern, not a one-off. Empty when there are 0-1 hooks.
+        $allHooks   = array_values(array_filter(array_map('trim', $wi->hooks ?? []), fn($h) => $h !== ''));
+        $supporting = array_slice(array_values(array_filter($allHooks, fn($h) => $h !== $hook)), 0, 5);
+        $supportingBlock = empty($supporting) ? '' : "\n\nSUPPORTING PATTERN (use to show this is not an isolated case):\n" . ("- " . implode("\n- ", $supporting)) . "\nAfter the opening and the problem, briefly reference two or three of these other real events to establish a pattern rather than a one-off. Cite each one you name with its compact [(Source)](url) link. Keep it to a sentence or two of prose, never a bulleted list, and keep the lead event dominant. Do not add a separate screenshot for each of these; at most you may add a single [[social: ...]] marker for one collective visual (for example several shutdown headlines together) if it genuinely strengthens the pattern.";
 
         return <<<PROMPT
 You are Adil Sher, a full stack developer, writing an original article for your personal blog's "Proof of Work" section. These pieces market your skills through genuine, problem-led storytelling. This is not a summary or a news post. It is your own considered writing.
@@ -286,6 +300,9 @@ Proof and outcomes you can reference:
 Real stories and personal details to weave in where they fit (this is what keeps the piece authentic, not generic):
 {$stories}
 
+Real user sentiment you may quote as social proof. These are real people reacting to the problem. Quote briefly and verbatim, attribute to who said it, and cite the source. Do NOT invent, reword, or re-attribute any of these:
+{$voices}
+
 The soft call to action to land near the end:
 {$cta}
 
@@ -293,17 +310,22 @@ Target search keyword to write around naturally: {$primaryKeyword}
 
 HOW TO OPEN (this sets up the whole piece):
 {$opening}
-After the opening, put the reader inside the problem, deliver the genuine value, and only then present your work as the natural answer.
+After the opening, put the reader inside the problem, deliver the genuine value, and only then present your work as the natural answer.{$supportingBlock}
 
 VOICE AND RULES (follow strictly):
 - First person, opinionated, grounded in real experience. Sound like a thoughtful builder sharing genuine insight, not a marketer.
-- Do not invent facts. Never state a named company, product, event, date, or statistic unless it appears above in the hook, the stories, or the proof. When in doubt, write a concrete but unnamed scene instead.
+- Stay calm and analytical even when citing platform failures. You are the reasonable builder pointing at a pattern, never an outraged rage-channel and never clickbait. No manufactured suspense, no "what happened next will shock you."
+- Do not invent facts. Never state a named company, product, event, date, statistic, or quote unless it appears above in the hook, the supporting pattern, the stories, the proof, or the user sentiment. When in doubt, write a concrete but unnamed scene instead.
 - Lead with the reader's pain or a real moment, deliver genuine value (teach how to think about the problem), and only then present your work as the natural answer. Roughly 80 percent value, 20 percent pitch.
 - The pitch must be keen, not desperate: confident, specific about who it is for, and honest about the product's stage. Never beg.
 - Be creative and unique. Do not follow a rigid template or use obvious section formulas. Let the piece breathe.
 - Weave the real stories in naturally where they strengthen the point. Do not fabricate biographical facts beyond what is given.
+- Social proof: where it strengthens a pain point, present one or two of the real user voices above as a Markdown blockquote (a line starting with >) holding the short verbatim quote, its attribution, and a compact [(Source)](url) citation. Never invent, reword, or re-attribute a quote.
+- Citations: when you state a fact or quote that came from the hook, the proof, or the user sentiment, cite it by placing a compact reference link right after it, formatted exactly as [(Source)](url) where Source is a short name (the publication or subreddit), never the raw URL spelled out. Only cite sources actually provided above. Do not add a bibliography or a sources list at the end.
+- Rhythm: a few times, at genuine turning points, you may isolate one short, punchy sentence on its own line and bold it for emphasis. Use this sparingly (two or three times at most), never as decoration.
 - NEVER use em dashes anywhere. Use commas, colons, or periods instead.
-- Where a real product screenshot would prove a point better than prose can (for example the live page, the admin panel, an analytics dashboard, a theme picker, drag-and-drop links), insert a placement marker on its own line in this exact format: [[screenshot: short description of what the image should show]]. Put it immediately after the paragraph it illustrates. Use 2 to 4 of these across the whole piece, one per idea, and never two in a row. These are placeholders a human will replace with a real screenshot, so do not use Markdown image syntax and do not invent image URLs. Only add a marker where an actual screenshot of this product would plausibly exist.
+{$screenshotRule}
+- After each such blockquote, add a [[social: short description of the post to screenshot]] marker on its own line. A real screenshot of the post is preferred and a human will drop it in; if none is available the blockquote stands on its own. Never invent the image or use Markdown image syntax, and only mark sentiment you were actually given above.
 - 900 to 1100 words. Markdown formatting. Use ## for section headings. Put the article's headline as a single # line at the very top (create a compelling headline based on the angle, not a copy of it).
 - Return only the article markdown, starting with the # headline. No preamble, no notes.
 PROMPT;
@@ -323,12 +345,19 @@ PROMPT;
             $content = trim(preg_replace('/^#\s+.+\n+/m', '', $content, 1));
         }
 
-        // Excerpt: first substantial non-heading paragraph
+        // Excerpt: first substantial paragraph, skipping headings, markers and quotes,
+        // cleaned of markdown so it reads well as a meta description.
         $excerpt = '';
         foreach (explode("\n", $content) as $line) {
             $line = trim($line);
-            if (!empty($line) && !str_starts_with($line, '#') && strlen($line) > 60) {
-                $excerpt = \Illuminate\Support\Str::limit(strip_tags($line), 280);
+            if (empty($line) || str_starts_with($line, '#') || str_starts_with($line, '[[') || str_starts_with($line, '>')) {
+                continue;
+            }
+            $plain = preg_replace('/\[\[[^\]]*\]\]/', '', $line);            // [[screenshot: ...]] / [[social: ...]]
+            $plain = preg_replace('/\[([^\]]+)\]\([^)]*\)/', '$1', $plain);  // [text](url) -> text
+            $plain = trim(strip_tags(str_replace(['**', '__', '`', '*'], '', $plain)));
+            if (strlen($plain) > 60) {
+                $excerpt = \Illuminate\Support\Str::limit($plain, 280);
                 break;
             }
         }

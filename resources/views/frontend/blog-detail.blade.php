@@ -87,6 +87,21 @@
         color: #2BC4B0;
     }
 
+    /* Citation / reference links: small and unobtrusive, purely for sourcing */
+    .prose a.ref-link {
+        font-size: 0.72em;
+        font-weight: 600;
+        text-decoration: none;
+        opacity: 0.65;
+        white-space: nowrap;
+        vertical-align: 0.15em;
+    }
+
+    .prose a.ref-link:hover {
+        opacity: 1;
+        text-decoration: underline;
+    }
+
     .prose ul, .prose ol {
         padding-left: 1.5rem;
     }

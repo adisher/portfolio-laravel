@@ -1,0 +1,58 @@
+[
+  {
+    "slug": "live-page",
+    "url": "https://portfolio-one-live.vercel.app/",
+    "viewport": { "width": 430, "height": 932 },
+    "selector": null,
+    "fullPage": true
+  },
+  {
+    "slug": "live-themes",
+    "url": "https://portfolio-one-live.vercel.app/",
+    "viewport": { "width": 430, "height": 932 },
+    "selector": null,
+    "fullPage": true,
+    "note": "Duplicate this entry per theme once you know how a theme is selected (URL param or admin setting), then capture each as live-themes-1, live-themes-2, ..."
+  },
+  {
+    "slug": "admin-dashboard",
+    "url": "https://portfolio-one-live.vercel.app/admin",
+    "loginUrl": "https://portfolio-one-live.vercel.app/admin",
+    "auth": true,
+    "viewport": { "width": 1440, "height": 900 },
+    "selector": null,
+    "note": "Adjust url/selector to the real admin routes once you are logged in."
+  },
+  {
+    "slug": "analytics",
+    "url": "https://portfolio-one-live.vercel.app/admin",
+    "auth": true,
+    "viewport": { "width": 1440, "height": 900 },
+    "selector": null,
+    "note": "Point url at the analytics route and set selector to the analytics card for a tight crop."
+  },
+  {
+    "slug": "link-editor",
+    "url": "https://portfolio-one-live.vercel.app/admin",
+    "auth": true,
+    "viewport": { "width": 1440, "height": 900 },
+    "selector": null,
+    "note": "Point at the links route; set selector to the links list."
+  },
+  {
+    "slug": "theme-picker",
+    "url": "https://portfolio-one-live.vercel.app/admin",
+    "auth": true,
+    "viewport": { "width": 1440, "height": 900 },
+    "selector": null,
+    "note": "Point at the appearance/theme route; set selector to the theme selector."
+  },
+  {
+    "slug": "profile-editor",
+    "url": "https://portfolio-one-live.vercel.app/admin",
+    "auth": true,
+    "viewport": { "width": 1440, "height": 900 },
+    "selector": null,
+    "note": "Point at the profile route; set selector to the profile form."
+  }
+]

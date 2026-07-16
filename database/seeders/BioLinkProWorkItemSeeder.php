@@ -101,6 +101,31 @@ class BioLinkProWorkItemSeeder extends Seeder
                 'On August 25, 2025, Google shut down its goo.gl URL shortener and let millions of previously shared short links start returning 404 errors, proof that even a link you handed out everywhere can simply stop resolving when it lives on someone else\'s service (source: developers.googleblog.com).',
             ],
 
+            // Real user sentiment for social proof. Curated from public discussions.
+            // Verify each quote verbatim against its primary thread before publishing.
+            'voices' => [
+                '"EVERYTHING is a subscription now. Squarespace, Linktree, Distrokid, Spotify all adds up to way too much." A creator on r/musicmarketing reacting to Linktree\'s late-2025 price increase (source: linklay.io).',
+                'Creators on r/musicmarketing called Linktree\'s late-2025 pricing "outrageously overpriced," especially stacked on top of every other creator subscription (source: linke.ro).',
+                'A recurring complaint from creators leaving Linktree: realizing they were paying $15 a month and still giving up 9 percent of every sale on top (source: u2l.ai).',
+                '"After read.cv, Bento is shutting down too." A designer on Peerlist capturing the fatigue as one creator-profile platform after another gets shut down (source: peerlist.io).',
+            ],
+
+            // Canonical screenshot library ("slug — description"). The generator may
+            // only emit [[screenshot: slug]] markers from this list. Capture the
+            // own-UI shots with scripts/screenshots; the two Vercel screens are
+            // captured manually. See docs/screenshot-library.md.
+            'screenshots' => [
+                'live-page — the public bio page in the default theme',
+                'live-themes — two or three of the five themes shown together',
+                'admin-dashboard — the admin overview after login',
+                'analytics — the page views and link clicks panel',
+                'link-editor — the links list with drag-and-drop handles',
+                'theme-picker — the five-theme selector',
+                'profile-editor — the profile fields (photo, bio, social links)',
+                'vercel-deploy — the one-click Vercel deploy screen (external, capture manually)',
+                'custom-domain — the Vercel custom-domain settings (external, capture manually)',
+            ],
+
             'stories' => "BioLink Pro came from a simple frustration: every link-in-bio tool wanted a monthly subscription to unlock the basics, a custom domain, decent themes, removing their logo, and none of them actually let you own your page. I wanted something a creator could deploy once, brand as their own, and never pay rent on again. So I built the thing I wished existed: a full bio-link page with a visual admin, real analytics, and a one-click deploy, that you own outright.",
 
             'notes' => 'Status: LIVE and testable (https://portfolio-one-live.vercel.app/), so the CTA is a genuine "try it before you buy." Tech stack confirmed. TODO before generating an article: replace or expand `stories` with the real specific origin (when it was built, first real user, any usage or sales numbers) for authenticity. Pricing is one-time: Personal $29, Commercial $79.',

@@ -85,6 +85,8 @@
         'differentiators' => ['Differentiators', 'text-teal-500'],
         'article_angles'  => ['Article Angles', 'text-purple-500'],
         'hooks'           => ['Opening Hooks', 'text-blue-500'],
+        'voices'          => ['User Voices', 'text-pink-500'],
+        'screenshots'     => ['Screenshot Library', 'text-amber-500'],
     ];
 @endphp
 
