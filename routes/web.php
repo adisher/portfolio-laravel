@@ -279,6 +279,9 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::resource('tournaments', \App\Http\Controllers\Admin\TournamentController::class);
     });
 
+    // Usage & Tools (Claude + external tool usage stats)
+    Route::get('usage', [\App\Http\Controllers\Admin\UsageController::class, 'index'])->name('usage.index');
+
     // Visibility
     Route::get('visibility', [VisibilityController::class, 'index'])->name('visibility.index');
     Route::patch('visibility/{flag}', [VisibilityController::class, 'toggle'])->name('visibility.toggle');

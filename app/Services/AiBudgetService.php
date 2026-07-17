@@ -12,12 +12,6 @@ use Illuminate\Support\Facades\Log;
 class AiBudgetService
 {
     /**
-     * Haiku pricing per million tokens.
-     */
-    protected float $inputPricePerMillion = 0.25;
-    protected float $outputPricePerMillion = 0.50;
-
-    /**
      * Get the budget settings instance.
      */
     public function getSettings(): AiBudgetSetting
@@ -35,12 +29,32 @@ class AiBudgetService
     }
 
     /**
-     * Calculate cost for tokens.
+     * Resolve the per-million token price for a model from config, matched by
+     * substring (opus/sonnet/haiku), falling back to the default tier.
      */
-    public function calculateCost(int $inputTokens, int $outputTokens): float
+    public function priceFor(?string $model): array
     {
-        $inputCost = ($inputTokens * $this->inputPricePerMillion) / 1_000_000;
-        $outputCost = ($outputTokens * $this->outputPricePerMillion) / 1_000_000;
+        $pricing = config('blog_automation.ai.pricing', []);
+        $model = strtolower((string) $model);
+
+        foreach ($pricing as $key => $rates) {
+            if ($key !== 'default' && $key !== '' && str_contains($model, $key)) {
+                return $rates;
+            }
+        }
+
+        return $pricing['default'] ?? ['input' => 1.00, 'output' => 5.00];
+    }
+
+    /**
+     * Calculate token cost for a specific model.
+     */
+    public function calculateCost(int $inputTokens, int $outputTokens, ?string $model = null): float
+    {
+        $rates = $this->priceFor($model ?? config('blog_automation.ai.model'));
+
+        $inputCost  = ($inputTokens * $rates['input']) / 1_000_000;
+        $outputCost = ($outputTokens * $rates['output']) / 1_000_000;
 
         return $inputCost + $outputCost;
     }
@@ -57,14 +71,17 @@ class AiBudgetService
         array $requestData = [],
         array $responseData = [],
         bool $success = true,
-        ?string $errorMessage = null
+        ?string $errorMessage = null,
+        ?string $model = null,
+        float $extraCostUsd = 0.0
     ): AiUsageLog {
-        $cost = $this->calculateCost($inputTokens, $outputTokens);
+        $model = $model ?: config('blog_automation.ai.model', 'claude-haiku-4-5-20251001');
+        $cost = $this->calculateCost($inputTokens, $outputTokens, $model) + $extraCostUsd;
 
         // Create usage log
         $log = AiUsageLog::create([
             'service' => $service,
-            'model' => config('blog_automation.ai.model', 'claude-haiku-4-5-20251001'),
+            'model' => $model,
             'input_tokens' => $inputTokens,
             'output_tokens' => $outputTokens,
             'cost_usd' => $cost,

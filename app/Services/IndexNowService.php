@@ -34,7 +34,10 @@ class IndexNowService
                 'key' => $this->apiKey,
             ]);
 
-            if ($response->successful() || $response->status() === 200 || $response->status() === 202) {
+            $ok = $response->successful() || $response->status() === 200 || $response->status() === 202;
+            \App\Models\ToolUsageLog::record('indexnow', 'submit', 1, 'urls', $ok, null, ['status' => $response->status()]);
+
+            if ($ok) {
                 Log::info("IndexNow: Successfully submitted {$url}");
                 return true;
             }
@@ -44,6 +47,7 @@ class IndexNowService
 
         } catch (\Exception $e) {
             Log::error("IndexNow: Exception submitting {$url}: " . $e->getMessage());
+            \App\Models\ToolUsageLog::record('indexnow', 'submit', 1, 'urls', false, null, ['error' => $e->getMessage()]);
             return false;
         }
     }
@@ -69,7 +73,10 @@ class IndexNowService
                 'urlList' => array_slice($urls, 0, 10000), // Max 10,000 URLs per request
             ]);
 
-            if ($response->successful() || $response->status() === 200 || $response->status() === 202) {
+            $ok = $response->successful() || $response->status() === 200 || $response->status() === 202;
+            \App\Models\ToolUsageLog::record('indexnow', 'submit_batch', count($urls), 'urls', $ok, null, ['status' => $response->status()]);
+
+            if ($ok) {
                 Log::info("IndexNow: Successfully submitted " . count($urls) . " URLs");
                 return [
                     'success' => true,

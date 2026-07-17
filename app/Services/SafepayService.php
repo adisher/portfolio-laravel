@@ -68,6 +68,7 @@ class SafepayService
                 ?? $response->json('message')
                 ?? implode(', ', $response->json('status.errors') ?? [])
                 ?: 'Unknown error';
+            \App\Models\ToolUsageLog::record('safepay', 'create_payment', 1, 'requests', false, null, ['status' => $response->status()]);
             throw new \Exception('Failed to create Safepay payment session: ' . $errorMsg);
         }
 
@@ -81,6 +82,8 @@ class SafepayService
             'amount'  => $amount,
             'amount_lowest' => $amountInLowest,
         ]);
+
+        \App\Models\ToolUsageLog::record('safepay', 'create_payment', 1, 'requests', true, null, ['currency' => $currency]);
 
         return [
             'token'   => $tracker,

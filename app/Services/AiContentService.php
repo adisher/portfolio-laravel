@@ -95,7 +95,8 @@ class AiContentService
                 null,
                 ['prompt_length' => strlen($prompt)],
                 ['content_length' => strlen($content['content'] ?? '')],
-                true
+                true,
+                model: $this->model
             );
 
             // Mark article as AI enhanced
@@ -118,7 +119,8 @@ class AiContentService
                 [],
                 [],
                 false,
-                $e->getMessage()
+                $e->getMessage(),
+                model: $this->model
             );
 
             return null;
@@ -149,7 +151,8 @@ class AiContentService
                 'seo_generate',
                 $response['input_tokens'],
                 $response['output_tokens'],
-                $article->id
+                $article->id,
+                model: $this->model
             );
 
             $article->update(['seo_data' => $seoData]);
@@ -227,7 +230,8 @@ class AiContentService
                 null,
                 ['work_item_id' => $workItem->id, 'angle' => $angle, 'hook' => $hook],
                 [],
-                true
+                true,
+                model: $model
             );
 
             return $this->parseGeneratedArticle($response['content']);

@@ -68,7 +68,14 @@
       "WebFetch(domain:taplink.at)",
       "WebFetch(domain:coywolf.com)",
       "WebFetch(domain:www.tubefilter.com)",
-      "Bash(git rev-list *)"
+      "Bash(git rev-list *)",
+      "WebFetch(domain:peerlist.io)",
+      "WebFetch(domain:news.ycombinator.com)",
+      "WebFetch(domain:x.com)",
+      "WebFetch(domain:web.archive.org)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(php -l app/Http/Controllers/Admin/UsageController.php)"
     ]
   }
 }

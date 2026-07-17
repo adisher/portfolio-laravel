@@ -190,6 +190,10 @@
                 <p class="text-sm text-gray-500 dark:text-gray-400">Run migrations to enable AI budget tracking</p>
             </div>
         @endif
+
+        <a href="{{ route('admin.usage.index') }}" class="block text-center text-sm text-teal hover:underline mt-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+            View full usage &amp; tools &rarr;
+        </a>
     </div>
 </div>
 

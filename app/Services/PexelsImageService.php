@@ -79,6 +79,7 @@ class PexelsImageService
 
             if (!$response->successful()) {
                 Log::info("Pexels search failed ({$response->status()}) for query: {$query}");
+                \App\Models\ToolUsageLog::record('pexels', 'search', 0, 'images', false, null, ['status' => $response->status()]);
                 return null;
             }
 
@@ -95,10 +96,13 @@ class PexelsImageService
                 return null;
             }
 
-            return $this->downloadAndStore($imageUrl, $filenameBase);
+            $path = $this->downloadAndStore($imageUrl, $filenameBase);
+            \App\Models\ToolUsageLog::record('pexels', 'search', $path ? 1 : 0, 'images', (bool) $path, null, ['query' => $query]);
+            return $path;
 
         } catch (Exception $e) {
             Log::info("Pexels fetch error for {$filenameBase}: " . $e->getMessage());
+            \App\Models\ToolUsageLog::record('pexels', 'search', 0, 'images', false, null, ['error' => $e->getMessage()]);
             return null;
         }
     }

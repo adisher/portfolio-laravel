@@ -60,6 +60,19 @@ return [
         'api_key' => env('CLAUDE_API_KEY'),
         'budget_alert_email' => env('AI_BUDGET_ALERT_EMAIL', 'adilsher973@gmail.com'),
         'monthly_budget' => env('AI_MONTHLY_BUDGET', 1.00),
+
+        // Per-model pricing, USD per 1,000,000 tokens. Matched by substring of the
+        // model id (first match wins), so 'sonnet' covers sonnet-4-6 / sonnet-5 etc.
+        // Keep in sync with https://platform.claude.com/docs/en/pricing
+        'pricing' => [
+            'opus'   => ['input' => 5.00, 'output' => 25.00],
+            'sonnet' => ['input' => 3.00, 'output' => 15.00],
+            'haiku'  => ['input' => 1.00, 'output' => 5.00],
+            'default' => ['input' => 1.00, 'output' => 5.00],
+        ],
+
+        // Web search server tool: USD per search (Anthropic ~ $10 / 1000 searches).
+        'web_search_cost_per_search' => env('AI_WEB_SEARCH_COST', 0.01),
     ],
 
     /*

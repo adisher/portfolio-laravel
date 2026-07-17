@@ -84,10 +84,12 @@ class GscService
                     'position'    => (float) $row->getPosition(),
                 ];
             }
+            \App\Models\ToolUsageLog::record('gsc', 'search_analytics', 1, 'requests', true);
             return $rows;
 
         } catch (\Throwable $e) {
             Log::warning('GSC query failed: ' . $e->getMessage());
+            \App\Models\ToolUsageLog::record('gsc', 'search_analytics', 1, 'requests', false, null, ['error' => $e->getMessage()]);
             return [];
         }
     }
