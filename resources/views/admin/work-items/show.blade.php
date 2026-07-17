@@ -132,7 +132,7 @@
     <p class="text-xs uppercase tracking-wide text-gray-400 mb-2">Candidates ({{ $candidateVoices->count() }}) &middot; verify each quote on its source before approving</p>
     <div class="space-y-2 mb-5">
         @foreach($candidateVoices as $v)
-            @include('admin.work-items._voice-card', ['v' => $v, 'mediaOptions' => $mediaOptions])
+            @include('admin.work-items._voice-card', ['v' => $v])
         @endforeach
     </div>
     @endif
@@ -143,7 +143,7 @@
     @else
     <div class="space-y-2">
         @foreach($approvedVoices as $v)
-            @include('admin.work-items._voice-card', ['v' => $v, 'mediaOptions' => $mediaOptions])
+            @include('admin.work-items._voice-card', ['v' => $v])
         @endforeach
     </div>
     @endif

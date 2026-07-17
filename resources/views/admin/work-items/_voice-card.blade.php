@@ -1,11 +1,16 @@
-{{-- Expects: $v (WorkItemVoice), $mediaOptions --}}
+{{-- Expects: $v (WorkItemVoice) --}}
 <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
     <div class="flex gap-3">
-        <div class="flex-shrink-0">
+        <div class="flex-shrink-0 w-16">
             @if($v->media)
             <a href="{{ $v->media->url }}" target="_blank">
                 <img src="{{ $v->media->url }}" alt="" class="w-16 h-16 object-cover rounded border border-gray-200 dark:border-gray-600">
             </a>
+            <form method="POST" action="{{ route('admin.work-items.voices.update', $v) }}" class="text-center mt-1">
+                @csrf @method('PATCH')
+                <input type="hidden" name="remove_screenshot" value="1">
+                <button class="text-[11px] text-red-500 hover:underline">remove</button>
+            </form>
             @else
             <div class="w-16 h-16 rounded bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-300 text-[10px] text-center">no shot</div>
             @endif
@@ -14,10 +19,10 @@
             <p class="text-sm text-gray-800 dark:text-gray-200">{{ $v->quote }}</p>
             <p class="text-xs text-gray-400 mt-1">
                 @if($v->attribution){{ $v->attribution }}@endif
-                @if($v->source_url) &middot; <a href="{{ $v->source_url }}" target="_blank" class="text-teal hover:underline">source</a>@endif
+                @if($v->source_url) &middot; <a href="{{ $v->source_url }}" target="_blank" class="text-teal hover:underline">visit source</a>@endif
                 @if($v->meta['note'] ?? null) &middot; {{ $v->meta['note'] }}@endif
             </p>
-            <div class="flex flex-wrap items-center gap-3 mt-2">
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
                 <form method="POST" action="{{ route('admin.work-items.voices.update', $v) }}">
                     @csrf @method('PATCH')
                     <input type="hidden" name="status" value="{{ $v->status === 'approved' ? 'candidate' : 'approved' }}">
@@ -25,16 +30,15 @@
                         {{ $v->status === 'approved' ? 'Unapprove' : 'Approve' }}
                     </button>
                 </form>
-                <form method="POST" action="{{ route('admin.work-items.voices.update', $v) }}" class="flex items-center gap-1">
+
+                {{-- Take a screenshot of the source, then upload it here --}}
+                <form method="POST" action="{{ route('admin.work-items.voices.update', $v) }}" enctype="multipart/form-data" class="flex items-center gap-1">
                     @csrf @method('PATCH')
-                    <select name="media_id" class="text-xs rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 max-w-[9rem]">
-                        <option value="">— screenshot —</option>
-                        @foreach($mediaOptions as $mo)
-                        <option value="{{ $mo->id }}" {{ $v->media_id == $mo->id ? 'selected' : '' }}>{{ \Illuminate\Support\Str::limit($mo->file_name, 20) }}</option>
-                        @endforeach
-                    </select>
-                    <button class="text-xs text-teal hover:underline">Save</button>
+                    <input type="file" name="screenshot" accept="image/*" required
+                        class="text-xs text-gray-500 dark:text-gray-400 max-w-[12rem] file:mr-2 file:text-xs file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-700 dark:file:text-gray-200 file:px-2 file:py-1 file:cursor-pointer">
+                    <button class="text-xs text-teal hover:underline whitespace-nowrap">{{ $v->media ? 'Replace' : 'Upload' }}</button>
                 </form>
+
                 <form method="POST" action="{{ route('admin.work-items.voices.destroy', $v) }}" onsubmit="return confirm('Remove this voice?')">
                     @csrf @method('DELETE')
                     <button class="text-xs text-red-500 hover:underline">Delete</button>

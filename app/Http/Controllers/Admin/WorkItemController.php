@@ -39,8 +39,7 @@ class WorkItemController extends Controller
     public function show(WorkItem $workItem)
     {
         $workItem->load(['project', 'voiceRecords.media']);
-        $mediaOptions = Media::images()->latest()->take(200)->get(['id', 'file_name']);
-        return view('admin.work-items.show', compact('workItem', 'mediaOptions'));
+        return view('admin.work-items.show', compact('workItem'));
     }
 
     public function edit(WorkItem $workItem)
@@ -176,19 +175,29 @@ class WorkItemController extends Controller
     public function updateVoice(Request $request, WorkItemVoice $voice)
     {
         $data = $request->validate([
-            'status'      => 'nullable|in:candidate,approved',
-            'media_id'    => 'nullable|exists:media,id',
-            'quote'       => 'nullable|string',
-            'attribution' => 'nullable|string|max:255',
-            'source_url'  => 'nullable|url|max:1000',
+            'status'            => 'nullable|in:candidate,approved',
+            'quote'             => 'nullable|string',
+            'attribution'       => 'nullable|string|max:255',
+            'source_url'        => 'nullable|url|max:1000',
+            'screenshot'        => 'nullable|image|max:8192', // 8 MB
+            'remove_screenshot' => 'nullable|boolean',
         ]);
 
-        $voice->fill(array_filter($data, fn($v) => $v !== null && $v !== ''));
+        $voice->fill(array_filter([
+            'status'      => $data['status'] ?? null,
+            'quote'       => $data['quote'] ?? null,
+            'attribution' => $data['attribution'] ?? null,
+            'source_url'  => $data['source_url'] ?? null,
+        ], fn($v) => $v !== null && $v !== ''));
 
-        // Allow explicitly clearing the attached screenshot.
-        if ($request->has('media_id') && $request->input('media_id') === '') {
+        // Direct per-voice screenshot: upload the file straight onto this voice.
+        if ($request->hasFile('screenshot')) {
+            $media = Media::uploadFile($request->file('screenshot'), '/voices');
+            $voice->media_id = $media->id;
+        } elseif ($request->boolean('remove_screenshot')) {
             $voice->media_id = null;
         }
+
         $voice->save();
 
         return back()->with('success', 'Voice updated.');
