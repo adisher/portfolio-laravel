@@ -242,3 +242,66 @@
 </div>
 @endif
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    let armedForm = null;
+
+    function fileFromBlob(blob) {
+        const type = blob.type || 'image/png';
+        const ext = (type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+        return new File([blob], 'voice-' + Date.now() + '.' + ext, { type: type });
+    }
+
+    function attachFile(form, f) {
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        form.querySelector('.voice-file').files = dt.files;
+        const preview = form.querySelector('.voice-preview');
+        preview.src = URL.createObjectURL(f);
+        preview.classList.remove('hidden');
+        form.querySelector('.voice-save').classList.remove('hidden');
+        form.querySelector('.voice-paste').textContent = 'Pasted, click Save';
+    }
+
+    document.querySelectorAll('.voice-upload').forEach(function (form) {
+        form.querySelector('.voice-choose').addEventListener('click', function () {
+            form.querySelector('.voice-file').click();
+        });
+        form.querySelector('.voice-file').addEventListener('change', function () {
+            if (this.files[0]) attachFile(form, this.files[0]);
+        });
+        form.querySelector('.voice-paste').addEventListener('click', async function () {
+            armedForm = form;
+            if (navigator.clipboard && navigator.clipboard.read) {
+                try {
+                    const items = await navigator.clipboard.read();
+                    for (const item of items) {
+                        const type = item.types.find(function (t) { return t.startsWith('image/'); });
+                        if (type) { attachFile(form, fileFromBlob(await item.getType(type))); return; }
+                    }
+                    this.textContent = 'No image copied — press Ctrl+V';
+                } catch (e) {
+                    this.textContent = 'Press Ctrl+V now';
+                }
+            } else {
+                this.textContent = 'Press Ctrl+V now';
+            }
+        });
+    });
+
+    // Fallback: Ctrl+V after clicking a Paste button routes the image to that voice.
+    document.addEventListener('paste', function (e) {
+        if (!armedForm || !e.clipboardData) return;
+        for (const it of e.clipboardData.items) {
+            if (it.type && it.type.startsWith('image/')) {
+                attachFile(armedForm, fileFromBlob(it.getAsFile()));
+                e.preventDefault();
+                return;
+            }
+        }
+    });
+});
+</script>
+@endpush

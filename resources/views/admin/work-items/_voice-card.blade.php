@@ -31,12 +31,14 @@
                     </button>
                 </form>
 
-                {{-- Take a screenshot of the source, then upload it here --}}
-                <form method="POST" action="{{ route('admin.work-items.voices.update', $v) }}" enctype="multipart/form-data" class="flex items-center gap-1">
+                {{-- Screenshot the source, copy the image, then paste it here --}}
+                <form method="POST" action="{{ route('admin.work-items.voices.update', $v) }}" enctype="multipart/form-data" class="voice-upload flex items-center gap-2" data-voice="{{ $v->id }}">
                     @csrf @method('PATCH')
-                    <input type="file" name="screenshot" accept="image/*" required
-                        class="text-xs text-gray-500 dark:text-gray-400 max-w-[12rem] file:mr-2 file:text-xs file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-700 dark:file:text-gray-200 file:px-2 file:py-1 file:cursor-pointer">
-                    <button class="text-xs text-teal hover:underline whitespace-nowrap">{{ $v->media ? 'Replace' : 'Upload' }}</button>
+                    <input type="file" name="screenshot" accept="image/*" class="voice-file hidden">
+                    <button type="button" class="voice-paste text-xs text-teal hover:underline whitespace-nowrap">{{ $v->media ? 'Paste to replace' : 'Paste screenshot' }}</button>
+                    <img class="voice-preview hidden w-8 h-8 object-cover rounded border border-gray-300 dark:border-gray-600" alt="">
+                    <button type="submit" class="voice-save hidden text-xs font-medium text-green-600 hover:underline">Save</button>
+                    <button type="button" class="voice-choose text-[11px] text-gray-400 hover:underline whitespace-nowrap">or choose file</button>
                 </form>
 
                 <form method="POST" action="{{ route('admin.work-items.voices.destroy', $v) }}" onsubmit="return confirm('Remove this voice?')">
