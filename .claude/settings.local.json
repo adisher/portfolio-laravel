@@ -81,7 +81,8 @@
       "Bash(php -l app/Models/WorkItem.php)",
       "Bash(php -r ' *)",
       "Bash(grep -n 'buildWorkItemPrompt\\\\|$voices\\\\|Real user sentiment\\\\|Social proof:\\\\|blockquote\\\\|After each such blockquote' app/Services/AiContentService.php)",
-      "Bash(php -l database/seeders/BioLinkProWorkItemSeeder.php)"
+      "Bash(php -l database/seeders/BioLinkProWorkItemSeeder.php)",
+      "Bash(php -l database/seeders/BioLinkProVoicesSeeder.php)"
     ]
   }
 }
