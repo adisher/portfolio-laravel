@@ -40,6 +40,16 @@ class WorkItem extends Model
         return $this->belongsTo(Category::class, 'blog_category_id');
     }
 
+    public function voiceRecords()
+    {
+        return $this->hasMany(WorkItemVoice::class)->orderBy('sort_order')->orderByDesc('id');
+    }
+
+    public function approvedVoices()
+    {
+        return $this->voiceRecords()->where('status', 'approved');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('active', true);

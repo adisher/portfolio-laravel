@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Media;
 use App\Models\Project;
 use App\Models\WorkItem;
+use App\Models\WorkItemVoice;
 use Illuminate\Http\Request;
 
 class WorkItemController extends Controller
@@ -36,8 +38,9 @@ class WorkItemController extends Controller
 
     public function show(WorkItem $workItem)
     {
-        $workItem->load('project');
-        return view('admin.work-items.show', compact('workItem'));
+        $workItem->load(['project', 'voiceRecords.media']);
+        $mediaOptions = Media::images()->latest()->take(200)->get(['id', 'file_name']);
+        return view('admin.work-items.show', compact('workItem', 'mediaOptions'));
     }
 
     public function edit(WorkItem $workItem)
@@ -81,7 +84,11 @@ class WorkItemController extends Controller
             return back()->with('error', 'Please choose one of this work item\'s hooks, or none.');
         }
 
-        $result = app(\App\Services\AiContentService::class)->generateFromWorkItem($workItem, $angle, $hook ?: null);
+        // Selected approved voices (with their attached screenshots) to weave in.
+        $voiceIds = array_filter((array) $request->input('voice_ids', []));
+        $voices = $workItem->approvedVoices()->with('media')->whereIn('id', $voiceIds)->get();
+
+        $result = app(\App\Services\AiContentService::class)->generateFromWorkItem($workItem, $angle, $hook ?: null, $voices);
 
         if (!$result || empty($result['content'])) {
             return back()->with('error', 'Article generation failed. Check the AI budget/key configuration and try again.');
@@ -105,6 +112,92 @@ class WorkItemController extends Controller
 
         return redirect()->route('admin.blog-posts.edit', $post)
             ->with('success', 'Draft generated. Review it, personalize it, and publish when ready.');
+    }
+
+    /**
+     * Discover organic user-voice candidates via Claude's web search tool.
+     */
+    public function findVoices(WorkItem $workItem)
+    {
+        $result = app(\App\Services\AiContentService::class)->findVoices($workItem);
+
+        if ($result === null) {
+            return back()->with('error', 'Voice search failed. Check the AI budget/key and try again.');
+        }
+
+        $created = 0;
+        foreach ($result['candidates'] as $c) {
+            $exists = WorkItemVoice::where('work_item_id', $workItem->id)
+                ->where('quote', $c['quote'])->exists();
+            if ($exists) {
+                continue;
+            }
+            $workItem->voiceRecords()->create([
+                'quote'       => $c['quote'],
+                'attribution' => $c['attribution'],
+                'source_url'  => $c['source_url'],
+                'status'      => 'candidate',
+                'meta'        => ['note' => $c['note'] ?? null, 'from_search' => true],
+            ]);
+            $created++;
+        }
+
+        $msg = $created > 0
+            ? "Found {$created} candidate voice(s) from {$result['searches']} search(es). Review, attach screenshots, and approve the ones you want."
+            : "No new candidates found ({$result['searches']} search(es)). Try tuning the pain points or keywords.";
+
+        return back()->with('success', $msg);
+    }
+
+    /**
+     * Manually add an approved voice.
+     */
+    public function storeVoice(Request $request, WorkItem $workItem)
+    {
+        $data = $request->validate([
+            'quote'       => 'required|string',
+            'attribution' => 'nullable|string|max:255',
+            'source_url'  => 'nullable|url|max:1000',
+        ]);
+
+        $workItem->voiceRecords()->create([
+            'quote'       => $data['quote'],
+            'attribution' => $data['attribution'] ?? null,
+            'source_url'  => $data['source_url'] ?? null,
+            'status'      => 'approved',
+        ]);
+
+        return back()->with('success', 'Voice added.');
+    }
+
+    /**
+     * Update a voice: approve/unapprove, attach a screenshot, or edit fields.
+     */
+    public function updateVoice(Request $request, WorkItemVoice $voice)
+    {
+        $data = $request->validate([
+            'status'      => 'nullable|in:candidate,approved',
+            'media_id'    => 'nullable|exists:media,id',
+            'quote'       => 'nullable|string',
+            'attribution' => 'nullable|string|max:255',
+            'source_url'  => 'nullable|url|max:1000',
+        ]);
+
+        $voice->fill(array_filter($data, fn($v) => $v !== null && $v !== ''));
+
+        // Allow explicitly clearing the attached screenshot.
+        if ($request->has('media_id') && $request->input('media_id') === '') {
+            $voice->media_id = null;
+        }
+        $voice->save();
+
+        return back()->with('success', 'Voice updated.');
+    }
+
+    public function destroyVoice(WorkItemVoice $voice)
+    {
+        $voice->delete();
+        return back()->with('success', 'Voice removed.');
     }
 
     /**
@@ -135,14 +228,13 @@ class WorkItemController extends Controller
             'target_keywords' => 'nullable|array',
             'article_angles'  => 'nullable|array',
             'hooks'           => 'nullable|array',
-            'voices'          => 'nullable|array',
             'screenshots'     => 'nullable|array',
         ]);
 
         $validated['active'] = $request->boolean('active');
         $validated['sort_order'] = (int) ($request->input('sort_order', 0));
 
-        foreach (['pain_points', 'objections', 'key_outcomes', 'proof_links', 'differentiators', 'target_keywords', 'article_angles', 'hooks', 'voices', 'screenshots'] as $field) {
+        foreach (['pain_points', 'objections', 'key_outcomes', 'proof_links', 'differentiators', 'target_keywords', 'article_angles', 'hooks', 'screenshots'] as $field) {
             $validated[$field] = $this->cleanList($request->input($field, []));
         }
 

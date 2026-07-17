@@ -70,10 +70,82 @@
                 <span x-show="submitting" x-cloak>Generating... (up to 30s)</span>
             </button>
         </div>
+
+        @php $approvedForGen = $workItem->voiceRecords->where('status', 'approved'); @endphp
+        @if($approvedForGen->isNotEmpty())
+        <div class="mt-4">
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Include user voices <span class="text-gray-400">({{ $approvedForGen->count() }} approved, pick any)</span></label>
+            <div class="space-y-1 max-h-40 overflow-y-auto pr-1">
+                @foreach($approvedForGen as $v)
+                <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input type="checkbox" name="voice_ids[]" value="{{ $v->id }}" class="mt-1 rounded border-gray-300 dark:border-gray-600">
+                    <span>
+                        {{ \Illuminate\Support\Str::limit($v->quote, 90) }}
+                        @if($v->attribution)<span class="text-gray-400">— {{ $v->attribution }}</span>@endif
+                        @if($v->media_id)<span class="text-teal text-xs ml-1">[screenshot]</span>@endif
+                    </span>
+                </label>
+                @endforeach
+            </div>
+            <p class="text-xs text-gray-400 mt-1">Selected voices are woven in as social proof. Ones with a screenshot get the image embedded automatically.</p>
+        </div>
+        @endif
+
         @unless($workItem->blog_category_id)
         <p class="text-xs text-amber-500 mt-2">Tip: set a <strong>Blog Category</strong> on this manual so generated articles file automatically.</p>
         @endunless
     </form>
+    @endif
+</div>
+
+{{-- User Voices (social proof) --}}
+<div class="admin-card p-6 mb-6">
+    <div class="flex items-center justify-between mb-1">
+        <h2 class="text-base font-semibold text-gray-900 dark:text-white">User Voices</h2>
+        <form method="POST" action="{{ route('admin.work-items.find-voices', $workItem) }}" x-data="{ finding: false }" @submit="finding = true">
+            @csrf
+            <button type="submit" :disabled="finding" class="btn-secondary text-xs disabled:opacity-60">
+                <span x-show="!finding">Find Voices</span>
+                <span x-show="finding" x-cloak>Searching the web... (up to 60s)</span>
+            </button>
+        </form>
+    </div>
+    <p class="text-xs text-gray-400 mb-4">Real user sentiment for social proof. Find candidates via web search, review them, attach a screenshot from your Media library, then approve. Approved voices can be selected when generating an article.</p>
+
+    @php
+        $candidateVoices = $workItem->voiceRecords->where('status', 'candidate');
+        $approvedVoices  = $workItem->voiceRecords->where('status', 'approved');
+    @endphp
+
+    <details class="mb-4">
+        <summary class="text-xs text-teal cursor-pointer">+ Add a voice manually</summary>
+        <form method="POST" action="{{ route('admin.work-items.voices.store', $workItem) }}" class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            @csrf
+            <input name="quote" required placeholder="Verbatim quote" class="sm:col-span-2 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+            <input name="attribution" placeholder="Attribution (e.g. r/musicmarketing)" class="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+            <input name="source_url" type="url" placeholder="https://source-url" class="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+            <button class="btn-secondary text-xs sm:col-span-2 justify-self-start">Add (approved)</button>
+        </form>
+    </details>
+
+    @if($candidateVoices->isNotEmpty())
+    <p class="text-xs uppercase tracking-wide text-gray-400 mb-2">Candidates ({{ $candidateVoices->count() }}) &middot; verify each quote on its source before approving</p>
+    <div class="space-y-2 mb-5">
+        @foreach($candidateVoices as $v)
+            @include('admin.work-items._voice-card', ['v' => $v, 'mediaOptions' => $mediaOptions])
+        @endforeach
+    </div>
+    @endif
+
+    <p class="text-xs uppercase tracking-wide text-gray-400 mb-2">Approved ({{ $approvedVoices->count() }})</p>
+    @if($approvedVoices->isEmpty())
+    <p class="text-sm text-gray-400">None approved yet.</p>
+    @else
+    <div class="space-y-2">
+        @foreach($approvedVoices as $v)
+            @include('admin.work-items._voice-card', ['v' => $v, 'mediaOptions' => $mediaOptions])
+        @endforeach
+    </div>
     @endif
 </div>
 
@@ -85,7 +157,6 @@
         'differentiators' => ['Differentiators', 'text-teal-500'],
         'article_angles'  => ['Article Angles', 'text-purple-500'],
         'hooks'           => ['Opening Hooks', 'text-blue-500'],
-        'voices'          => ['User Voices', 'text-pink-500'],
         'screenshots'     => ['Screenshot Library', 'text-amber-500'],
     ];
 @endphp

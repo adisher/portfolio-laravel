@@ -211,6 +211,15 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('work-items', \App\Http\Controllers\Admin\WorkItemController::class);
     Route::post('work-items/{workItem}/generate-article', [\App\Http\Controllers\Admin\WorkItemController::class, 'generateArticle'])
         ->name('work-items.generate-article');
+    // Work item voices (social proof)
+    Route::post('work-items/{workItem}/find-voices', [\App\Http\Controllers\Admin\WorkItemController::class, 'findVoices'])
+        ->name('work-items.find-voices');
+    Route::post('work-items/{workItem}/voices', [\App\Http\Controllers\Admin\WorkItemController::class, 'storeVoice'])
+        ->name('work-items.voices.store');
+    Route::patch('work-items/voices/{voice}', [\App\Http\Controllers\Admin\WorkItemController::class, 'updateVoice'])
+        ->name('work-items.voices.update');
+    Route::delete('work-items/voices/{voice}', [\App\Http\Controllers\Admin\WorkItemController::class, 'destroyVoice'])
+        ->name('work-items.voices.destroy');
 
     // Admin Contact Routes
     Route::controller(AdminContactController::class)->group(function () {

@@ -103,7 +103,6 @@
         'target_keywords' => ['Target Keywords', 'Search terms people use for the pain'],
         'article_angles'  => ['Article Angles', 'Content hooks / ideas'],
         'hooks'           => ['Opening Hooks', 'Real events to open an article with (add a source). Order by priority: best real event first. The generator opens with the one you pick, or writes a concrete unnamed scene if you pick none.'],
-        'voices'          => ['User Voices', 'Real user sentiment as social proof: a short quote + who said it + source (e.g. "quote" — r/musicmarketing, url). Curated only, never invented. The generator weaves 1-2 in and cites them.'],
         'screenshots'     => ['Screenshot Library', 'Fixed set of product screenshots as "slug — description" (e.g. analytics — the page views and link clicks panel). The generator only uses [[screenshot: slug]] markers from this list. See docs/screenshot-library.md.'],
     ];
 @endphp

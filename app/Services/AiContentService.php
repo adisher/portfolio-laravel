@@ -206,14 +206,14 @@ class AiContentService
      * manual and a chosen article angle. Returns [title, content, excerpt]
      * or null on failure. The caller creates the draft post.
      */
-    public function generateFromWorkItem(WorkItem $workItem, string $angle, ?string $hook = null): ?array
+    public function generateFromWorkItem(WorkItem $workItem, string $angle, ?string $hook = null, $voices = null): ?array
     {
         if (!$this->isEnabled()) {
             Log::warning('Original article generation skipped: AI disabled or budget exhausted');
             return null;
         }
 
-        $prompt = $this->buildWorkItemPrompt($workItem, $angle, $hook);
+        $prompt = $this->buildWorkItemPrompt($workItem, $angle, $hook, $voices);
         $model  = config('blog_automation.ai.original_model', $this->model);
 
         try {
@@ -228,7 +228,7 @@ class AiContentService
                 $response['output_tokens'],
                 null,
                 null,
-                ['work_item_id' => $workItem->id, 'angle' => $angle, 'hook' => $hook],
+                ['work_item_id' => $workItem->id, 'angle' => $angle, 'hook' => $hook, 'voices' => $voices ? count($voices) : 0],
                 [],
                 true,
                 model: $model
@@ -243,9 +243,157 @@ class AiContentService
     }
 
     /**
+     * Find organic user-voice candidates for a work item using Claude's web
+     * search tool. Returns ['candidates' => [...], 'searches' => int] or null.
+     * The caller reviews candidates and creates records; nothing is auto-approved.
+     */
+    public function findVoices(WorkItem $workItem, int $want = 6): ?array
+    {
+        if (!$this->isEnabled()) {
+            Log::warning('Find voices skipped: AI disabled or budget exhausted');
+            return null;
+        }
+        if (!$this->apiKey) {
+            Log::error('Anthropic API key not configured');
+            return null;
+        }
+
+        $model    = config('blog_automation.ai.model', $this->model);
+        $prompt   = $this->buildFindVoicesPrompt($workItem, $want);
+        $messages = [['role' => 'user', 'content' => $prompt]];
+        $inputTokens = 0; $outputTokens = 0; $searches = 0; $text = '';
+
+        try {
+            // Server-tool turns can pause; resume a few times until end_turn.
+            for ($round = 0; $round < 4; $round++) {
+                $response = Http::withHeaders([
+                    'x-api-key' => $this->apiKey,
+                    'anthropic-version' => '2023-06-01',
+                    'content-type' => 'application/json',
+                ])->timeout(120)->post($this->apiUrl, [
+                    'model' => $model,
+                    'max_tokens' => 2500,
+                    'tools' => [[
+                        'type' => 'web_search_20250305',
+                        'name' => 'web_search',
+                        'max_uses' => 6,
+                    ]],
+                    'messages' => $messages,
+                ]);
+
+                if (!$response->successful()) {
+                    Log::error('Find voices API error: ' . $response->body());
+                    return null;
+                }
+
+                $data = $response->json();
+                $inputTokens  += $data['usage']['input_tokens'] ?? 0;
+                $outputTokens += $data['usage']['output_tokens'] ?? 0;
+                $searches     += $data['usage']['server_tool_use']['web_search_requests'] ?? 0;
+
+                foreach ($data['content'] ?? [] as $block) {
+                    if (($block['type'] ?? '') === 'text') {
+                        $text .= $block['text'];
+                    }
+                }
+
+                if (($data['stop_reason'] ?? '') === 'pause_turn') {
+                    $messages[] = ['role' => 'assistant', 'content' => $data['content']];
+                    continue;
+                }
+                break;
+            }
+
+            $fee = (float) config('blog_automation.ai.web_search_cost_per_search', 0.01);
+            $this->budgetService->logUsage(
+                'find_voices', $inputTokens, $outputTokens, null, null,
+                ['work_item_id' => $workItem->id, 'searches' => $searches],
+                [], true, null,
+                model: $model, extraCostUsd: $searches * $fee
+            );
+
+            return [
+                'candidates' => $this->parseVoicesJson($text),
+                'searches'   => $searches,
+            ];
+
+        } catch (Exception $e) {
+            Log::error('Find voices failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Prompt Claude to search the web for organic user voices and return JSON.
+     */
+    protected function buildFindVoicesPrompt(WorkItem $wi, int $want): string
+    {
+        $list = fn($arr) => empty($arr) ? '(none)' : "- " . implode("\n- ", $arr);
+        $pains = $list($wi->pain_points ?? []);
+        $keywords = implode(', ', $wi->target_keywords ?? []);
+
+        return <<<PROMPT
+You are researching REAL user sentiment to use as social proof in a marketing article about "{$wi->name}".
+
+What it is: {$wi->tagline}
+Who it is for: {$wi->target_audience}
+The pains it addresses:
+{$pains}
+Search terms around the topic: {$keywords}
+
+Use web search to find up to {$want} REAL, organic quotes from actual people expressing these frustrations (Reddit, Hacker News, X/Twitter, forums, blog comments, LinkedIn).
+
+STRICT RULES:
+- Only genuine user sentiment. EXCLUDE anyone promoting their own product or alternative; competitor marketing is not a voice.
+- Each quote must come from a specific, real page with a usable URL.
+- Do not invent, paraphrase into a fake quote, or attribute words to someone who did not write them. If unsure a quote is real, drop it.
+- Prefer quotes that match the pains above.
+
+Return ONLY a JSON array (no prose, no markdown fences) of objects with exactly these keys:
+[{"quote": "the verbatim quote", "attribution": "who said it, e.g. a creator on r/musicmarketing", "source_url": "https://...", "note": "one short line of context"}]
+If you find nothing solid, return [].
+PROMPT;
+    }
+
+    /**
+     * Extract the candidate array from the model's (possibly fenced) text.
+     */
+    protected function parseVoicesJson(string $text): array
+    {
+        $text = trim($text);
+        $text = preg_replace('/```(?:json)?/i', '', $text);
+        if (preg_match('/\[.*\]/s', $text, $m)) {
+            $text = $m[0];
+        }
+
+        $data = json_decode($text, true);
+        if (!is_array($data)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($data as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $quote = trim((string) ($row['quote'] ?? ''));
+            if ($quote === '') {
+                continue;
+            }
+            $out[] = [
+                'quote'       => $quote,
+                'attribution' => trim((string) ($row['attribution'] ?? '')) ?: null,
+                'source_url'  => trim((string) ($row['source_url'] ?? '')) ?: null,
+                'note'        => trim((string) ($row['note'] ?? '')) ?: null,
+            ];
+        }
+        return $out;
+    }
+
+    /**
      * Build the rich, voice-matched prompt for an original article.
      */
-    protected function buildWorkItemPrompt(WorkItem $wi, string $angle, ?string $hook = null): string
+    protected function buildWorkItemPrompt(WorkItem $wi, string $angle, ?string $hook = null, $voices = null): string
     {
         $list = fn($arr) => empty($arr) ? '(none)' : "- " . implode("\n- ", $arr);
 
@@ -257,7 +405,26 @@ class AiContentService
         $primaryKeyword = $wi->target_keywords[0] ?? '';
         $stories        = trim((string) $wi->stories) !== '' ? $wi->stories : '(no personal stories provided; keep it grounded and specific without inventing biographical details)';
         $cta            = trim((string) $wi->call_to_action) !== '' ? $wi->call_to_action : 'Invite the reader to get in touch if this is their problem.';
-        $voices         = $list($wi->voices ?? []);
+
+        // Selected user voices (records). For each, tell the model to embed the
+        // attached screenshot if there is one, otherwise leave a [[social:]] marker.
+        $voicesBlock = '(none selected; do not invent any)';
+        if ($voices && count($voices)) {
+            $lines = [];
+            foreach (collect($voices)->values() as $i => $v) {
+                $n = $i + 1;
+                $attr = $v->attribution ? " — {$v->attribution}" : '';
+                $src  = $v->source_url ? " (source: {$v->source_url})" : '';
+                $line = "Voice {$n}: \"" . trim($v->quote) . "\"{$attr}{$src}.";
+                if ($v->media && $v->media->url) {
+                    $line .= " Screenshot available: right after this quote's blockquote, embed it on its own line exactly as: ![" . ($v->attribution ?: 'user comment') . "]({$v->media->url})";
+                } else {
+                    $line .= " No screenshot: after the blockquote, add a [[social: short description of the post]] marker on its own line.";
+                }
+                $lines[] = $line;
+            }
+            $voicesBlock = implode("\n", $lines);
+        }
 
         // Screenshot library: constrain markers to a fixed set of slugs when the
         // product defines one, otherwise fall back to free-form descriptions.
@@ -304,8 +471,8 @@ Proof and outcomes you can reference:
 Real stories and personal details to weave in where they fit (this is what keeps the piece authentic, not generic):
 {$stories}
 
-Real user sentiment you may quote as social proof. These are real people reacting to the problem. Quote briefly and verbatim, attribute to who said it, and cite the source. Do NOT invent, reword, or re-attribute any of these:
-{$voices}
+Real user sentiment to weave in as social proof (hand-picked, real people). Quote each one verbatim, attribute it, cite it, and follow its per-voice screenshot instruction. Do NOT invent, reword, or re-attribute any of these, and do not add voices that are not listed here:
+{$voicesBlock}
 
 The soft call to action to land near the end:
 {$cta}
@@ -324,12 +491,12 @@ VOICE AND RULES (follow strictly):
 - The pitch must be keen, not desperate: confident, specific about who it is for, and honest about the product's stage. Never beg.
 - Be creative and unique. Do not follow a rigid template or use obvious section formulas. Let the piece breathe.
 - Weave the real stories in naturally where they strengthen the point. Do not fabricate biographical facts beyond what is given.
-- Social proof: where it strengthens a pain point, present one or two of the real user voices above as a Markdown blockquote (a line starting with >) holding the short verbatim quote, its attribution, and a compact [(Source)](url) citation. Never invent, reword, or re-attribute a quote.
+- Social proof: present each of the user voices provided above as a Markdown blockquote (a line starting with >) holding the verbatim quote, its attribution, and a compact [(Source)](url) citation, placed where it strengthens a pain point. Never invent, reword, or re-attribute a quote, and never add a voice that was not provided.
 - Citations: when you state a fact or quote that came from the hook, the proof, or the user sentiment, cite it by placing a compact reference link right after it, formatted exactly as [(Source)](url) where Source is a short name (the publication or subreddit), never the raw URL spelled out. Only cite sources actually provided above. Do not add a bibliography or a sources list at the end.
 - Rhythm: a few times, at genuine turning points, you may isolate one short, punchy sentence on its own line and bold it for emphasis. Use this sparingly (two or three times at most), never as decoration.
 - NEVER use em dashes anywhere. Use commas, colons, or periods instead.
 {$screenshotRule}
-- After each such blockquote, add a [[social: short description of the post to screenshot]] marker on its own line. A real screenshot of the post is preferred and a human will drop it in; if none is available the blockquote stands on its own. Never invent the image or use Markdown image syntax, and only mark sentiment you were actually given above.
+- After each voice's blockquote, follow that voice's screenshot instruction: if a screenshot image was given, embed that exact image markdown on its own line; if not, add a [[social: short description]] marker on its own line for a human to fill. Only ever use the image URL you were given for that voice, never invent one.
 - 900 to 1100 words. Markdown formatting. Use ## for section headings. Put the article's headline as a single # line at the very top (create a compelling headline based on the angle, not a copy of it).
 - Return only the article markdown, starting with the # headline. No preamble, no notes.
 PROMPT;

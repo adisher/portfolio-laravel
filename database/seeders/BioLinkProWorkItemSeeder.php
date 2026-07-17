@@ -101,14 +101,10 @@ class BioLinkProWorkItemSeeder extends Seeder
                 'On August 25, 2025, Google shut down its goo.gl URL shortener and let millions of previously shared short links start returning 404 errors, proof that even a link you handed out everywhere can simply stop resolving when it lives on someone else\'s service (source: developers.googleblog.com).',
             ],
 
-            // Real user sentiment for social proof. Curated from public discussions.
-            // Verify each quote verbatim against its primary thread before publishing.
-            'voices' => [
-                '"EVERYTHING is a subscription now. Squarespace, Linktree, Distrokid, Spotify all adds up to way too much." A creator on r/musicmarketing reacting to Linktree\'s late-2025 price increase (source: linklay.io).',
-                'Creators on r/musicmarketing called Linktree\'s late-2025 pricing "outrageously overpriced," especially stacked on top of every other creator subscription (source: linke.ro).',
-                'A recurring complaint from creators leaving Linktree: realizing they were paying $15 a month and still giving up 9 percent of every sale on top (source: u2l.ai).',
-                '"After read.cv, Bento is shutting down too." A designer on Peerlist capturing the fatigue as one creator-profile platform after another gets shut down (source: peerlist.io).',
-            ],
+            // User voices (social proof) are NOT seeded. They are curated in the
+            // admin via the "Find Voices" web-search button, manual add, or the
+            // one-time migration of any legacy flat voices into work_item_voices
+            // records. Each is reviewed, screenshotted, and approved by hand.
 
             // Canonical screenshot library ("slug — description"). The generator may
             // only emit [[screenshot: slug]] markers from this list. Capture the

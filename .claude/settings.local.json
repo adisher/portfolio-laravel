@@ -75,7 +75,13 @@
       "WebFetch(domain:web.archive.org)",
       "Skill(claude-api)",
       "Skill(claude-api:*)",
-      "Bash(php -l app/Http/Controllers/Admin/UsageController.php)"
+      "Bash(php -l app/Http/Controllers/Admin/UsageController.php)",
+      "Bash(grep -nE 'function |protected \\\\$fillable|url|path' app/Models/Media.php)",
+      "Bash(php -l app/Models/WorkItemVoice.php)",
+      "Bash(php -l app/Models/WorkItem.php)",
+      "Bash(php -r ' *)",
+      "Bash(grep -n 'buildWorkItemPrompt\\\\|$voices\\\\|Real user sentiment\\\\|Social proof:\\\\|blockquote\\\\|After each such blockquote' app/Services/AiContentService.php)",
+      "Bash(php -l database/seeders/BioLinkProWorkItemSeeder.php)"
     ]
   }
 }
