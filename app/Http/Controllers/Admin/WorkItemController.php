@@ -142,12 +142,13 @@ class WorkItemController extends Controller
             'article_angles'  => 'nullable|array',
             'hooks'           => 'nullable|array',
             'screenshots'     => 'nullable|array',
+            'voice_sources'   => 'nullable|array',
         ]);
 
         $validated['active'] = $request->boolean('active');
         $validated['sort_order'] = (int) ($request->input('sort_order', 0));
 
-        foreach (['pain_points', 'objections', 'key_outcomes', 'proof_links', 'differentiators', 'target_keywords', 'article_angles', 'hooks', 'screenshots'] as $field) {
+        foreach (['pain_points', 'objections', 'key_outcomes', 'proof_links', 'differentiators', 'target_keywords', 'article_angles', 'hooks', 'screenshots', 'voice_sources'] as $field) {
             $validated[$field] = $this->cleanList($request->input($field, []));
         }
 

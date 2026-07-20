@@ -39,7 +39,8 @@ class BraveSearchService
         }
 
         $key = config('services.brave.key');
-        $queries = $this->buildQueries($workItem);
+        $domains = \App\Support\VoiceFilter::domainsFor($workItem);
+        $queries = $this->buildQueries($workItem, $domains);
         $result['queries'] = $queries;
 
         $seenUrls = [];
@@ -82,7 +83,16 @@ class BraveSearchService
                 }
                 $seenUrls[$url] = true;
 
+                $title = $r['title'] ?? '';
                 $snippet = trim(strip_tags($r['description'] ?? ''));
+
+                // Allowlist is the gate: only community platforms survive. We do NOT
+                // reject on "best/alternatives" wording here, because on Reddit/HN a
+                // thread titled "best linktree alternative?" is a genuine user
+                // discussion full of pain points, not a vendor listicle.
+                if (!\App\Support\VoiceFilter::hostAllowed($url, $domains)) {
+                    continue;
+                }
                 $candidates[] = [
                     'quote'       => $snippet !== '' ? $snippet : ($r['title'] ?? $url),
                     'attribution' => $this->hostLabel($url),
@@ -110,28 +120,23 @@ class BraveSearchService
     }
 
     /**
-     * Build a handful of search queries from the work item's keywords/pains,
-     * biased toward organic sources (reddit, forums, complaints).
+     * Build site:-restricted queries from the manual's PAIN POINTS (user language),
+     * not its commercial keywords — commercial keywords are exactly what SEO
+     * listicles rank for, which is why they used to dominate the results.
      */
-    protected function buildQueries(WorkItem $wi): array
+    protected function buildQueries(WorkItem $wi, array $domains): array
     {
+        $phrases = \App\Support\VoiceFilter::phrasesFrom($wi, 3);
+        $domains = array_slice($domains, 0, 3) ?: ['reddit.com'];
+
         $queries = [];
-        $keywords = array_values(array_filter(array_map('trim', $wi->target_keywords ?? [])));
-
-        foreach (array_slice($keywords, 0, 3) as $k) {
-            $queries[] = $k . ' reddit';
-        }
-        if (!empty($keywords[0])) {
-            $queries[] = $keywords[0] . ' complaints';
-            $queries[] = $keywords[0] . ' frustrated OR "fed up" OR "sick of"';
-        }
-        if (empty($queries)) {
-            // Fallback: derive from the first pain point.
-            $pain = $wi->pain_points[0] ?? $wi->name;
-            $queries[] = trim($pain) . ' reddit';
+        foreach ($domains as $domain) {
+            foreach (array_slice($phrases, 0, 2) as $phrase) {
+                $queries[] = 'site:' . $domain . ' ' . $phrase;
+            }
         }
 
-        return array_slice(array_values(array_unique(array_filter($queries))), 0, 5);
+        return array_slice(array_values(array_unique($queries)), 0, 5);
     }
 
     protected function hostLabel(string $url): string

@@ -77,6 +77,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Voice search (social proof)
+    |--------------------------------------------------------------------------
+    | Community platforms searched for real user comments. This is an ALLOWLIST:
+    | only these domains can produce a voice candidate, which makes competitor
+    | marketing blogs and SEO listicles structurally impossible. Override per
+    | product via the work item's `voice_sources`.
+    */
+    'voices' => [
+        'default_sources' => [
+            'reddit.com',
+            'news.ycombinator.com',
+            'indiehackers.com',
+            'lobste.rs',
+            'producthunt.com',
+            'quora.com',
+        ],
+
+        // Titles/URLs matching these are marketing/listicle content, never a voice.
+        'reject_patterns' => [
+            'best ', 'top ', ' vs ', 'alternatives', 'alternative to', 'review',
+            'pricing', 'comparison', 'ultimate guide', 'how to choose',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Category Weights
     |--------------------------------------------------------------------------
     |

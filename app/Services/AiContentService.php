@@ -259,13 +259,26 @@ class AiContentService
         }
 
         $model    = config('blog_automation.ai.model', $this->model);
-        $prompt   = $this->buildFindVoicesPrompt($workItem, $want);
+        $domains  = \App\Support\VoiceFilter::domainsFor($workItem);
+        $prompt   = $this->buildFindVoicesPrompt($workItem, $want, $domains);
         $messages = [['role' => 'user', 'content' => $prompt]];
         $inputTokens = 0; $outputTokens = 0; $searches = 0; $text = ''; $queries = [];
+        $useAllowedDomains = true;
 
         try {
             // Server-tool turns can pause; resume a few times until end_turn.
-            for ($round = 0; $round < 4; $round++) {
+            for ($round = 0; $round < 5; $round++) {
+                $tool = [
+                    'type' => 'web_search_20250305',
+                    'name' => 'web_search',
+                    'max_uses' => 6,
+                ];
+                // Restrict the search to community platforms at the API level, so a
+                // competitor blog or SEO listicle simply cannot come back.
+                if ($useAllowedDomains && !empty($domains)) {
+                    $tool['allowed_domains'] = array_values($domains);
+                }
+
                 $response = Http::withHeaders([
                     'x-api-key' => $this->apiKey,
                     'anthropic-version' => '2023-06-01',
@@ -273,16 +286,20 @@ class AiContentService
                 ])->timeout(120)->post($this->apiUrl, [
                     'model' => $model,
                     'max_tokens' => 3000,
-                    'tools' => [[
-                        'type' => 'web_search_20250305',
-                        'name' => 'web_search',
-                        'max_uses' => 6,
-                    ]],
+                    'tools' => [$tool],
                     'messages' => $messages,
                 ]);
 
                 if (!$response->successful()) {
-                    Log::error('Find voices API error: ' . $response->body());
+                    $body = $response->body();
+                    // If this tool version rejects allowed_domains, retry once without it
+                    // (the prompt still names the allowed platforms).
+                    if ($useAllowedDomains && str_contains($body, 'allowed_domains')) {
+                        Log::warning('web_search rejected allowed_domains; retrying without it.');
+                        $useAllowedDomains = false;
+                        continue;
+                    }
+                    Log::error('Find voices API error: ' . $body);
                     return $fail('Claude API error (HTTP ' . $response->status() . '). Check the API key and budget.');
                 }
 
@@ -319,6 +336,12 @@ class AiContentService
 
             $candidates = $this->parseVoicesJson($text);
 
+            // Enforce the allowlist even if the model wandered off it.
+            $candidates = array_values(array_filter(
+                $candidates,
+                fn ($c) => \App\Support\VoiceFilter::hostAllowed($c['source_url'] ?? null, $domains)
+            ));
+
             return [
                 'candidates' => $candidates,
                 'queries'    => $queries ?: ["(model ran {$searches} searches)"],
@@ -339,33 +362,44 @@ class AiContentService
     /**
      * Prompt Claude to search the web for organic user voices and return JSON.
      */
-    protected function buildFindVoicesPrompt(WorkItem $wi, int $want): string
+    protected function buildFindVoicesPrompt(WorkItem $wi, int $want, array $domains = []): string
     {
         $list = fn($arr) => empty($arr) ? '(none)' : "- " . implode("\n- ", $arr);
         $pains = $list($wi->pain_points ?? []);
-        $keywords = implode(', ', $wi->target_keywords ?? []);
+        $platforms = implode(', ', $domains) ?: 'reddit.com, news.ycombinator.com';
 
         return <<<PROMPT
-You are researching REAL user sentiment to use as social proof in a marketing article about "{$wi->name}".
+You are collecting REAL USER COMMENTS to use as social proof in an article about "{$wi->name}".
 
+Background (context only — do NOT search these commercial phrases, they surface vendor listicles):
 What it is: {$wi->tagline}
 Who it is for: {$wi->target_audience}
-The pains it addresses:
-{$pains}
-Search terms around the topic: {$keywords}
 
-Use web search to find up to {$want} quotes or paraphrased sentiments from real people expressing these frustrations (Reddit, Hacker News, X/Twitter, forums, blog comments, LinkedIn).
+The frustrations to hunt for, in users' own words:
+{$pains}
+
+SEARCH ONLY THESE PLATFORMS: {$platforms}
+
+Search the way a frustrated user writes, not the way a marketer does.
+Good queries: "linktree got so expensive", "why am I paying monthly for a link page", "anyone else annoyed by".
+Bad queries: "best link in bio alternative" — that is exactly what vendor listicles are optimised for.
+
+WHAT COUNTS AS A VOICE:
+- A comment, post or reply written by an INDIVIDUAL describing their own experience or frustration, at a specific URL on one of the platforms above.
+
+WHAT NEVER COUNTS (do not return these under any circumstances):
+- Company blogs, vendor pages, product marketing, or "best/top/alternatives/vs/review" listicles.
+- Anything written by a business promoting a product, especially a competitor of this one.
+- An article author's own generic commentary. We want users, not authors.
 
 RULES:
-- Be generous: a human reviews and verifies every candidate before it is used, so surface anything plausibly relevant rather than filtering hard. It is better to return 6 candidates the reviewer prunes than 0.
-- Each candidate must come from a specific real page with a usable URL. Never invent a URL.
-- Do NOT fabricate a quote. If you cannot get the exact wording, put the gist in "quote", mark "confidence" lower, and note that the wording needs checking.
-- Skip only obvious competitor self-promotion (someone advertising their own product/alternative).
-- Set "confidence" to "high" (you are quoting real, on-page text), "medium" (paraphrased from a snippet), or "low" (loosely related).
+- Be generous: a human verifies every candidate, so return anything plausibly a real user comment rather than filtering hard. Better {$want} to prune than 0.
+- Never invent a quote or a URL. If you cannot get exact wording, put the gist in "quote", set a lower "confidence", and say so in "note".
+- "confidence": "high" (quoting real on-page user text), "medium" (paraphrased from a snippet), "low" (loosely related).
 
-Return ONLY a JSON array (no prose, no markdown fences), each object with these keys:
-[{"quote": "the quote or gist", "attribution": "who said it, e.g. a creator on r/musicmarketing", "source_url": "https://...", "note": "one short line of context", "confidence": "high|medium|low"}]
-Only return [] if web search genuinely surfaced nothing on the topic.
+Return ONLY a JSON array (no prose, no markdown fences):
+[{"quote": "the user's words", "attribution": "who said it, e.g. a user in r/somesubreddit", "source_url": "https://...", "note": "one short line of context", "confidence": "high|medium|low"}]
+Return [] only if these platforms genuinely have nothing on the topic.
 PROMPT;
     }
 
