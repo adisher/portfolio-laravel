@@ -249,7 +249,7 @@ class AiContentService
      */
     public function findVoices(WorkItem $workItem, int $want = 8): array
     {
-        $fail = fn($note) => ['candidates' => [], 'queries' => [], 'raw' => '', 'cost' => 0.0, 'note' => $note, 'ok' => false];
+        $fail = fn($note, $raw = '') => ['candidates' => [], 'queries' => [], 'raw' => $raw, 'cost' => 0.0, 'note' => $note, 'ok' => false];
 
         if (!$this->isEnabled()) {
             return $fail('Claude search skipped: AI is disabled or the monthly budget is exhausted.');
@@ -292,15 +292,23 @@ class AiContentService
 
                 if (!$response->successful()) {
                     $body = $response->body();
-                    // If this tool version rejects allowed_domains, retry once without it
-                    // (the prompt still names the allowed platforms).
-                    if ($useAllowedDomains && str_contains($body, 'allowed_domains')) {
-                        Log::warning('web_search rejected allowed_domains; retrying without it.');
+
+                    // allowed_domains is the only optional extra in this payload, and
+                    // not every tool version accepts it. On ANY 400, drop it and retry
+                    // once before giving up (the prompt still names the platforms).
+                    if ($useAllowedDomains && $response->status() === 400) {
+                        Log::warning('web_search request rejected (400); retrying without allowed_domains. Body: ' . $body);
                         $useAllowedDomains = false;
                         continue;
                     }
+
                     Log::error('Find voices API error: ' . $body);
-                    return $fail('Claude API error (HTTP ' . $response->status() . '). Check the API key and budget.');
+                    $apiMsg = data_get($response->json(), 'error.message') ?: ('HTTP ' . $response->status());
+
+                    return $fail(
+                        'Claude rejected the request: ' . \Illuminate\Support\Str::limit($apiMsg, 300),
+                        $body
+                    );
                 }
 
                 $data = $response->json();
