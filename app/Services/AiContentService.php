@@ -394,11 +394,13 @@ Bad queries: "best link in bio alternative" — that is exactly what vendor list
 
 WHAT COUNTS AS A VOICE:
 - A comment, post or reply written by an INDIVIDUAL describing their own experience or frustration, at a specific URL on one of the platforms above.
+- A CUSTOMER REVIEW of a competing product on a review platform (Trustpilot, G2, Capterra, GetApp). A one- or two-star review describing what annoyed them is a perfect voice: it is a real user, named and dated, complaining about exactly these pains.
 
 WHAT NEVER COUNTS (do not return these under any circumstances):
-- Company blogs, vendor pages, product marketing, or "best/top/alternatives/vs/review" listicles.
+- Company blogs, vendor pages, product marketing, or "best/top/alternatives/vs" round-up articles written to sell something.
 - Anything written by a business promoting a product, especially a competitor of this one.
 - An article author's own generic commentary. We want users, not authors.
+(To be clear: a customer's own review IS a voice. It is vendor round-up ARTICLES that are not.)
 
 RULES:
 - Be generous: a human verifies every candidate, so return anything plausibly a real user comment rather than filtering hard. Better {$want} to prune than 0.

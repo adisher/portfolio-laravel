@@ -86,12 +86,20 @@ return [
     */
     'voices' => [
         'default_sources' => [
+            // Review platforms: highest density of real, quotable user complaints
+            // about competing products, and (unlike Reddit) fully indexed.
+            'trustpilot.com',
+            'g2.com',
+            'capterra.com',
+            'getapp.com',
+            // Community platforms. NOTE: Reddit blocks non-Google crawlers via
+            // robots.txt (July 2024), so site:reddit.com through a non-Google index
+            // returns very little. Kept for coverage, not relied on.
             'reddit.com',
             'news.ycombinator.com',
             'indiehackers.com',
-            'lobste.rs',
             'producthunt.com',
-            'quora.com',
+            'lobste.rs',
         ],
 
         // Titles/URLs matching these are marketing/listicle content, never a voice.

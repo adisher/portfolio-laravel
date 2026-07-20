@@ -126,11 +126,18 @@ class BioLinkProWorkItemSeeder extends Seeder
             // can produce a candidate, so competitor blogs / SEO listicles are
             // structurally impossible. Tune per product.
             'voice_sources' => [
+                // Review sites first: real users complaining about competing
+                // link-in-bio tools, publicly indexed and quotable.
+                'trustpilot.com',
+                'g2.com',
+                'capterra.com',
+                'getapp.com',
+                // Communities (Reddit is largely un-indexed outside Google since
+                // its July 2024 robots.txt block, so treat it as bonus coverage).
                 'reddit.com',
                 'news.ycombinator.com',
                 'indiehackers.com',
                 'producthunt.com',
-                'lobste.rs',
             ],
 
             'stories' => "BioLink Pro came from a simple frustration: every link-in-bio tool wanted a monthly subscription to unlock the basics, a custom domain, decent themes, removing their logo, and none of them actually let you own your page. I wanted something a creator could deploy once, brand as their own, and never pay rent on again. So I built the thing I wished existed: a full bio-link page with a visual admin, real analytics, and a one-click deploy, that you own outright.",
