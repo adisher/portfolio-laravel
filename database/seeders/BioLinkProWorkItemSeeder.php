@@ -125,6 +125,20 @@ class BioLinkProWorkItemSeeder extends Seeder
             // Allowlist of community platforms searched for user voices. Only these
             // can produce a candidate, so competitor blogs / SEO listicles are
             // structurally impossible. Tune per product.
+            // Curated places to hunt for real user reviews. Verified live pages.
+            // Format: "Label - URL - what to look for".
+            'research_sources' => [
+                'Linktree on Trustpilot - https://www.trustpilot.com/review/linktr.ee - filter to 1-2 star. Look for: Nov-2025 price rise billed with no warning, accounts banned without notice, branding locked on lower tiers.',
+                'Linktree on G2 - https://www.g2.com/products/linktree/reviews - sort by lowest rating. Look for: 12% / 9% seller fees, custom domain paywalled.',
+                'Linktree on Capterra - https://www.capterra.com/p/229171/Linktree/reviews/ - filter to 1-2 star. Look for: value-for-money complaints.',
+                'Linktree on Product Hunt - https://www.producthunt.com/products/linktree/reviews - look for: creators comparing after the price rise.',
+                'Beacons.ai on Trustpilot - https://www.trustpilot.com/review/beacons.ai - filter to 1-2 star. Look for: billing and support complaints.',
+                'Reddit search: linktree expensive - https://www.reddit.com/search/?q=linktree%20expensive&sort=new - skim comments, not just posts.',
+                'Reddit search: linktree price increase - https://www.reddit.com/search/?q=linktree%20price%20increase&sort=new',
+                'Reddit search: link in bio subscription - https://www.reddit.com/search/?q=%22link%20in%20bio%22%20subscription&sort=new',
+                'X search: linktree expensive (live) - https://x.com/search?q=linktree%20expensive&f=live',
+            ],
+
             'voice_sources' => [
                 // Review sites first: real users complaining about competing
                 // link-in-bio tools, publicly indexed and quotable.

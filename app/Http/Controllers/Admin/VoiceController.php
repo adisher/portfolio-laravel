@@ -117,16 +117,25 @@ class VoiceController extends Controller
             'quote'       => 'required|string',
             'attribution' => 'nullable|string|max:255',
             'source_url'  => 'nullable|url|max:1000',
+            'screenshot'  => 'nullable|image|max:8192',
         ]);
+
+        // Screenshot can be pasted straight into the add form, so it's one save.
+        $mediaId = null;
+        if ($request->hasFile('screenshot')) {
+            $mediaId = Media::uploadFile($request->file('screenshot'), '/voices')->id;
+        }
 
         $workItem->voiceRecords()->create([
             'quote'       => $data['quote'],
             'attribution' => $data['attribution'] ?? null,
             'source_url'  => $data['source_url'] ?? null,
+            'media_id'    => $mediaId,
             'status'      => 'approved',
+            'meta'        => ['added_manually' => true],
         ]);
 
-        return back()->with('success', 'Voice added.');
+        return back()->with('success', 'Voice added.' . ($mediaId ? ' Screenshot attached.' : ''));
     }
 
     public function updateVoice(Request $request, WorkItemVoice $voice)

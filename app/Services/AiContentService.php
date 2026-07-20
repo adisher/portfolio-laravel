@@ -263,6 +263,7 @@ class AiContentService
         $prompt   = $this->buildFindVoicesPrompt($workItem, $want, $domains);
         $messages = [['role' => 'user', 'content' => $prompt]];
         $inputTokens = 0; $outputTokens = 0; $searches = 0; $text = ''; $queries = [];
+        $searchResults = []; $queryByToolId = [];
         $useAllowedDomains = true;
 
         try {
@@ -318,12 +319,27 @@ class AiContentService
 
                 foreach ($data['content'] ?? [] as $block) {
                     $type = $block['type'] ?? '';
+
                     if ($type === 'text') {
                         $text .= $block['text'];
                     } elseif ($type === 'server_tool_use' && ($block['name'] ?? '') === 'web_search') {
                         if (!empty($block['input']['query'])) {
                             $queries[] = $block['input']['query'];
+                            $queryByToolId[$block['id'] ?? ''] = $block['input']['query'];
                         }
+                    } elseif ($type === 'web_search_tool_result') {
+                        // Capture what each search actually returned, so "Reddit found
+                        // nothing" is distinguishable from "the model discarded it".
+                        $hits = [];
+                        foreach ((array) ($block['content'] ?? []) as $r) {
+                            if (is_array($r) && !empty($r['url'])) {
+                                $hits[] = trim(($r['title'] ?? '') . ' - ' . $r['url']);
+                            }
+                        }
+                        $searchResults[] = [
+                            'query' => $queryByToolId[$block['tool_use_id'] ?? ''] ?? '(unknown query)',
+                            'hits'  => $hits,
+                        ];
                     }
                 }
 
@@ -342,22 +358,52 @@ class AiContentService
                 model: $model, extraCostUsd: $searches * $fee
             );
 
-            $candidates = $this->parseVoicesJson($text);
+            $parsed = $this->parseVoicesJson($text);
 
-            // Enforce the allowlist even if the model wandered off it.
-            $candidates = array_values(array_filter(
-                $candidates,
-                fn ($c) => \App\Support\VoiceFilter::hostAllowed($c['source_url'] ?? null, $domains)
-            ));
+            // Enforce the allowlist, and honour the model's own confidence rating:
+            // a "low" is usually a builder/launch post or off-topic commentary.
+            $droppedHost = 0; $droppedLow = 0;
+            $candidates = array_values(array_filter($parsed, function ($c) use ($domains, &$droppedHost, &$droppedLow) {
+                if (!\App\Support\VoiceFilter::hostAllowed($c['source_url'] ?? null, $domains)) {
+                    $droppedHost++;
+                    return false;
+                }
+                if (strtolower((string) ($c['confidence'] ?? '')) === 'low') {
+                    $droppedLow++;
+                    return false;
+                }
+                return true;
+            }));
+
+            // Build a transparent raw log: the model's reasoning plus exactly what
+            // each search returned.
+            $rawParts = [trim($text)];
+            if (!empty($searchResults)) {
+                $rawParts[] = "\n" . str_repeat('-', 50) . "\nWHAT EACH SEARCH ACTUALLY RETURNED";
+                foreach ($searchResults as $sr) {
+                    $rawParts[] = "\n[" . $sr['query'] . '] - ' . count($sr['hits']) . ' result(s)';
+                    if (empty($sr['hits'])) {
+                        $rawParts[] = '   (nothing returned)';
+                    }
+                    foreach (array_slice($sr['hits'], 0, 8) as $h) {
+                        $rawParts[] = '   - ' . $h;
+                    }
+                }
+            }
+
+            $notes = [];
+            if ($droppedLow > 0)  { $notes[] = "{$droppedLow} low-confidence result(s) discarded (builder/launch posts or off-topic)."; }
+            if ($droppedHost > 0) { $notes[] = "{$droppedHost} result(s) discarded for being off the allowed platforms."; }
+            if (empty($candidates)) {
+                $notes[] = 'No usable voices. Check "what each search returned" below: if the community searches came back empty, the platform is not indexed (Reddit blocks non-Google crawlers) and review sites are the better source.';
+            }
 
             return [
                 'candidates' => $candidates,
                 'queries'    => $queries ?: ["(model ran {$searches} searches)"],
-                'raw'        => $text,
+                'raw'        => implode("\n", $rawParts),
                 'cost'       => (float) $log->cost_usd,
-                'note'       => empty($candidates)
-                    ? 'Claude searched but returned no candidates. Try the Brave engine, or broaden this manual\'s keywords/pain points.'
-                    : null,
+                'note'       => $notes ? implode(' ', $notes) : null,
                 'ok'         => true,
             ];
 
@@ -399,8 +445,9 @@ WHAT COUNTS AS A VOICE:
 WHAT NEVER COUNTS (do not return these under any circumstances):
 - Company blogs, vendor pages, product marketing, or "best/top/alternatives/vs" round-up articles written to sell something.
 - Anything written by a business promoting a product, especially a competitor of this one.
+- **BUILDER / LAUNCH / SHOWCASE POSTS.** Any post where someone announces, launches or shows off a product they built — "I made X", "Show HN", an Indie Hackers launch, "I built an alternative because existing tools were too complex". That person is a COMPETITOR, not a user, even when they open by complaining about existing tools. This is the single most common false positive: reject it every time.
 - An article author's own generic commentary. We want users, not authors.
-(To be clear: a customer's own review IS a voice. It is vendor round-up ARTICLES that are not.)
+(To be clear: a customer's own review IS a voice. Vendor round-up ARTICLES and builder launch posts are NOT.)
 
 RULES:
 - Be generous: a human verifies every candidate, so return anything plausibly a real user comment rather than filtering hard. Better {$want} to prune than 0.
@@ -425,8 +472,20 @@ PROMPT;
         }
 
         $data = json_decode($text, true);
+
+        // Models sometimes emit one malformed entry (e.g. unescaped quotes inside a
+        // value), which would otherwise discard the whole batch. Salvage by decoding
+        // each object separately and skipping only the broken ones.
         if (!is_array($data)) {
-            return [];
+            $data = [];
+            if (preg_match_all('/\{[^{}]*\}/s', $text, $objects)) {
+                foreach ($objects[0] as $chunk) {
+                    $row = json_decode($chunk, true);
+                    if (is_array($row)) {
+                        $data[] = $row;
+                    }
+                }
+            }
         }
 
         $out = [];
