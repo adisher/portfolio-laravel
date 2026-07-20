@@ -247,21 +247,21 @@ class AiContentService
      * search tool. Returns ['candidates' => [...], 'searches' => int] or null.
      * The caller reviews candidates and creates records; nothing is auto-approved.
      */
-    public function findVoices(WorkItem $workItem, int $want = 6): ?array
+    public function findVoices(WorkItem $workItem, int $want = 8): array
     {
+        $fail = fn($note) => ['candidates' => [], 'queries' => [], 'raw' => '', 'cost' => 0.0, 'note' => $note, 'ok' => false];
+
         if (!$this->isEnabled()) {
-            Log::warning('Find voices skipped: AI disabled or budget exhausted');
-            return null;
+            return $fail('Claude search skipped: AI is disabled or the monthly budget is exhausted.');
         }
         if (!$this->apiKey) {
-            Log::error('Anthropic API key not configured');
-            return null;
+            return $fail('Claude search skipped: Anthropic API key (CLAUDE_API_KEY) is not configured.');
         }
 
         $model    = config('blog_automation.ai.model', $this->model);
         $prompt   = $this->buildFindVoicesPrompt($workItem, $want);
         $messages = [['role' => 'user', 'content' => $prompt]];
-        $inputTokens = 0; $outputTokens = 0; $searches = 0; $text = '';
+        $inputTokens = 0; $outputTokens = 0; $searches = 0; $text = ''; $queries = [];
 
         try {
             // Server-tool turns can pause; resume a few times until end_turn.
@@ -272,7 +272,7 @@ class AiContentService
                     'content-type' => 'application/json',
                 ])->timeout(120)->post($this->apiUrl, [
                     'model' => $model,
-                    'max_tokens' => 2500,
+                    'max_tokens' => 3000,
                     'tools' => [[
                         'type' => 'web_search_20250305',
                         'name' => 'web_search',
@@ -283,7 +283,7 @@ class AiContentService
 
                 if (!$response->successful()) {
                     Log::error('Find voices API error: ' . $response->body());
-                    return null;
+                    return $fail('Claude API error (HTTP ' . $response->status() . '). Check the API key and budget.');
                 }
 
                 $data = $response->json();
@@ -292,8 +292,13 @@ class AiContentService
                 $searches     += $data['usage']['server_tool_use']['web_search_requests'] ?? 0;
 
                 foreach ($data['content'] ?? [] as $block) {
-                    if (($block['type'] ?? '') === 'text') {
+                    $type = $block['type'] ?? '';
+                    if ($type === 'text') {
                         $text .= $block['text'];
+                    } elseif ($type === 'server_tool_use' && ($block['name'] ?? '') === 'web_search') {
+                        if (!empty($block['input']['query'])) {
+                            $queries[] = $block['input']['query'];
+                        }
                     }
                 }
 
@@ -305,21 +310,29 @@ class AiContentService
             }
 
             $fee = (float) config('blog_automation.ai.web_search_cost_per_search', 0.01);
-            $this->budgetService->logUsage(
+            $log = $this->budgetService->logUsage(
                 'find_voices', $inputTokens, $outputTokens, null, null,
                 ['work_item_id' => $workItem->id, 'searches' => $searches],
                 [], true, null,
                 model: $model, extraCostUsd: $searches * $fee
             );
 
+            $candidates = $this->parseVoicesJson($text);
+
             return [
-                'candidates' => $this->parseVoicesJson($text),
-                'searches'   => $searches,
+                'candidates' => $candidates,
+                'queries'    => $queries ?: ["(model ran {$searches} searches)"],
+                'raw'        => $text,
+                'cost'       => (float) $log->cost_usd,
+                'note'       => empty($candidates)
+                    ? 'Claude searched but returned no candidates. Try the Brave engine, or broaden this manual\'s keywords/pain points.'
+                    : null,
+                'ok'         => true,
             ];
 
         } catch (Exception $e) {
             Log::error('Find voices failed: ' . $e->getMessage());
-            return null;
+            return $fail('Claude search failed: ' . $e->getMessage());
         }
     }
 
@@ -341,17 +354,18 @@ The pains it addresses:
 {$pains}
 Search terms around the topic: {$keywords}
 
-Use web search to find up to {$want} REAL, organic quotes from actual people expressing these frustrations (Reddit, Hacker News, X/Twitter, forums, blog comments, LinkedIn).
+Use web search to find up to {$want} quotes or paraphrased sentiments from real people expressing these frustrations (Reddit, Hacker News, X/Twitter, forums, blog comments, LinkedIn).
 
-STRICT RULES:
-- Only genuine user sentiment. EXCLUDE anyone promoting their own product or alternative; competitor marketing is not a voice.
-- Each quote must come from a specific, real page with a usable URL.
-- Do not invent, paraphrase into a fake quote, or attribute words to someone who did not write them. If unsure a quote is real, drop it.
-- Prefer quotes that match the pains above.
+RULES:
+- Be generous: a human reviews and verifies every candidate before it is used, so surface anything plausibly relevant rather than filtering hard. It is better to return 6 candidates the reviewer prunes than 0.
+- Each candidate must come from a specific real page with a usable URL. Never invent a URL.
+- Do NOT fabricate a quote. If you cannot get the exact wording, put the gist in "quote", mark "confidence" lower, and note that the wording needs checking.
+- Skip only obvious competitor self-promotion (someone advertising their own product/alternative).
+- Set "confidence" to "high" (you are quoting real, on-page text), "medium" (paraphrased from a snippet), or "low" (loosely related).
 
-Return ONLY a JSON array (no prose, no markdown fences) of objects with exactly these keys:
-[{"quote": "the verbatim quote", "attribution": "who said it, e.g. a creator on r/musicmarketing", "source_url": "https://...", "note": "one short line of context"}]
-If you find nothing solid, return [].
+Return ONLY a JSON array (no prose, no markdown fences), each object with these keys:
+[{"quote": "the quote or gist", "attribution": "who said it, e.g. a creator on r/musicmarketing", "source_url": "https://...", "note": "one short line of context", "confidence": "high|medium|low"}]
+Only return [] if web search genuinely surfaced nothing on the topic.
 PROMPT;
     }
 
@@ -385,6 +399,7 @@ PROMPT;
                 'attribution' => trim((string) ($row['attribution'] ?? '')) ?: null,
                 'source_url'  => trim((string) ($row['source_url'] ?? '')) ?: null,
                 'note'        => trim((string) ($row['note'] ?? '')) ?: null,
+                'confidence'  => trim((string) ($row['confidence'] ?? '')) ?: null,
             ];
         }
         return $out;

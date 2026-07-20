@@ -74,7 +74,10 @@
         @php $approvedForGen = $workItem->voiceRecords->where('status', 'approved'); @endphp
         @if($approvedForGen->isNotEmpty())
         <div class="mt-4">
-            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Include user voices <span class="text-gray-400">({{ $approvedForGen->count() }} approved, pick any)</span></label>
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                Include user voices <span class="text-gray-400">({{ $approvedForGen->count() }} approved, pick any)</span>
+                <a href="{{ route('admin.voices.show', $workItem) }}" class="text-teal hover:underline font-normal ml-1">Manage voices &rarr;</a>
+            </label>
             <div class="space-y-1 max-h-40 overflow-y-auto pr-1">
                 @foreach($approvedForGen as $v)
                 <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -89,63 +92,17 @@
             </div>
             <p class="text-xs text-gray-400 mt-1">Selected voices are woven in as social proof. Ones with a screenshot get the image embedded automatically.</p>
         </div>
+        @else
+        <p class="text-xs text-gray-400 mt-4">
+            No approved user voices yet.
+            <a href="{{ route('admin.voices.show', $workItem) }}" class="text-teal hover:underline">Find and approve some &rarr;</a>
+        </p>
         @endif
 
         @unless($workItem->blog_category_id)
         <p class="text-xs text-amber-500 mt-2">Tip: set a <strong>Blog Category</strong> on this manual so generated articles file automatically.</p>
         @endunless
     </form>
-    @endif
-</div>
-
-{{-- User Voices (social proof) --}}
-<div class="admin-card p-6 mb-6">
-    <div class="flex items-center justify-between mb-1">
-        <h2 class="text-base font-semibold text-gray-900 dark:text-white">User Voices</h2>
-        <form method="POST" action="{{ route('admin.work-items.find-voices', $workItem) }}" x-data="{ finding: false }" @submit="finding = true">
-            @csrf
-            <button type="submit" :disabled="finding" class="btn-secondary text-xs disabled:opacity-60">
-                <span x-show="!finding">Find Voices</span>
-                <span x-show="finding" x-cloak>Searching the web... (up to 60s)</span>
-            </button>
-        </form>
-    </div>
-    <p class="text-xs text-gray-400 mb-4">Real user sentiment for social proof. Find candidates via web search, review them, attach a screenshot from your Media library, then approve. Approved voices can be selected when generating an article.</p>
-
-    @php
-        $candidateVoices = $workItem->voiceRecords->where('status', 'candidate');
-        $approvedVoices  = $workItem->voiceRecords->where('status', 'approved');
-    @endphp
-
-    <details class="mb-4">
-        <summary class="text-xs text-teal cursor-pointer">+ Add a voice manually</summary>
-        <form method="POST" action="{{ route('admin.work-items.voices.store', $workItem) }}" class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            @csrf
-            <input name="quote" required placeholder="Verbatim quote" class="sm:col-span-2 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
-            <input name="attribution" placeholder="Attribution (e.g. r/musicmarketing)" class="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
-            <input name="source_url" type="url" placeholder="https://source-url" class="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
-            <button class="btn-secondary text-xs sm:col-span-2 justify-self-start">Add (approved)</button>
-        </form>
-    </details>
-
-    @if($candidateVoices->isNotEmpty())
-    <p class="text-xs uppercase tracking-wide text-gray-400 mb-2">Candidates ({{ $candidateVoices->count() }}) &middot; verify each quote on its source before approving</p>
-    <div class="space-y-2 mb-5">
-        @foreach($candidateVoices as $v)
-            @include('admin.work-items._voice-card', ['v' => $v])
-        @endforeach
-    </div>
-    @endif
-
-    <p class="text-xs uppercase tracking-wide text-gray-400 mb-2">Approved ({{ $approvedVoices->count() }})</p>
-    @if($approvedVoices->isEmpty())
-    <p class="text-sm text-gray-400">None approved yet.</p>
-    @else
-    <div class="space-y-2">
-        @foreach($approvedVoices as $v)
-            @include('admin.work-items._voice-card', ['v' => $v])
-        @endforeach
-    </div>
     @endif
 </div>
 
@@ -242,66 +199,3 @@
 </div>
 @endif
 @endsection
-
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    let armedForm = null;
-
-    function fileFromBlob(blob) {
-        const type = blob.type || 'image/png';
-        const ext = (type.split('/')[1] || 'png').replace('jpeg', 'jpg');
-        return new File([blob], 'voice-' + Date.now() + '.' + ext, { type: type });
-    }
-
-    function attachFile(form, f) {
-        const dt = new DataTransfer();
-        dt.items.add(f);
-        form.querySelector('.voice-file').files = dt.files;
-        const preview = form.querySelector('.voice-preview');
-        preview.src = URL.createObjectURL(f);
-        preview.classList.remove('hidden');
-        form.querySelector('.voice-save').classList.remove('hidden');
-        form.querySelector('.voice-paste').textContent = 'Pasted, click Save';
-    }
-
-    document.querySelectorAll('.voice-upload').forEach(function (form) {
-        form.querySelector('.voice-choose').addEventListener('click', function () {
-            form.querySelector('.voice-file').click();
-        });
-        form.querySelector('.voice-file').addEventListener('change', function () {
-            if (this.files[0]) attachFile(form, this.files[0]);
-        });
-        form.querySelector('.voice-paste').addEventListener('click', async function () {
-            armedForm = form;
-            if (navigator.clipboard && navigator.clipboard.read) {
-                try {
-                    const items = await navigator.clipboard.read();
-                    for (const item of items) {
-                        const type = item.types.find(function (t) { return t.startsWith('image/'); });
-                        if (type) { attachFile(form, fileFromBlob(await item.getType(type))); return; }
-                    }
-                    this.textContent = 'No image copied — press Ctrl+V';
-                } catch (e) {
-                    this.textContent = 'Press Ctrl+V now';
-                }
-            } else {
-                this.textContent = 'Press Ctrl+V now';
-            }
-        });
-    });
-
-    // Fallback: Ctrl+V after clicking a Paste button routes the image to that voice.
-    document.addEventListener('paste', function (e) {
-        if (!armedForm || !e.clipboardData) return;
-        for (const it of e.clipboardData.items) {
-            if (it.type && it.type.startsWith('image/')) {
-                attachFile(armedForm, fileFromBlob(it.getAsFile()));
-                e.preventDefault();
-                return;
-            }
-        }
-    });
-});
-</script>
-@endpush

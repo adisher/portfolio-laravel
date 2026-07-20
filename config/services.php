@@ -54,4 +54,8 @@ return [
         'credentials' => env('GSC_CREDENTIALS_PATH'),
     ],
 
+    'brave' => [
+        'key' => env('BRAVE_SEARCH_API_KEY'),
+    ],
+
 ];

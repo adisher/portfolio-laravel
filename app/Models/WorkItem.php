@@ -50,6 +50,11 @@ class WorkItem extends Model
         return $this->voiceRecords()->where('status', 'approved');
     }
 
+    public function voiceSearchRuns()
+    {
+        return $this->hasMany(VoiceSearchRun::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('active', true);

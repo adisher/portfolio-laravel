@@ -83,7 +83,11 @@
       "Bash(grep -n 'buildWorkItemPrompt\\\\|$voices\\\\|Real user sentiment\\\\|Social proof:\\\\|blockquote\\\\|After each such blockquote' app/Services/AiContentService.php)",
       "Bash(php -l database/seeders/BioLinkProWorkItemSeeder.php)",
       "Bash(php -l database/seeders/BioLinkProVoicesSeeder.php)",
-      "Bash(php -l app/Http/Controllers/Admin/WorkItemController.php)"
+      "Bash(php -l app/Http/Controllers/Admin/WorkItemController.php)",
+      "Bash(mv /tmp/wi_show.tmp resources/views/admin/work-items/show.blade.php)",
+      "Bash(rm -f resources/views/admin/work-items/_voice-card.blade.php)",
+      "Bash(php -l app/Http/Controllers/Admin/VoiceController.php)",
+      "Bash(php -l app/Services/BraveSearchService.php)"
     ]
   }
 }
