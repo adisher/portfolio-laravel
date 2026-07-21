@@ -17,6 +17,35 @@ export default {
                 satoshi: ['Satoshi', 'sans-serif'],
             },
             colors: {
+                // ── Neutral ramp, tuned to the Midnight Forest palette ──────────
+                // The admin portal is forced dark and leans on ~2,000 inline
+                // `gray-*` utilities. Tailwind's stock gray is a dead neutral, so
+                // those fought the brand navy used by .admin-card / .admin-nav-link
+                // and the result read as flat charcoal.
+                //
+                // This ramp IS the brand: 900 = midnight, 700 = ocean,
+                // 600 = ocean-light. So `dark:bg-gray-700` and
+                // `dark:bg-midnight-light` now resolve to the same surface and the
+                // two systems merge — no view rewrites needed.
+                //
+                // The light end (50-200) stays near-neutral so the public site,
+                // which uses gray only 11 times, is visually unchanged.
+                // Contrast on the dark surfaces (WCAG AA, small text):
+                //   300 on 900 = 11.0:1   400 on 900 = 7.1:1   400 on 700 = 4.9:1
+                gray: {
+                    50:  '#F7F9FA',
+                    100: '#EDF1F3',
+                    200: '#DCE4E8',
+                    300: '#C3D0D8', // primary text on dark
+                    400: '#93A9B8', // muted / secondary text on dark
+                    500: '#52798D',
+                    600: '#2D5A6B', // = ocean.light — borders on dark
+                    700: '#1B3A4B', // = ocean — cards, inputs, raised surfaces
+                    800: '#142838', // sidebar / recessed surfaces
+                    900: '#0D1B2A', // = midnight — page background
+                    950: '#06101A', // = midnight.dark
+                },
+
                 // Midnight Forest Palette
                 midnight: {
                     DEFAULT: '#0D1B2A',

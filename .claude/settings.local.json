@@ -89,7 +89,21 @@
       "Bash(php -l app/Http/Controllers/Admin/VoiceController.php)",
       "Bash(php -l app/Services/BraveSearchService.php)",
       "Bash(php -l config/blog_automation.php)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(grep -iE \"\\\\.env|\\\\.sql$|credentials|\\\\.json$\")",
+      "Bash(git count-objects *)",
+      "Bash(git rm *)",
+      "Bash(sed -n '1,60p' database/migrations/*create_projects_table.php)",
+      "Bash(sed -n '/function up/,/^    }/p' database/migrations/2026_01_31_015422_add_automation_fields_to_collected_articles_table.php)",
+      "Bash(sed -n '/function up/,/^    }/p' database/migrations/2026_06_07_100000_add_type_flags_to_categories_table.php)",
+      "Bash(perl -0pi -e \"s/        'last_100_alert_sent_at' => 'datetime',\\\\n//\" app/Models/AiBudgetSetting.php)",
+      "Bash(grep -rhoE \"dark:\\(bg|text|border|from|to|via\\)-[a-z]+-[0-9]{2,3}\" resources/views/admin resources/views/layouts/admin.blade.php)",
+      "Bash(grep -rhoE \"\\(^|\\\\\"\\)\\(bg|text|border\\)-gray-[0-9]{2,3}\" resources/views/frontend resources/views/components resources/views/partials)",
+      "Bash(grep -rhoE \"\\(bg|text|border\\)-gray-[0-9]{2,3}\" resources/views/admin)",
+      "Bash(python -c ' *)",
+      "Bash(taskkill //F //IM php.exe //FI \"WINDOWTITLE eq *\")",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //F //PID 71628)"
     ]
   }
 }

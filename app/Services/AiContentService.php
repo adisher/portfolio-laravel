@@ -12,14 +12,16 @@ use Exception;
 class AiContentService
 {
     protected AiBudgetService $budgetService;
-    protected string $apiKey;
+    protected ?string $apiKey;
     protected string $model;
     protected string $apiUrl = 'https://api.anthropic.com/v1/messages';
 
     public function __construct(AiBudgetService $budgetService)
     {
         $this->budgetService = $budgetService;
-        $this->apiKey = config('blog_automation.ai.api_key', env('ANTHROPIC_API_KEY'));
+        // Resolved in config/blog_automation.php so it survives `config:cache`.
+        // A bare env() call here returns null once the config is cached in prod.
+        $this->apiKey = config('blog_automation.ai.api_key');
         $this->model = config('blog_automation.ai.model', 'claude-haiku-4-5-20251001');
     }
 

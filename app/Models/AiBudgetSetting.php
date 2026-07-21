@@ -35,6 +35,7 @@ class AiBudgetSetting extends Model
         'alert_at_100_percent' => 'boolean',
         'last_50_alert_sent_at' => 'datetime',
         'last_80_alert_sent_at' => 'datetime',
+        'last_100_alert_sent_at' => 'datetime',
         'last_reset_at' => 'datetime',
     ];
 

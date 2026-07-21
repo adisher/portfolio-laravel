@@ -177,32 +177,84 @@
     }
 
     /* ---------- Admin Styles ---------- */
+    /* Dark admin depth model: the page sits at midnight (gray-900), surfaces
+       rise to ocean (gray-700). Elevation is carried by a 1px top highlight
+       (light reads as coming from above) plus a soft shadow — not by borders
+       alone, which is what made the old flat-charcoal treatment look dull. */
     .admin-nav-link {
-        @apply flex items-center px-6 py-3 text-soft-dark dark:text-soft hover:bg-ocean/50 dark:hover:bg-ocean hover:text-teal transition-colors;
+        @apply relative flex items-center px-6 py-3 text-soft-dark dark:text-gray-300 hover:bg-ocean/50 dark:hover:bg-white/5 hover:text-teal dark:hover:text-teal transition-colors duration-200;
     }
 
     .admin-nav-link.active {
-        @apply bg-teal/10 text-teal border-r-4 border-teal;
+        @apply bg-teal/10 text-teal font-medium;
+    }
+
+    /* Accent rail on the active item, with a soft bloom so it reads as lit
+       rather than as a flat 4px block. */
+    .admin-nav-link.active::after {
+        content: '';
+        @apply absolute right-0 top-1 bottom-1 w-1 rounded-l bg-teal;
+        box-shadow: -6px 0 16px -2px rgba(65, 234, 212, 0.55);
     }
 
     .admin-nav-link svg {
         @apply mr-3;
     }
 
+    /* A dead-flat fill over a full viewport is what makes dark UIs feel lifeless.
+       Two very low-opacity teal/ocean pools give the page a subtle sense of
+       depth without reading as a coloured background. Fixed so it doesn't
+       travel with scroll. */
+    .dark .admin-shell {
+        background-image:
+            radial-gradient(900px circle at 12% 0%, rgba(65, 234, 212, 0.055), transparent 60%),
+            radial-gradient(1100px circle at 88% 8%, rgba(27, 58, 75, 0.55), transparent 62%);
+        background-attachment: fixed;
+    }
+
+    /* Sidebar brand bar. Replaces a stock bg-blue-600 that belonged to no part
+       of the palette; teal→ocean ties it to the accent used for active nav. */
+    .admin-brand {
+        @apply text-midnight;
+        background-image: linear-gradient(135deg, #41EAD4 0%, #14D3BE 55%, #0AAA9E 100%);
+    }
+
+    .dark .admin-brand {
+        @apply text-teal-50;
+        background-image: linear-gradient(135deg, #14D3BE 0%, #116B66 60%, #1B3A4B 100%);
+        box-shadow: inset 0 -1px 0 0 rgba(65, 234, 212, 0.3);
+    }
+
     .admin-card {
-        @apply bg-white dark:bg-midnight-light rounded-xl border border-soft/20 dark:border-soft/10 shadow-sm dark:shadow-none;
+        @apply relative bg-white dark:bg-gray-700 rounded-xl border border-soft/20 dark:border-white/5 shadow-sm;
+    }
+
+    .dark .admin-card {
+        box-shadow:
+            inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+            0 1px 2px rgba(0, 0, 0, 0.28),
+            0 8px 24px -12px rgba(0, 0, 0, 0.55);
     }
 
     .admin-table {
-        @apply min-w-full divide-y divide-soft/20 dark:divide-soft/10;
+        @apply min-w-full divide-y divide-soft/20 dark:divide-white/5;
     }
 
     .admin-table th {
-        @apply px-6 py-3 bg-soft/50 dark:bg-midnight text-left text-xs font-medium text-soft-dark dark:text-soft uppercase tracking-wider;
+        @apply px-6 py-3 bg-soft/50 dark:bg-gray-800 text-left text-xs font-medium text-soft-dark dark:text-gray-400 uppercase tracking-wider;
     }
 
     .admin-table td {
-        @apply px-6 py-4 whitespace-nowrap text-sm text-midnight dark:text-soft-light;
+        @apply px-6 py-4 whitespace-nowrap text-sm text-midnight dark:text-gray-300;
+    }
+
+    /* Rows lift slightly on hover instead of shifting to a muddier grey. */
+    .admin-table tbody tr {
+        @apply transition-colors duration-150;
+    }
+
+    .admin-table tbody tr:hover {
+        @apply bg-soft/40 dark:bg-white/[0.03];
     }
 
     /* ---------- Status Badges ---------- */

@@ -14,14 +14,14 @@
     @stack('styles')
 </head>
 
-<body class="font-sans antialiased bg-gray-100 dark:bg-gray-900">
+<body class="admin-shell font-sans antialiased bg-gray-100 dark:bg-gray-900">
     <div class="flex h-screen">
         <!-- Sidebar -->
         <aside
             class="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 shadow-lg transform -translate-x-full transition-transform duration-300 ease-in-out lg:translate-x-0 z-30 flex flex-col"
             id="sidebar">
-            <div class="flex items-center justify-center h-16 bg-blue-600 text-white flex-shrink-0">
-                <h1 class="text-xl font-bold">Portfolio Admin</h1>
+            <div class="admin-brand flex items-center justify-center h-16 flex-shrink-0">
+                <h1 class="text-xl font-bold tracking-tight">Portfolio Admin</h1>
             </div>
 
             <nav class="mt-6 flex-1 overflow-y-auto pb-6">

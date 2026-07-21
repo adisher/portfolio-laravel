@@ -7,9 +7,12 @@ use Illuminate\Support\Facades\Log;
 
 class SafepayService
 {
-    protected string $baseUrl;
-    protected string $apiKey;
-    protected string $apiSecret;
+    // Nullable: the Safepay env vars are unset on a fresh install, and a non-null
+    // typehint here would throw a TypeError the moment the container resolves this
+    // service — 500ing the webhook route instead of failing gracefully per-call.
+    protected ?string $baseUrl;
+    protected ?string $apiKey;
+    protected ?string $apiSecret;
     protected string $environment;
     protected ?string $webhookSecret;
 

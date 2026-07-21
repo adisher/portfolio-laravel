@@ -31,3 +31,5 @@ venv/
 portfolio_db.sql
 storage/app/google
 scripts/screenshots/out
+temp_series.json
+Modelfile
