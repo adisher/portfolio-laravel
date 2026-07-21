@@ -88,7 +88,8 @@
       "Bash(rm -f resources/views/admin/work-items/_voice-card.blade.php)",
       "Bash(php -l app/Http/Controllers/Admin/VoiceController.php)",
       "Bash(php -l app/Services/BraveSearchService.php)",
-      "Bash(php -l config/blog_automation.php)"
+      "Bash(php -l config/blog_automation.php)",
+      "Bash(npm run *)"
     ]
   }
 }
