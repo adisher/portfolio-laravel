@@ -215,9 +215,10 @@ class AnalyticsController extends Controller
                 && $a['position'] !== null
                 && $a['position'] >= 4
                 && $a['position'] <= 20
-                && $a['ctr'] ?? true
             )
             ->map(function ($a) {
+                // CTR is computed here (not on the base row) so the view can
+                // read $a['ctr'] and we can sort worst-CTR-first below.
                 $a['ctr'] = $a['impressions'] > 0 ? $a['clicks'] / $a['impressions'] : 0;
                 return $a;
             })
