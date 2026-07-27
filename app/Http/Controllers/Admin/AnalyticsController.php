@@ -93,6 +93,153 @@ class AnalyticsController extends Controller
         ]);
     }
 
+    /**
+     * Blog performance report: rolls up per-article search + on-site metrics
+     * to niche (category) and to source_type (curated vs original).
+     *
+     * The join is the whole point — GSC is keyed by URL, first-party views by
+     * content_id, and the axes the user actually cares about (niche, curated
+     * vs original) live on blog_posts. Nothing in the stock dashboard rolls up
+     * to those axes, so we do it here.
+     */
+    public function blogReport(Request $request, GscService $gsc)
+    {
+        $days = (int) $request->get('period', 28);
+
+        // ── On-site views per published post (first-party) ──────────────
+        // Keyed by post id: count of non-bot page views in window.
+        $viewsByPost = PageView::notBot()
+            ->where('content_type', 'blog_post')
+            ->whereNotNull('content_id')
+            ->where('created_at', '>=', now()->subDays($days))
+            ->select('content_id', DB::raw('count(*) as views'))
+            ->groupBy('content_id')
+            ->pluck('views', 'content_id');
+
+        // ── All published posts with their category ─────────────────────
+        $posts = BlogPost::published()
+            ->with('category:id,name,slug')
+            ->get(['id', 'title', 'slug', 'category_id', 'source_type', 'published_at']);
+
+        // ── Search metrics per blog slug (GSC), if connected ────────────
+        $gscConfigured = $gsc->isConfigured();
+        $searchBySlug = $gscConfigured ? $gsc->blogPageMetrics($days) : [];
+
+        // ── Assemble a per-article row joining all three sources ────────
+        $matchedSlugs = [];
+        $articles = $posts->map(function ($post) use ($viewsByPost, $searchBySlug, &$matchedSlugs) {
+            $search = $searchBySlug[$post->slug] ?? null;
+            if ($search) {
+                $matchedSlugs[$post->slug] = true;
+            }
+            return [
+                'id'          => $post->id,
+                'title'       => $post->title,
+                'slug'        => $post->slug,
+                'category'    => $post->category?->name ?? 'Uncategorized',
+                'category_id' => $post->category_id,
+                'source_type' => $post->source_type ?: 'unknown',
+                'age_days'    => $post->published_at ? (int) $post->published_at->diffInDays(now()) : null,
+                'views'       => (int) ($viewsByPost[$post->id] ?? 0),
+                'impressions' => (int) ($search['impressions'] ?? 0),
+                'clicks'      => (int) ($search['clicks'] ?? 0),
+                'position'    => $search['position'] ?? null,
+            ];
+        });
+
+        // GSC blog URLs that matched no current post (renamed/deleted slugs) —
+        // surfaced so the totals are transparent rather than silently dropped.
+        $unmatched = collect($searchBySlug)
+            ->reject(fn($_, $slug) => isset($matchedSlugs[$slug]))
+            ->values()
+            ->all();
+
+        return view('admin.analytics.blog-report', [
+            'days'          => $days,
+            'gscConfigured' => $gscConfigured,
+            'byNiche'       => $this->rollup($articles, 'category'),
+            'bySource'      => $this->rollup($articles, 'source_type'),
+            'topArticles'   => $articles->sortByDesc('impressions')->take(15)->values(),
+            'opportunities' => $this->opportunityArticles($articles),
+            'totals'        => $this->blogTotals($articles),
+            'unmatchedCount' => count($unmatched),
+            'unmatchedImpr'  => array_sum(array_column($unmatched, 'impressions')),
+        ]);
+    }
+
+    /**
+     * Group article rows by a key and aggregate. Average position is
+     * impression-weighted (an unweighted mean of positions is meaningless —
+     * a page with 2 impressions would count as much as one with 2,000).
+     */
+    private function rollup($articles, string $key)
+    {
+        return $articles->groupBy($key)->map(function ($group, $label) {
+            $impr   = $group->sum('impressions');
+            $clicks = $group->sum('clicks');
+
+            // Impression-weighted average position, over rows that have a position.
+            $withPos = $group->filter(fn($a) => $a['position'] !== null && $a['impressions'] > 0);
+            $weightedPos = $withPos->sum('impressions') > 0
+                ? $withPos->sum(fn($a) => $a['position'] * $a['impressions']) / $withPos->sum('impressions')
+                : null;
+
+            $count = $group->count();
+
+            return [
+                'label'         => $label ?: 'Uncategorized',
+                'articles'      => $count,
+                'views'         => $group->sum('views'),
+                'impressions'   => $impr,
+                'clicks'        => $clicks,
+                'ctr'           => $impr > 0 ? $clicks / $impr : 0,
+                'avg_position'  => $weightedPos,
+                // Per-article normalisation: the honest way to compare a niche
+                // with 40 posts against one with 5.
+                'impr_per_post' => $count > 0 ? round($impr / $count) : 0,
+                'views_per_post' => $count > 0 ? round($group->sum('views') / $count) : 0,
+            ];
+        })->sortByDesc('impressions')->values();
+    }
+
+    /**
+     * Actionable articles: ranking on page 1-2 (position 4-20) with real
+     * impression volume but a weak click-through — i.e. a title/meta tweak or
+     * a small ranking push is the cheapest available win.
+     */
+    private function opportunityArticles($articles)
+    {
+        return $articles
+            ->filter(fn($a) =>
+                $a['impressions'] >= 30
+                && $a['position'] !== null
+                && $a['position'] >= 4
+                && $a['position'] <= 20
+                && $a['ctr'] ?? true
+            )
+            ->map(function ($a) {
+                $a['ctr'] = $a['impressions'] > 0 ? $a['clicks'] / $a['impressions'] : 0;
+                return $a;
+            })
+            // Biggest impression pools with the worst CTR first.
+            ->sortBy(fn($a) => [$a['ctr'], -$a['impressions']])
+            ->take(15)
+            ->values();
+    }
+
+    private function blogTotals($articles)
+    {
+        $impr   = $articles->sum('impressions');
+        $clicks = $articles->sum('clicks');
+        return [
+            'articles'    => $articles->count(),
+            'views'       => $articles->sum('views'),
+            'impressions' => $impr,
+            'clicks'      => $clicks,
+            'ctr'         => $impr > 0 ? $clicks / $impr : 0,
+        ];
+    }
+
     public function realtime()
     {
         $activeVisitors = $this->getActiveVisitors();

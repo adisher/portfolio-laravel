@@ -165,6 +165,47 @@ class GscService
         });
     }
 
+    /**
+     * All blog article pages with their search metrics, keyed by slug.
+     *
+     * Pulls the full `page` dimension (up to 1000 rows) and keeps only
+     * /blog/{slug} article URLs — excludes the index, category, search,
+     * proof-of-work and feed routes so the caller can roll up by article →
+     * category without re-filtering. Returned map: slug => metrics row.
+     */
+    public function blogPageMetrics(int $days = 28): array
+    {
+        return Cache::remember("gsc:blogpages:{$days}", now()->addHours(6), function () use ($days) {
+            [$start, $end] = $this->range($days);
+            $reserved = ['category', 'search', 'proof-of-work', 'feed'];
+            $out = [];
+
+            foreach ($this->query($start, $end, ['page'], 1000) as $r) {
+                $url  = $r['keys'][0] ?? '';
+                $path = parse_url($url, PHP_URL_PATH) ?? '';
+
+                // Match exactly /blog/{slug} — one segment after /blog/.
+                if (!preg_match('#/blog/([^/]+)/?$#', $path, $m)) {
+                    continue;
+                }
+                $slug = $m[1];
+                if (in_array($slug, $reserved, true)) {
+                    continue;
+                }
+
+                $out[$slug] = [
+                    'slug'        => $slug,
+                    'clicks'      => $r['clicks'],
+                    'impressions' => $r['impressions'],
+                    'ctr'         => $r['ctr'],
+                    'position'    => $r['position'],
+                ];
+            }
+
+            return $out;
+        });
+    }
+
     public function byCountry(int $days = 28, int $limit = 15): array
     {
         return Cache::remember("gsc:country:{$days}:{$limit}", now()->addHours(6), function () use ($days, $limit) {
