@@ -194,8 +194,10 @@
         <div class="space-y-3">
             @php
             $totalSources = array_sum($trafficSources);
-            $sourceColors = ['direct' => 'bg-gray-500', 'search' => 'bg-green-500', 'social' => 'bg-blue-500',
-            'referral' => 'bg-orange-500'];
+            $sourceColors = ['direct' => 'bg-gray-500', 'search' => 'bg-green-500', 'ai' => 'bg-teal-500',
+            'social' => 'bg-blue-500', 'referral' => 'bg-orange-500'];
+            $sourceLabels = ['direct' => 'Direct', 'search' => 'Search', 'ai' => 'AI Assistant',
+            'social' => 'Social', 'referral' => 'Referral'];
             @endphp
             @foreach($trafficSources as $source => $count)
             @php
@@ -204,7 +206,7 @@
             <div class="flex items-center justify-between">
                 <div class="flex items-center">
                     <div class="w-3 h-3 rounded-full mr-3 {{ $sourceColors[$source] ?? 'bg-gray-400' }}"></div>
-                    <span class="text-sm text-gray-900 dark:text-white capitalize">{{ $source }}</span>
+                    <span class="text-sm text-gray-900 dark:text-white">{{ $sourceLabels[$source] ?? ucfirst($source) }}</span>
                 </div>
                 <div class="text-sm text-gray-600 dark:text-gray-400">
                     {{ $percentage }}% ({{ number_format($count) }})

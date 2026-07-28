@@ -9,6 +9,7 @@ use App\Models\ContactAnalytic;
 use App\Models\Project;
 use App\Models\BlogPost;
 use App\Services\GscService;
+use App\Support\TrafficSource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -154,7 +155,7 @@ class AnalyticsController extends Controller
             ->values()
             ->all();
 
-        return view('admin.analytics.blog-report', [
+        return view('admin.analytics.blog-report', array_merge([
             'days'          => $days,
             'gscConfigured' => $gscConfigured,
             'byNiche'       => $this->rollup($articles, 'category'),
@@ -164,7 +165,65 @@ class AnalyticsController extends Controller
             'totals'        => $this->blogTotals($articles),
             'unmatchedCount' => count($unmatched),
             'unmatchedImpr'  => array_sum(array_column($unmatched, 'impressions')),
-        ]);
+        ], $this->blogAudience($days)));
+    }
+
+    /**
+     * Who actually reaches the blog: the human traffic-source split (incl. AI
+     * assistants), the AI-crawler activity that precedes citations, and the
+     * bot-vs-human view split — so one scraper can never again masquerade as
+     * real readership. All keyed off blog_post page-views in the window.
+     */
+    private function blogAudience(int $days)
+    {
+        $base = fn () => PageView::query()
+            ->join('visitors', 'page_views.visitor_id', '=', 'visitors.id')
+            ->where('page_views.content_type', 'blog_post')
+            ->where('page_views.created_at', '>=', now()->subDays($days));
+
+        // Human views split by acquisition source (persisted `source` column).
+        $sourceRows = (clone $base())->where('visitors.is_bot', false)
+            ->select('visitors.source', DB::raw('count(*) as c'))
+            ->groupBy('visitors.source')->pluck('c', 'source');
+
+        $sourceBreakdown = collect([
+            TrafficSource::AI, TrafficSource::SEARCH, TrafficSource::REFERRAL,
+            TrafficSource::SOCIAL, TrafficSource::DIRECT,
+        ])->map(fn ($s) => [
+            'source' => $s,
+            'label'  => TrafficSource::label($s),
+            'views'  => (int) ($sourceRows[$s] ?? 0),
+        ])->filter(fn ($r) => $r['views'] > 0)->sortByDesc('views')->values();
+
+        // Which specific AI assistants sent human readers.
+        $aiAssistants = (clone $base())->where('visitors.is_bot', false)
+            ->where('visitors.source', TrafficSource::AI)
+            ->select('visitors.source_detail', DB::raw('count(*) as c'))
+            ->groupBy('visitors.source_detail')->orderByDesc('c')->pluck('c', 'source_detail');
+
+        // AI-crawler activity: bots reading the blog, named. Crawler name is
+        // derived from the stored UA (few distinct bot UAs, so this is cheap).
+        $crawlerRows = (clone $base())->where('visitors.bot_reason', 'ai_crawler')
+            ->select('visitors.user_agent', DB::raw('count(*) as c'))
+            ->groupBy('visitors.user_agent')->get();
+
+        $aiCrawlers = $crawlerRows
+            ->groupBy(fn ($r) => \App\Support\BotDetector::crawlerName($r->user_agent) ?? 'Other AI crawler')
+            ->map(fn ($g) => $g->sum('c'))
+            ->sortDesc();
+
+        // Bot-vs-human view split (transparency: bot views are excluded from
+        // every other number on the page, this shows how much was excluded).
+        $humanViews = (int) (clone $base())->where('visitors.is_bot', false)->count();
+        $botViews   = (int) (clone $base())->where('visitors.is_bot', true)->count();
+
+        return [
+            'sourceBreakdown' => $sourceBreakdown,
+            'aiAssistants'    => $aiAssistants,
+            'aiCrawlers'      => $aiCrawlers,
+            'humanViews'      => $humanViews,
+            'botViews'        => $botViews,
+        ];
     }
 
     /**

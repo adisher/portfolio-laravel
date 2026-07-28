@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\BotDetector;
+use App\Support\TrafficSource;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -23,11 +25,14 @@ class Visitor extends Model
         'utm_source',
         'utm_medium',
         'utm_campaign',
+        'source',
+        'source_detail',
         'first_visit_at',
         'last_activity_at',
         'page_views',
         'session_duration',
         'is_bot',
+        'bot_reason',
     ];
 
     protected $casts = [
@@ -80,6 +85,14 @@ class Visitor extends Model
         $agent = new \Jenssegers\Agent\Agent();
         $agent->setUserAgent($request->userAgent());
 
+        $referrer = $request->header('referer');
+        $utmSource = $request->get('utm_source');
+
+        // Layered bot detection (catches AI crawlers isRobot() misses) and
+        // source classification, both resolved once at creation and persisted.
+        [$isBot, $botReason] = BotDetector::fromUserAgent($request->userAgent());
+        [$source, $sourceDetail] = TrafficSource::classify($referrer, $utmSource);
+
         return static::create([
             'session_id' => session()->getId(),
             'ip_address' => $request->ip(),
@@ -88,13 +101,16 @@ class Visitor extends Model
             'browser' => $agent->browser(),
             'platform' => $agent->platform(),
             'country' => static::getCountryFromIP($request->ip()),
-            'referrer' => $request->header('referer'),
-            'utm_source' => $request->get('utm_source'),
+            'referrer' => $referrer,
+            'utm_source' => $utmSource,
             'utm_medium' => $request->get('utm_medium'),
             'utm_campaign' => $request->get('utm_campaign'),
+            'source' => $source,
+            'source_detail' => $sourceDetail,
             'first_visit_at' => now(), // Explicitly set to now()
             'last_activity_at' => now(), // Explicitly set to now()
-            'is_bot' => $agent->isRobot(),
+            'is_bot' => $isBot,
+            'bot_reason' => $botReason,
         ]);
     }
 
@@ -212,29 +228,29 @@ class Visitor extends Model
             ->get();
     }
 
-    public static function getTrafficSources()
+    /**
+     * Human traffic split by acquisition source, from the persisted `source`
+     * column (App\Support\TrafficSource). Includes an AI-assistant bucket that
+     * the old referrer-substring version could not see. `$days` optionally
+     * scopes to a recent window.
+     */
+    public static function getTrafficSources(?int $days = null)
     {
-        $organic = static::notBot()->whereNull('referrer')->whereNull('utm_source')->count();
-        $social = static::notBot()->where(function($q) {
-            $q->where('referrer', 'like', '%facebook%')
-              ->orWhere('referrer', 'like', '%twitter%')
-              ->orWhere('referrer', 'like', '%linkedin%')
-              ->orWhere('referrer', 'like', '%instagram%')
-              ->orWhere('utm_source', 'like', '%social%');
-        })->count();
-        $search = static::notBot()->where(function($q) {
-            $q->where('referrer', 'like', '%google%')
-              ->orWhere('referrer', 'like', '%bing%')
-              ->orWhere('referrer', 'like', '%yahoo%')
-              ->orWhere('utm_source', 'like', '%search%');
-        })->count();
-        $referral = static::notBot()->whereNotNull('referrer')->count() - $social - $search;
+        $q = static::notBot();
+        if ($days !== null) {
+            $q->where('created_at', '>=', now()->subDays($days));
+        }
+
+        $counts = $q->select('source', DB::raw('count(*) as c'))
+            ->groupBy('source')
+            ->pluck('c', 'source');
 
         return [
-            'direct' => $organic,
-            'search' => $search,
-            'social' => $social,
-            'referral' => max(0, $referral),
+            'direct'   => (int) ($counts[TrafficSource::DIRECT] ?? 0),
+            'search'   => (int) ($counts[TrafficSource::SEARCH] ?? 0),
+            'ai'       => (int) ($counts[TrafficSource::AI] ?? 0),
+            'social'   => (int) ($counts[TrafficSource::SOCIAL] ?? 0),
+            'referral' => (int) ($counts[TrafficSource::REFERRAL] ?? 0),
         ];
     }
 }

@@ -33,7 +33,27 @@ class TrackPageViews
                !$request->is('admin/*') &&
                !$request->is('api/*') &&
                !$request->ajax() &&
-               !$this->isAssetRequest($request);
+               !$this->isAssetRequest($request) &&
+               !$this->isLocalRequest($request);
+    }
+
+    /**
+     * Skip local/private-network requests so dev browsing, server-side hits
+     * (health checks, curl, the sitemap generator), and container-internal
+     * traffic never write "Local" analytics rows into production. Prod's 216
+     * historical Local rows came in via a dev DB dump and were purged 2026-07;
+     * this stops them recurring.
+     */
+    private function isLocalRequest(Request $request): bool
+    {
+        $ip = $request->ip();
+        if (empty($ip)) {
+            return true;
+        }
+
+        return $ip === '127.0.0.1'
+            || $ip === '::1'
+            || filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
     }
 
     private function isAssetRequest(Request $request): bool

@@ -64,9 +64,78 @@
     </div>
     <div class="admin-card p-4 text-center">
         <div class="text-2xl font-bold text-sunset">{{ $num($totals['views']) }}</div>
-        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">On-site views</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">On-site views (human)</div>
     </div>
 </div>
+
+{{-- ── Audience: who reaches the blog (human sources, AI, bot split) ── --}}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    {{-- Human traffic sources --}}
+    <div class="admin-card p-6">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Where readers come from</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Human on-site views by acquisition source.</p>
+        @php $srcMax = $sourceBreakdown->max('views') ?: 1; @endphp
+        @forelse($sourceBreakdown as $s)
+        <div class="mb-3">
+            <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-700 dark:text-gray-300">{{ $s['label'] }}</span>
+                <span class="text-gray-500 dark:text-gray-400">{{ $num($s['views']) }}</span>
+            </div>
+            <div class="h-1.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
+                <div class="h-full rounded-full {{ $s['source'] === 'ai_assistant' ? 'bg-teal' : ($s['source'] === 'search' ? 'bg-indigo-500' : 'bg-gray-400') }}"
+                     style="width: {{ max(3, round($s['views'] / $srcMax * 100)) }}%"></div>
+            </div>
+        </div>
+        @empty
+        <p class="text-sm text-gray-500 py-4">No human blog traffic in this period.</p>
+        @endforelse
+        <p class="text-[11px] text-gray-400 mt-3 leading-snug">
+            AI-referred clicks are a floor: many AI apps strip the referrer, so those land in Direct.
+        </p>
+    </div>
+
+    {{-- AI assistants that sent readers --}}
+    <div class="admin-card p-6">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">AI assistants → readers</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Humans who clicked a citation in an AI answer.</p>
+        @forelse($aiAssistants as $name => $c)
+        <div class="flex justify-between items-center py-1.5 border-b border-gray-100 dark:border-white/5 last:border-0">
+            <span class="text-sm text-gray-700 dark:text-gray-300">{{ $name }}</span>
+            <span class="text-sm font-medium text-teal">{{ $num($c) }}</span>
+        </div>
+        @empty
+        <p class="text-sm text-gray-500 py-4">No attributable AI-referred clicks yet. (Referrer stripping hides most; the crawler panel is the better leading indicator.)</p>
+        @endforelse
+    </div>
+
+    {{-- AI crawler activity --}}
+    <div class="admin-card p-6">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">AI crawlers reading you</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Bot fetches by AI engines — your leading indicator for being cited.</p>
+        @forelse($aiCrawlers as $name => $c)
+        <div class="flex justify-between items-center py-1.5 border-b border-gray-100 dark:border-white/5 last:border-0">
+            <span class="text-sm text-gray-700 dark:text-gray-300">{{ $name }}</span>
+            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ $num($c) }}</span>
+        </div>
+        @empty
+        <p class="text-sm text-gray-500 py-4">No AI crawler visits recorded in this period.</p>
+        @endforelse
+    </div>
+</div>
+
+{{-- Bot transparency banner --}}
+@php $totalRaw = $humanViews + $botViews; $botPct = $totalRaw > 0 ? round($botViews / $totalRaw * 100) : 0; @endphp
+@if($botViews > 0)
+<div class="admin-card p-4 mb-8 text-sm text-gray-600 dark:text-gray-400 flex items-start gap-3">
+    <svg class="w-5 h-5 flex-shrink-0 text-sunset mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.5 0L3.2 16.25A2 2 0 005 19z"/>
+    </svg>
+    <div>
+        <span class="font-medium text-gray-700 dark:text-gray-300">{{ $num($botViews) }} bot views ({{ $botPct }}%)</span>
+        were detected and excluded from every figure above. Every number on this page is human-only. Bots include AI/search crawlers and detected scrapers.
+    </div>
+</div>
+@endif
 
 {{-- ── Performance by niche ───────────────────────────────────── --}}
 <div class="admin-card p-6 mb-8">
