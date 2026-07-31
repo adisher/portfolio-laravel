@@ -112,17 +112,26 @@ class ReclassifyAnalytics extends Command
         $min = (int) $this->option('scraper-min-visitors');
 
         // Aggregate per user-agent over rows not already flagged as bots.
-        $rows = Visitor::query()
-            ->whereNull('bot_reason')
-            ->where('is_bot', false)
-            ->select('user_agent')
-            ->selectRaw('COUNT(*) as total')
-            ->selectRaw('COUNT(DISTINCT ip_address) as ips')
-            ->selectRaw('SUM(CASE WHEN page_views <= 1 THEN 1 ELSE 0 END) as single_page')
-            ->selectRaw("SUM(CASE WHEN referrer IS NULL OR referrer = '' THEN 1 ELSE 0 END) as no_ref")
-            ->groupBy('user_agent')
+        // single_page is computed from the ACTUAL page_views table (COUNT per
+        // visitor), NOT the visitors.page_views counter — that counter is
+        // off-by-one (inserted at DB-default 1, then the tracker increments it),
+        // so a genuine single-page visit reads as 2. Counting real rows avoids
+        // depending on that bug.
+        $pvCounts = DB::raw('(SELECT visitor_id, COUNT(*) AS cnt FROM page_views GROUP BY visitor_id) pv');
+
+        $rows = DB::table('visitors as v')
+            ->leftJoin($pvCounts, 'pv.visitor_id', '=', 'v.id')
+            ->whereNull('v.bot_reason')
+            ->where('v.is_bot', false)
+            ->groupBy('v.user_agent')
             ->havingRaw('COUNT(*) >= ?', [$min])
-            ->get();
+            ->get([
+                DB::raw('v.user_agent as user_agent'),
+                DB::raw('COUNT(*) as total'),
+                DB::raw('COUNT(DISTINCT v.ip_address) as ips'),
+                DB::raw('SUM(CASE WHEN COALESCE(pv.cnt, 0) <= 1 THEN 1 ELSE 0 END) as single_page'),
+                DB::raw("SUM(CASE WHEN v.referrer IS NULL OR v.referrer = '' THEN 1 ELSE 0 END) as no_ref"),
+            ]);
 
         $flagged = 0;
         foreach ($rows as $r) {
