@@ -106,7 +106,8 @@
       "Bash(taskkill //F //PID 71628)",
       "Bash(rm -f storage/app/local-analytics-backup-*.json && echo \"local test backup removed\")",
       "Bash(echo \"=== Support dir ===\"; ls app/Support 2>/dev/null; echo \"=== VoiceFilter head \\(convention\\) ===\"; head -25 app/Support/VoiceFilter.php 2>/dev/null; echo \"=== visitors columns ===\"; sed -n '/Schema::create/,/}\\);/p' database/migrations/*create_visitors_table.php)",
-      "Bash(php -l app/Console/Commands/ReclassifyAnalytics.php)"
+      "Bash(php -l app/Console/Commands/ReclassifyAnalytics.php)",
+      "Bash(grep -n 'return $flagged;\\\\|private function backfillSources' app/Console/Commands/ReclassifyAnalytics.php)"
     ]
   }
 }

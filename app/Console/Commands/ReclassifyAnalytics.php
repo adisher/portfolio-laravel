@@ -24,7 +24,8 @@ class ReclassifyAnalytics extends Command
 {
     protected $signature = 'analytics:reclassify
                             {--apply : Write changes (default is a dry-run report)}
-                            {--scraper-min-visitors=100 : Min visitors sharing a UA to consider the scraper heuristic}';
+                            {--scraper-min-visitors=25 : Min visitors sharing a UA to consider the distributed-scraper heuristic}
+                            {--flood-min-hits=25 : Min single-page no-referrer hits from one IP to flag an IP flood}';
 
     protected $description = 'Retroactively reclassify visitor bot flags and traffic sources';
 
@@ -36,13 +37,17 @@ class ReclassifyAnalytics extends Command
 
         $botChanges    = $this->reclassifyBots($apply);
         $scraperCount  = $this->flagBehaviouralScrapers($apply);
+        $floodCount    = $this->flagSingleIpFloods($apply);
+        $counterFixed  = $this->backfillPageViewCounter($apply);
         $sourceChanges = $this->backfillSources($apply);
 
         $this->newLine();
         $this->info('Summary');
         $this->table(['Change', 'Rows'], [
             ['Bot flag/reason updated (UA-based)', $botChanges],
-            ['Newly flagged as scraper (behavioural)', $scraperCount],
+            ['Flagged: distributed scraper (UA across many IPs)', $scraperCount],
+            ['Flagged: single-IP flood', $floodCount],
+            ['page_views counter corrected', $counterFixed],
             ['Source (re)classified', $sourceChanges],
         ]);
 
@@ -139,7 +144,13 @@ class ReclassifyAnalytics extends Command
             $singleRatio = $r->total > 0 ? $r->single_page / $r->total : 0;
             $noRefRatio  = $r->total > 0 ? $r->no_ref / $r->total : 0;
 
-            $isScraper = $ipRatio >= 0.7 && $singleRatio >= 0.9 && $noRefRatio >= 0.9;
+            // Strict signature: near-100% distinct IPs AND near-100% single-page
+            // AND near-100% no-referrer. Real people don't share a byte-identical
+            // UA across dozens of distinct IPs with zero referrers, so even small
+            // groups matching all three are almost certainly a scraper. The 0.9
+            // IP-ratio (tightened from 0.7) keeps false positives near zero at the
+            // lower visitor threshold.
+            $isScraper = $ipRatio >= 0.9 && $singleRatio >= 0.9 && $noRefRatio >= 0.9;
             if (!$isScraper) {
                 continue;
             }
@@ -161,6 +172,99 @@ class ReclassifyAnalytics extends Command
 
         $this->line("  {$flagged} row(s) " . ($apply ? 'flagged' : 'would be flagged') . '.');
         return $flagged;
+    }
+
+    /**
+     * Single-IP flood: the scraper heuristic's blind spot. One machine that
+     * does NOT rotate IPs (an uptime monitor, a non-distributed scraper) pulls
+     * many pages from a single address, each a fresh single-page session with
+     * no referrer. Real users — even behind a shared/NAT IP — carry referrers
+     * and browse multiple pages, so a high volume of single-page + no-referrer
+     * hits from one IP is automated.
+     */
+    private function flagSingleIpFloods(bool $apply): int
+    {
+        $this->line('› Scanning for single-IP floods (one IP, many single-page no-ref hits)…');
+        $min = (int) $this->option('flood-min-hits');
+
+        $pvCounts = DB::raw('(SELECT visitor_id, COUNT(*) AS cnt FROM page_views GROUP BY visitor_id) pv');
+
+        $rows = DB::table('visitors as v')
+            ->leftJoin($pvCounts, 'pv.visitor_id', '=', 'v.id')
+            ->whereNull('v.bot_reason')
+            ->where('v.is_bot', false)
+            ->whereNotNull('v.ip_address')
+            ->groupBy('v.ip_address')
+            ->havingRaw('COUNT(*) >= ?', [$min])
+            ->get([
+                DB::raw('v.ip_address as ip_address'),
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN COALESCE(pv.cnt, 0) <= 1 THEN 1 ELSE 0 END) as single_page'),
+                DB::raw("SUM(CASE WHEN v.referrer IS NULL OR v.referrer = '' THEN 1 ELSE 0 END) as no_ref"),
+            ]);
+
+        $flagged = 0;
+        foreach ($rows as $r) {
+            $singleRatio = $r->total > 0 ? $r->single_page / $r->total : 0;
+            $noRefRatio  = $r->total > 0 ? $r->no_ref / $r->total : 0;
+            if ($singleRatio < 0.9 || $noRefRatio < 0.9) {
+                continue;
+            }
+
+            $this->line(sprintf('  • %d single-page no-ref hits from %s', $r->total, $r->ip_address));
+
+            if ($apply) {
+                Visitor::where('ip_address', $r->ip_address)
+                    ->whereNull('bot_reason')
+                    ->where('is_bot', false)
+                    ->update(['is_bot' => true, 'bot_reason' => 'ip_flood']);
+            }
+            $flagged += $r->total;
+        }
+
+        $this->line("  {$flagged} row(s) " . ($apply ? 'flagged' : 'would be flagged') . '.');
+        return $flagged;
+    }
+
+    /**
+     * Correct the visitors.page_views counter to the real number of page-view
+     * rows, undoing the historical default(1)+increment off-by-one so bounce
+     * rate (which counts page_views == 1) is accurate on existing data too.
+     */
+    private function backfillPageViewCounter(bool $apply): int
+    {
+        $this->line('› Correcting page_views counters to actual row counts…');
+
+        // Rows whose stored counter disagrees with COUNT(page_views).
+        $pvCounts = DB::raw('(SELECT visitor_id, COUNT(*) AS cnt FROM page_views GROUP BY visitor_id) pv');
+        $mismatched = DB::table('visitors as v')
+            ->leftJoin($pvCounts, 'pv.visitor_id', '=', 'v.id')
+            ->whereRaw('v.page_views <> COALESCE(pv.cnt, 0)')
+            ->count();
+
+        if ($apply && $mismatched > 0) {
+            // Single set-based UPDATE from the row-count subquery.
+            $driver = DB::connection()->getDriverName();
+            if ($driver === 'mysql') {
+                DB::statement('
+                    UPDATE visitors v
+                    LEFT JOIN (SELECT visitor_id, COUNT(*) AS cnt FROM page_views GROUP BY visitor_id) pv
+                        ON pv.visitor_id = v.id
+                    SET v.page_views = COALESCE(pv.cnt, 0)
+                    WHERE v.page_views <> COALESCE(pv.cnt, 0)
+                ');
+            } else {
+                // SQLite/Postgres correlated-subquery form.
+                DB::statement('
+                    UPDATE visitors
+                    SET page_views = (SELECT COUNT(*) FROM page_views WHERE page_views.visitor_id = visitors.id)
+                    WHERE page_views <> (SELECT COUNT(*) FROM page_views WHERE page_views.visitor_id = visitors.id)
+                ');
+            }
+        }
+
+        $this->line("  {$mismatched} counter(s) " . ($apply ? 'corrected' : 'would change') . '.');
+        return $mismatched;
     }
 
     /**

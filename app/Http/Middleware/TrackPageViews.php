@@ -175,10 +175,14 @@ class TrackPageViews
 
     private function updateVisitorStats(Visitor $visitor)
     {
-        $visitor->increment('page_views');
-        
-        // Calculate session duration
-        $sessionDuration = now()->diffInSeconds($visitor->first_visit_at);
-        $visitor->update(['session_duration' => $sessionDuration]);
+        // Set the counter to the ACTUAL number of page-view rows rather than
+        // blindly incrementing. The old `increment()` combined with the column's
+        // DB default of 1 made a single-page visit store as 2 — an off-by-one
+        // that silently broke bounce-rate detection (which looks for == 1) and
+        // any single-page heuristic. Counting the rows (this runs after the row
+        // is inserted) is self-correcting and can never drift.
+        $visitor->page_views = $visitor->pageViews()->count();
+        $visitor->session_duration = now()->diffInSeconds($visitor->first_visit_at);
+        $visitor->save();
     }
 }
