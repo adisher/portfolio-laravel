@@ -13,6 +13,16 @@
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
+    # Canonical host: redirect non-www to www (matches APP_URL and the
+    # canonical tag) so Google consolidates ranking signals onto one host
+    # instead of indexing www and non-www as duplicate pages. Fires once —
+    # after the redirect the host starts with www so the condition is false,
+    # no loop. HTTPS is enforced by the hosting panel (Force HTTPS), not here,
+    # to avoid a redirect loop where the proxy terminates SSL and the backend
+    # always sees http.
+    RewriteCond %{HTTP_HOST} !^www\. [NC]
+    RewriteRule ^ https://www.%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$

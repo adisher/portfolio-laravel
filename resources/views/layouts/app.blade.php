@@ -6,6 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    @php
+        // Canonical URL: fixed host from APP_URL (www) + current path, so a www
+        // and a non-www request to the same page emit the SAME canonical. This
+        // stops Google indexing two copies and splitting ranking signals across
+        // hosts. Path-only (no query string) — matches the previous
+        // url()->current() behaviour, so tracking params (utm, fbclid) never
+        // create duplicate canonicals.
+        $__canonPath = trim(request()->path(), '/');
+        $canonicalUrl = rtrim(config('app.url'), '/') . ($__canonPath !== '' ? '/' . $__canonPath : '');
+    @endphp
+
     <title>@yield('title', 'Portfolio - Full Stack Developer')</title>
     <meta name="description"
         content="@yield('description', 'Professional portfolio showcasing web development projects and technical expertise')">
@@ -18,7 +29,7 @@
     <link rel="manifest" href="{{ asset('site.webmanifest') }}">
 
     <!-- SEO Meta Tags -->
-    <link rel="canonical" href="{{ url()->current() }}">
+    <link rel="canonical" href="{{ $canonicalUrl }}">
     <meta name="robots" content="index, follow">
     <meta name="googlebot" content="index, follow">
 
@@ -27,7 +38,7 @@
 
     <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="@yield('og_type', 'website')">
-    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:url" content="{{ $canonicalUrl }}">
     <meta property="og:title" content="@yield('title', 'Portfolio - Full Stack Developer')">
     <meta property="og:description"
         content="@yield('description', 'Professional portfolio showcasing web development projects and technical expertise')">
@@ -39,7 +50,7 @@
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="{{ url()->current() }}">
+    <meta name="twitter:url" content="{{ $canonicalUrl }}">
     <meta name="twitter:title" content="@yield('title', 'Portfolio - Full Stack Developer')">
     <meta name="twitter:description" content="@yield('description', 'Professional portfolio showcasing web development projects and technical expertise')">
     <meta name="twitter:image" content="@yield('og_image', asset('og-image.png'))">
