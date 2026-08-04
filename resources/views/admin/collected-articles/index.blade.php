@@ -85,7 +85,7 @@
                     <th>Article</th>
                     <th>Source</th>
                     <th>Score</th>
-                    <th>Published</th>
+                    <th>Source Date</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
