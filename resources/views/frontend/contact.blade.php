@@ -42,6 +42,17 @@
                 <form action="{{ route('contact.store') }}" method="POST" class="space-y-6">
                     @csrf
 
+                    {{-- Spam trap: off-screen so humans never see or fill it, but
+                         bots auto-fill any text input. If it arrives filled, the
+                         submission is silently discarded server-side. --}}
+                    <div style="position:absolute!important;left:-9999px!important;top:-9999px!important;height:0;width:0;overflow:hidden;" aria-hidden="true">
+                        <label for="website">Website (leave blank)</label>
+                        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" value="">
+                    </div>
+                    {{-- Min-time-to-submit token: encrypted render timestamp; a
+                         submission faster than a human could type is a bot. --}}
+                    <input type="hidden" name="form_loaded_at" value="{{ encrypt(now()->timestamp) }}">
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <label for="name" class="block text-sm font-medium text-midnight dark:text-soft mb-2">

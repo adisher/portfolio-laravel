@@ -32,6 +32,27 @@ class ContactController extends Controller
 
     public function store(Request $request)
     {
+        // ── Bot traps ────────────────────────────────────────────────
+        // Return the normal success response so bots believe it worked and
+        // don't adapt — but save nothing and send no email.
+        $successMessage = 'Thank you for your message! I\'ll get back to you soon.';
+
+        // 1. Honeypot: the off-screen "website" field is invisible to humans.
+        if (filled($request->input('website'))) {
+            return back()->with('success', $successMessage);
+        }
+
+        // 2. Timing: a submission faster than a human could fill the form, or a
+        //    missing/tampered token, is automated. 2s is safely below real use.
+        try {
+            $loadedAt = (int) decrypt($request->input('form_loaded_at'));
+        } catch (\Throwable $e) {
+            $loadedAt = 0;
+        }
+        if ($loadedAt === 0 || (now()->timestamp - $loadedAt) < 2) {
+            return back()->with('success', $successMessage);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
@@ -56,7 +77,7 @@ class ContactController extends Controller
             \Log::error('Failed to send contact form emails: ' . $e->getMessage());
         }
 
-        return back()->with('success', 'Thank you for your message! I\'ll get back to you soon.');
+        return back()->with('success', $successMessage);
     }
 
     private function trackContactAnalytics($contact, $request)

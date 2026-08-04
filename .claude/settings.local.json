@@ -110,7 +110,8 @@
       "Bash(grep -n 'return $flagged;\\\\|private function backfillSources' app/Console/Commands/ReclassifyAnalytics.php)",
       "Bash(git check-ignore *)",
       "Skill(schedule)",
-      "Skill(schedule:*)"
+      "Skill(schedule:*)",
+      "Bash(php -l app/Http/Controllers/Frontend/ContactController.php)"
     ]
   }
 }

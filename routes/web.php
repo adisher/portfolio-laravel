@@ -171,7 +171,9 @@ Route::prefix('sports')->name('sports.')->middleware('feature:page.sports')->gro
 
 // Frontend Contact Routes
 Route::get('/contact', [ContactController::class, 'index'])->middleware('feature:page.contact')->name('contact');
-Route::post('/contact', [ContactController::class, 'store'])->middleware('feature:page.contact')->name('contact.store');
+// throttle: cap contact submissions per IP (humans never submit 5x/min) as a
+// backstop to the honeypot + timing traps in ContactController::store.
+Route::post('/contact', [ContactController::class, 'store'])->middleware(['feature:page.contact', 'throttle:5,1'])->name('contact.store');
 
 // Demo Booking — cancel via email token (no auth required)
 Route::get('/demo/cancel/{token}', [DemoBookingController::class, 'cancel'])->name('demo.cancel');
