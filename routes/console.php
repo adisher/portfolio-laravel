@@ -56,6 +56,15 @@ Schedule::command('posts:auto-publish')
     ->onOneServer()
     ->runInBackground();
 
+// Park approved articles below the publish bar into the reuse pool — daily,
+// just after auto-publish so the day's publishable set goes out first and the
+// rest (the ~90/day the auto-approver waves through below the bar) is diverted
+// rather than piling up in the active queue.
+Schedule::command('articles:park --apply')
+    ->dailyAt('09:15')
+    ->onOneServer()
+    ->runInBackground();
+
 // Weekly cleanup - Sundays at 3 AM
 Schedule::command('articles:cleanup --days=30 --include-duplicates')
     ->weeklyOn(0, '03:00')

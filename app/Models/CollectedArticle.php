@@ -14,7 +14,7 @@ class CollectedArticle extends Model
         'blog_post_id', 'curator_notes',
         'assigned_category_id', 'category_confidence', 'is_duplicate',
         'duplicate_of_id', 'ai_enhanced', 'ai_generated_content',
-        'scheduled_publish_at', 'seo_data',
+        'scheduled_publish_at', 'seo_data', 'parked_at',
     ];
 
     protected $casts = [
@@ -23,11 +23,24 @@ class CollectedArticle extends Model
         'seo_data'           => 'array',
         'published_at'       => 'datetime',
         'scheduled_publish_at' => 'datetime',
+        'parked_at'          => 'datetime',
         'relevance_score'    => 'decimal:2',
         'category_confidence' => 'decimal:2',
         'is_duplicate'       => 'boolean',
         'ai_enhanced'        => 'boolean',
     ];
+
+    /** Diverted into the reuse pool — kept, but never published to this blog. */
+    public function scopeParked($query)
+    {
+        return $query->whereNotNull('parked_at');
+    }
+
+    /** Still in the active flow (not parked). */
+    public function scopeNotParked($query)
+    {
+        return $query->whereNull('parked_at');
+    }
 
     public function rssSource()
     {

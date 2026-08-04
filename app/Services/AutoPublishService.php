@@ -73,6 +73,7 @@ class AutoPublishService
             $articles = CollectedArticle::where('status', 'approved')
                 ->where('is_duplicate', false)
                 ->whereNull('blog_post_id')
+                ->whereNull('parked_at') // never publish articles diverted to the reuse pool
                 ->where('assigned_category_id', $category->id)
                 ->where('relevance_score', '>=', $minScore)
                 ->where('created_at', '>=', now()->subDays($freshnessDays))
