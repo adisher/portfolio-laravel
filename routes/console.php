@@ -65,6 +65,14 @@ Schedule::command('articles:park --apply')
     ->onOneServer()
     ->runInBackground();
 
+// Re-derive blog view counters (human vs raw) from the reclassified analytics —
+// daily, so the counters correct as behavioural bots get re-flagged. Runs after
+// the analytics reclassify would have settled for the day.
+Schedule::command('blog:recount-views --apply')
+    ->dailyAt('05:00')
+    ->onOneServer()
+    ->runInBackground();
+
 // Weekly cleanup - Sundays at 3 AM
 Schedule::command('articles:cleanup --days=30 --include-duplicates')
     ->weeklyOn(0, '03:00')

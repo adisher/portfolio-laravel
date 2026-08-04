@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BlogPost;
 use App\Models\Category;
 use App\Models\Tag;
+use App\Support\BotDetector;
 use Illuminate\Http\Request;
 
 class BlogController extends Controller
@@ -50,7 +51,14 @@ class BlogController extends Controller
             ->firstOrFail();
 
         // Increment view count
-        $post->increment('views');
+        // raw_views counts every load; views counts humans only. This is a
+        // best-effort real-time split (UA-based bot check) — the daily
+        // blog:recount-views job re-derives both from the reclassified
+        // analytics, which also catches behavioural scrapers a UA check can't.
+        $post->increment('raw_views');
+        if (!BotDetector::isBot(request()->userAgent())) {
+            $post->increment('views');
+        }
 
         // Related posts: same category first, then fill to 3 with recent posts
         $relatedPosts = BlogPost::published()

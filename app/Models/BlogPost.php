@@ -15,7 +15,7 @@ class BlogPost extends Model implements Feedable
 
     protected $fillable = [
         'title', 'slug', 'excerpt', 'content', 'featured_image', 'meta_title',
-        'meta_description', 'meta_keywords', 'status', 'published_at', 'views',
+        'meta_description', 'meta_keywords', 'status', 'published_at', 'views', 'raw_views',
         'reading_time', 'category_id', 'user_id', 'source_type', 'original_url', 'original_author', 
     'original_publication', 'original_published_at', 'curator_notes'
     ];

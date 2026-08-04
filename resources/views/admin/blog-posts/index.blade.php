@@ -62,7 +62,7 @@
                     <th>Category</th>
                     <th>Status</th>
                     <th>Published Date</th>
-                    <th>Views</th>
+                    <th>Views <span class="normal-case font-normal text-gray-400">(human / raw)</span></th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -113,8 +113,9 @@
                         <span class="text-gray-400">Not published</span>
                         @endif
                     </td>
-                    <td class="text-sm text-gray-500 dark:text-gray-400">
-                        {{ number_format($post->views) }}
+                    <td class="text-sm">
+                        <span class="font-medium text-gray-900 dark:text-gray-100">{{ number_format($post->views) }}</span>
+                        <span class="text-gray-400">/ {{ number_format($post->raw_views) }}</span>
                     </td>
                     <td>
                         <div class="flex items-center space-x-2">
