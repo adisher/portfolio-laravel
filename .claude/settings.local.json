@@ -108,7 +108,9 @@
       "Bash(echo \"=== Support dir ===\"; ls app/Support 2>/dev/null; echo \"=== VoiceFilter head \\(convention\\) ===\"; head -25 app/Support/VoiceFilter.php 2>/dev/null; echo \"=== visitors columns ===\"; sed -n '/Schema::create/,/}\\);/p' database/migrations/*create_visitors_table.php)",
       "Bash(php -l app/Console/Commands/ReclassifyAnalytics.php)",
       "Bash(grep -n 'return $flagged;\\\\|private function backfillSources' app/Console/Commands/ReclassifyAnalytics.php)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Skill(schedule)",
+      "Skill(schedule:*)"
     ]
   }
 }

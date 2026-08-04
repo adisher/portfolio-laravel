@@ -62,7 +62,14 @@ class DashboardController extends Controller
             'total_sources' => RssSource::count(),
             'articles_today' => CollectedArticle::whereDate('created_at', today())->count(),
             'pending_review' => CollectedArticle::where('status', 'pending')->count(),
-            'approved' => CollectedArticle::where('status', 'approved')->whereNull('blog_post_id')->count(),
+            // Active "ready to publish" excludes parked (reuse-pool) articles —
+            // otherwise the card counts the ~12.6k diverted below-bar items as
+            // if they were queued to go out.
+            'approved' => CollectedArticle::where('status', 'approved')
+                ->whereNull('blog_post_id')
+                ->whereNull('parked_at')
+                ->count(),
+            'reuse_pool' => CollectedArticle::whereNotNull('parked_at')->count(),
             'published_today' => $autoPublishSettings->posts_published_today,
             'remaining_today' => $autoPublishSettings->remaining_posts,
             'max_per_day' => $autoPublishSettings->max_posts_per_day,
@@ -71,6 +78,7 @@ class DashboardController extends Controller
                 ->where('relevance_score', '>=', $autoPublishSettings->min_score_for_auto_publish)
                 ->where('is_duplicate', false)
                 ->whereNull('blog_post_id')
+                ->whereNull('parked_at')
                 ->count(),
         ];
     }

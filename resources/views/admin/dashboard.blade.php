@@ -126,6 +126,13 @@
             <span class="text-gray-500 dark:text-gray-400">{{ $pipelineStats['active_sources'] }} active sources</span>
             <span class="text-gray-500 dark:text-gray-400">{{ $pipelineStats['high_score_ready'] }} high-score ready</span>
         </div>
+        @if(($pipelineStats['reuse_pool'] ?? 0) > 0)
+        <div class="flex items-center justify-between text-sm mt-1">
+            <span class="text-gray-500 dark:text-gray-400">Reuse pool (parked, below bar)</span>
+            <a href="{{ route('admin.collected-articles.index', ['parked' => 1]) }}"
+               class="text-gray-500 dark:text-gray-400 hover:text-teal">{{ number_format($pipelineStats['reuse_pool']) }} articles →</a>
+        </div>
+        @endif
 
         <div class="mt-4 flex space-x-2">
             <a href="{{ route('admin.collected-articles.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">

@@ -17,6 +17,24 @@
     </a>
 </div>
 
+{{-- Active vs reuse-pool (parked) tabs --}}
+@php $viewingParked = request()->boolean('parked'); @endphp
+<div class="flex gap-2 mb-4">
+    <a href="{{ route('admin.collected-articles.index') }}"
+       class="px-4 py-2 rounded-lg text-sm font-medium {{ !$viewingParked ? 'bg-teal text-midnight' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600' }}">
+        Active queue
+    </a>
+    <a href="{{ route('admin.collected-articles.index', ['parked' => 1]) }}"
+       class="px-4 py-2 rounded-lg text-sm font-medium {{ $viewingParked ? 'bg-sunset text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600' }}">
+        Reuse pool (parked)
+    </a>
+</div>
+@if($viewingParked)
+<div class="admin-card p-3 mb-4 text-sm text-gray-600 dark:text-gray-400">
+    These are below-bar articles diverted out of the publish flow and kept for reuse. They will not auto-publish. Export via <code class="text-teal">CollectedArticle::parked()->get()</code>.
+</div>
+@endif
+
 <!-- Filters -->
 <div class="admin-card p-4 mb-6">
     <form method="GET" class="flex flex-wrap gap-4 items-end">

@@ -259,15 +259,20 @@ MARKDOWN;
             'remaining_today' => $settings->remaining_posts,
             'max_per_day' => $settings->max_posts_per_day,
             'next_publish_time' => $settings->getNextPublishTime(),
+            // Both exclude parked (reuse-pool) articles so these reflect the
+            // active queue, not the diverted below-bar backlog.
             'pending_articles' => CollectedArticle::where('status', 'approved')
                 ->where('is_duplicate', false)
                 ->whereNull('blog_post_id')
+                ->whereNull('parked_at')
                 ->count(),
             'high_score_articles' => CollectedArticle::where('status', 'approved')
                 ->where('relevance_score', '>=', $settings->min_score_for_auto_publish)
                 ->where('is_duplicate', false)
                 ->whereNull('blog_post_id')
+                ->whereNull('parked_at')
                 ->count(),
+            'parked_articles' => CollectedArticle::whereNotNull('parked_at')->count(),
         ];
     }
 }

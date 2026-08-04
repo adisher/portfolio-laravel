@@ -14,6 +14,15 @@ class CollectedArticleController extends Controller
     {
         $query = CollectedArticle::with(['rssSource']);
 
+        // Parked (reuse-pool) articles are hidden by default so the review list
+        // isn't flooded by the ~12.6k diverted below-bar items. `?parked=1`
+        // browses the pool instead.
+        if ($request->boolean('parked')) {
+            $query->whereNotNull('parked_at');
+        } else {
+            $query->whereNull('parked_at');
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
