@@ -49,6 +49,7 @@ class BlogPostController extends Controller
             'excerpt' => 'required|string|max:500',
             'content' => 'required|string',
             'featured_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image_alt' => 'nullable|string|max:255',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:500',
             'meta_keywords' => 'nullable|string', // Changed from array to string
@@ -131,6 +132,7 @@ class BlogPostController extends Controller
             'excerpt' => 'required|string|max:500',
             'content' => 'required|string',
             'featured_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image_alt' => 'nullable|string|max:255',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:500',
             'meta_keywords' => 'nullable|string', // Changed from array to string

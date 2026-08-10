@@ -14,9 +14,9 @@ class BlogPost extends Model implements Feedable
     use HasFactory, Sluggable;
 
     protected $fillable = [
-        'title', 'slug', 'excerpt', 'content', 'featured_image', 'meta_title',
-        'meta_description', 'meta_keywords', 'status', 'published_at', 'views', 'raw_views',
-        'reading_time', 'category_id', 'user_id', 'source_type', 'original_url', 'original_author', 
+        'title', 'slug', 'excerpt', 'content', 'featured_image', 'image_alt', 'meta_title',
+        'meta_description', 'meta_keywords', 'status', 'noindex', 'noindex_at', 'published_at', 'views', 'raw_views',
+        'reading_time', 'category_id', 'user_id', 'source_type', 'original_url', 'original_author',
     'original_publication', 'original_published_at', 'curator_notes'
     ];
 
@@ -24,6 +24,8 @@ class BlogPost extends Model implements Feedable
         'meta_keywords' => 'array',
         'published_at'  => 'datetime',
         'original_published_at' => 'date',
+        'noindex'       => 'boolean',
+        'noindex_at'    => 'datetime',
     ];
 
     public function sluggable(): array
@@ -46,9 +48,19 @@ class BlogPost extends Model implements Feedable
         return $this->belongsToMany(Tag::class);
     }
 
+    public function collectedArticle()
+    {
+        return $this->hasOne(CollectedArticle::class);
+    }
+
     public function scopePublished($query)
     {
         return $query->where('status', 'published')->where('published_at', '<=', now());
+    }
+
+    public function getFeaturedImageAltAttribute()
+    {
+        return $this->image_alt ?: $this->title;
     }
 
     public function getReadingTimeAttribute()

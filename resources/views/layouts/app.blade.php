@@ -30,7 +30,7 @@
 
     <!-- SEO Meta Tags -->
     <link rel="canonical" href="{{ $canonicalUrl }}">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="@yield('robots', 'index, follow')">
     <meta name="googlebot" content="index, follow">
 
     <!-- Sitemap reference -->

@@ -33,3 +33,8 @@ storage/app/google
 scripts/screenshots/out
 temp_series.json
 Modelfile
+# Personal/base-knowledge working docs — keep local, never push to remote.
+# (docs/screenshot-library.md and docs/templates/ stay tracked.)
+docs/seo.md
+docs/content-journey-plan.md
+docs/journey-drafts/

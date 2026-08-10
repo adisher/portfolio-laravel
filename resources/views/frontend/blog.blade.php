@@ -3,6 +3,14 @@
 @section('title', 'Blog - Web Development Articles & Tutorials')
 @section('description', 'Read articles and tutorials about web development, programming tips, and technology insights')
 
+@push('schema')
+<x-schema.collection-page
+    title="Blog - Web Development Articles & Tutorials"
+    description="Read articles and tutorials about web development, programming tips, and technology insights"
+    :url="route('blog.index')"
+    :posts="$posts" />
+@endpush
+
 @section('content')
 {{-- Page Header --}}
 <section class="relative bg-midnight dark:bg-midnight-dark text-soft-light section-padding overflow-hidden">
@@ -137,7 +145,7 @@
                     </h3>
                     <div class="flex flex-wrap gap-2">
                         @foreach($popularTags as $tag)
-                        <a href="#" class="inline-block px-3 py-1 text-sm font-medium rounded-full hover:opacity-80 transition-opacity"
+                        <a href="{{ route('blog.tag', $tag->slug) }}" class="inline-block px-3 py-1 text-sm font-medium rounded-full hover:opacity-80 transition-opacity"
                             style="background-color: {{ $tag->color }}20; color: {{ $tag->color }}">
                             {{ $tag->name }}
                         </a>

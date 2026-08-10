@@ -158,6 +158,7 @@ Route::prefix('blog')->name('blog.')->middleware('feature:page.blog')->group(fun
     Route::get('/search', [BlogController::class, 'search'])->name('search');
     Route::get('/proof-of-work', [BlogController::class, 'proofOfWork'])->name('proof-of-work');
     Route::get('/category/{slug}', [BlogController::class, 'category'])->name('category');
+    Route::get('/tag/{slug}', [BlogController::class, 'tag'])->name('tag');
     Route::get('/{slug}', [BlogController::class, 'show'])->name('show');
 });
 

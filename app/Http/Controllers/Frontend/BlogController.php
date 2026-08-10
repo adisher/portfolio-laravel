@@ -96,6 +96,19 @@ class BlogController extends Controller
         return view('frontend.blog-category', compact('category', 'posts'));
     }
 
+    public function tag($slug)
+    {
+        $tag = Tag::where('slug', $slug)->firstOrFail();
+
+        $posts = BlogPost::published()
+            ->whereHas('tags', fn($q) => $q->where('tags.id', $tag->id))
+            ->with(['category', 'tags', 'user'])
+            ->latest('published_at')
+            ->paginate(10);
+
+        return view('frontend.blog-tag', compact('tag', 'posts'));
+    }
+
     public function search(Request $request)
     {
         $request->validate([

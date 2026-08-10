@@ -9,7 +9,7 @@ class Category extends Model
 {
     use HasFactory, Sluggable;
 
-    protected $fillable = ['name', 'slug', 'description', 'color', 'is_active', 'keywords', 'for_blog', 'for_projects'];
+    protected $fillable = ['name', 'slug', 'description', 'meta_title', 'meta_description', 'color', 'is_active', 'keywords', 'for_blog', 'for_projects'];
 
     protected $casts = [
         'is_active' => 'boolean',

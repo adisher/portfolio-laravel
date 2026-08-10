@@ -177,7 +177,7 @@
 
                 @if($blogPost->featured_image)
                 <div class="mb-4">
-                    <img src="{{ Storage::url($blogPost->featured_image) }}" alt="{{ $blogPost->title }}"
+                    <img src="{{ Storage::url($blogPost->featured_image) }}" alt="{{ $blogPost->featured_image_alt }}"
                         class="w-full rounded-lg">
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Current image</p>
                 </div>
@@ -194,6 +194,19 @@
                     @enderror
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Max file size: 2MB. Leave empty to keep
                         current image.</p>
+                </div>
+
+                <div class="mt-4">
+                    <label for="image_alt" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Image Alt Text
+                    </label>
+                    <input type="text" id="image_alt" name="image_alt"
+                        value="{{ old('image_alt', $blogPost->image_alt) }}"
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white @error('image_alt') border-red-500 @enderror"
+                        placeholder="Describe what's in the image. Leave empty to use the post title.">
+                    @error('image_alt')
+                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                    @enderror
                 </div>
             </div>
 

@@ -1,18 +1,18 @@
 @extends('layouts.app')
 
-@section('title', $category->meta_title ?: ($category->name . ' Articles - Blog'))
-@section('description', $category->meta_description ?: ('Read articles about ' . $category->name . ': ' . $category->description))
+@section('title', $tag->name . ' Articles - Blog')
+@section('description', 'Read articles tagged ' . $tag->name . ' on the blog: ' . $posts->total() . ' ' . Str::plural('article', $posts->total()) . '.')
 
 @push('schema')
 <x-schema.collection-page
-    :title="$category->meta_title ?: ($category->name . ' Articles - Blog')"
-    :description="$category->meta_description ?: ('Read articles about ' . $category->name . ': ' . $category->description)"
-    :url="route('blog.category', $category->slug)"
+    :title="$tag->name . ' Articles - Blog'"
+    :description="'Read articles tagged ' . $tag->name . ' on the blog: ' . $posts->total() . ' ' . Str::plural('article', $posts->total()) . '.'"
+    :url="route('blog.tag', $tag->slug)"
     :posts="$posts" />
 <x-schema.breadcrumb :items="[
     ['name' => 'Home', 'url' => route('home')],
     ['name' => 'Blog', 'url' => route('blog.index')],
-    ['name' => $category->name . ' Articles'],
+    ['name' => 'Tag: ' . $tag->name],
 ]" />
 @endpush
 
@@ -26,13 +26,8 @@
             </span>
         </div>
         <h1 class="text-4xl lg:text-5xl font-bold mb-4">
-            {{ $category->name }} Articles
+            Tag: {{ $tag->name }}
         </h1>
-        @if($category->description)
-        <p class="text-xl text-purple-100 max-w-2xl mx-auto">
-            {{ $category->description }}
-        </p>
-        @endif
     </div>
 </section>
 
@@ -61,29 +56,11 @@
                                 d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
                                 clip-rule="evenodd"></path>
                         </svg>
-                        <span class="text-gray-500">{{ $category->name }}</span>
+                        <span class="text-gray-500">{{ $tag->name }}</span>
                     </div>
                 </li>
             </ol>
         </nav>
-    </div>
-</section>
-
-<!-- Category Navigation -->
-<section class="py-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex flex-wrap justify-center gap-2">
-            <a href="{{ route('blog.index') }}" class="filter-btn">
-                All Articles
-            </a>
-            @foreach(\App\Models\Category::active()->forBlog()->withCount(['blogPosts' => fn($q) => $q->where('status','published')])->orderBy('name')->get()
-            as $cat)
-            <a href="{{ route('blog.category', $cat->slug) }}"
-                class="filter-btn {{ $cat->id === $category->id ? 'active' : '' }}">
-                {{ $cat->name }} ({{ $cat->blog_posts_count }})
-            </a>
-            @endforeach
-        </div>
     </div>
 </section>
 
@@ -135,10 +112,10 @@
 
                         @if($post->tags->count())
                         <div class="flex flex-wrap gap-1">
-                            @foreach($post->tags->take(2) as $tag)
-                            <a href="{{ route('blog.tag', $tag->slug) }}" class="text-xs px-2 py-1 rounded-full"
-                                style="background-color: {{ $tag->color }}20; color: {{ $tag->color }}">
-                                {{ $tag->name }}
+                            @foreach($post->tags->take(2) as $t)
+                            <a href="{{ route('blog.tag', $t->slug) }}" class="text-xs px-2 py-1 rounded-full"
+                                style="background-color: {{ $t->color }}20; color: {{ $t->color }}">
+                                {{ $t->name }}
                             </a>
                             @endforeach
                         </div>
@@ -163,10 +140,7 @@
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
                 </path>
             </svg>
-            <h3 class="mt-2 text-lg font-medium text-gray-900 dark:text-white">No articles in this category</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Check back soon for new {{ $category->name }} articles, or browse other categories.
-            </p>
+            <h3 class="mt-2 text-lg font-medium text-gray-900 dark:text-white">No articles tagged {{ $tag->name }}</h3>
             <div class="mt-6">
                 <a href="{{ route('blog.index') }}" class="btn-primary">
                     View All Articles

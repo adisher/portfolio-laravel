@@ -2,6 +2,9 @@
 
 @section('title', $post->meta_title ?: $post->title . ' - Blog')
 @section('description', $post->meta_description ?: $post->excerpt)
+@if($post->noindex)
+@section('robots', 'noindex, follow')
+@endif
 @section('og_type', 'article')
 @if($post->featured_image && !\Illuminate\Support\Str::endsWith($post->featured_image, '.svg'))
 @section('og_image', \Illuminate\Support\Facades\Storage::url($post->featured_image))
@@ -167,10 +170,10 @@
                 @if($post->tags->count())
                 <div class="flex flex-wrap gap-1">
                     @foreach($post->tags->take(3) as $tag)
-                    <span class="text-xs px-2 py-1 rounded-full"
+                    <a href="{{ route('blog.tag', $tag->slug) }}" class="text-xs px-2 py-1 rounded-full"
                         style="background-color: {{ $tag->color }}20; color: {{ $tag->color }}">
                         {{ $tag->name }}
-                    </span>
+                    </a>
                     @endforeach
                 </div>
                 @endif
@@ -228,7 +231,7 @@
     <!-- Featured Image -->
     @if($post->featured_image)
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 lg:-mt-14 relative z-10">
-        <img src="{{ Storage::url($post->featured_image) }}" alt="{{ $post->title }}"
+        <img src="{{ Storage::url($post->featured_image) }}" alt="{{ $post->featured_image_alt }}"
             class="w-full aspect-video object-cover rounded-xl shadow-xl">
     </div>
     @endif
@@ -276,10 +279,10 @@
                     <h4 class="text-sm font-medium text-soft-dark dark:text-soft mb-2">Tags</h4>
                     <div class="flex flex-wrap gap-2 justify-end">
                         @foreach($post->tags as $tag)
-                        <span class="inline-block px-3 py-1 text-sm font-medium rounded-full"
+                        <a href="{{ route('blog.tag', $tag->slug) }}" class="inline-block px-3 py-1 text-sm font-medium rounded-full hover:opacity-80 transition-opacity"
                             style="background-color: {{ $tag->color }}20; color: {{ $tag->color }}">
                             {{ $tag->name }}
-                        </span>
+                        </a>
                         @endforeach
                     </div>
                 </div>

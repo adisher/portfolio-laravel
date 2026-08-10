@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\FeatureFlag;
 use App\Models\Project;
 use App\Models\SportMatch;
+use App\Models\Tag;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
 use Illuminate\Http\Request;
@@ -59,8 +60,9 @@ class SitemapController extends Controller
                 }
             });
 
-        // Add published blog posts
+        // Add published blog posts (noindexed posts are excluded to avoid a contradictory signal)
         BlogPost::published()
+            ->where('noindex', false)
             ->orderBy('updated_at', 'desc')
             ->chunk(100, function ($posts) use ($sitemap) {
                 foreach ($posts as $post) {
@@ -101,6 +103,21 @@ class SitemapController extends Controller
                             ->setLastModificationDate($category->updated_at)
                             ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
                             ->setPriority(0.7)
+                    );
+                }
+            });
+
+        // Add blog tags
+        Tag::whereHas('blogPosts', function ($query) {
+                $query->where('status', 'published');
+            })
+            ->chunk(100, function ($tags) use ($sitemap) {
+                foreach ($tags as $tag) {
+                    $sitemap->add(
+                        Url::create(route('blog.tag', $tag->slug))
+                            ->setLastModificationDate($tag->updated_at)
+                            ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                            ->setPriority(0.6)
                     );
                 }
             });
@@ -203,8 +220,9 @@ class SitemapController extends Controller
                 }
             });
 
-        // Add blog posts with images
+        // Add blog posts with images (noindexed posts are excluded to avoid a contradictory signal)
         BlogPost::published()
+            ->where('noindex', false)
             ->with(['category', 'user'])
             ->orderBy('updated_at', 'desc')
             ->chunk(100, function ($posts) use ($sitemap) {
@@ -253,6 +271,21 @@ class SitemapController extends Controller
                                 ->setPriority(0.7)
                         );
                     }
+                }
+            });
+
+        // Add blog tags
+        Tag::whereHas('blogPosts', function ($query) {
+                $query->where('status', 'published');
+            })
+            ->chunk(100, function ($tags) use ($sitemap) {
+                foreach ($tags as $tag) {
+                    $sitemap->add(
+                        Url::create(route('blog.tag', $tag->slug))
+                            ->setLastModificationDate($tag->updated_at)
+                            ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                            ->setPriority(0.6)
+                    );
                 }
             });
 

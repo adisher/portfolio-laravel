@@ -18,7 +18,7 @@ if (!empty($breadcrumbItems)) {
 
 <script type="application/ld+json">
 {!! json_encode([
-    '@context' => 'https://schema.org',
+    '@@context' => 'https://schema.org',
     '@type' => 'BreadcrumbList',
     'itemListElement' => $breadcrumbItems,
 ], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) !!}
