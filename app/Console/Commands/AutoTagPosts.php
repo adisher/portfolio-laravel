@@ -39,7 +39,10 @@ class AutoTagPosts extends Command
         'Gemini' => ['gemini'],
         'LLM' => ['llm', 'large language model'],
         'Machine Learning' => ['machine learning', '\bml\b'],
-        'Artificial Intelligence' => ['\bai\b', 'artificial intelligence'],
+        // Bare "ai" is deliberately excluded — on an AI-heavy blog it matches
+        // ~40% of all posts and stops being a useful discriminator. Require
+        // the full phrase instead.
+        'Artificial Intelligence' => ['artificial intelligence'],
         'Prompt Engineering' => ['prompt engineering', 'prompt design'],
         'RAG' => ['\brag\b', 'retrieval.augmented generation'],
         'AI Agents' => ['ai agent', 'autonomous agent'],
@@ -64,7 +67,9 @@ class AutoTagPosts extends Command
         'Laravel' => ['laravel'],
         'PHP' => ['\bphp\b'],
         'Node.js' => ['node\.js', '\bnodejs\b'],
-        'API Design' => ['\bapi\b', 'rest api', 'graphql'],
+        // Bare "api" is deliberately excluded — same over-matching problem as
+        // bare "ai" (37% of all posts on prod). Require an API-specific phrase.
+        'API Design' => ['rest api', 'api design', 'graphql api', 'api endpoint'],
         'Tailwind CSS' => ['tailwind'],
 
         // Programming
@@ -142,8 +147,15 @@ class AutoTagPosts extends Command
 
         $rows = [];
         foreach ($coverage as $canonical => $count) {
-            $sampleSlugs = collect(array_keys($matches[$canonical]))
-                ->take(3)
+            // Spread the sample across the matched set (not just the first 3
+            // by post ID) so broad tags don't all show the same handful of
+            // early posts — makes the preview table actually useful to eyeball.
+            $ids = array_keys($matches[$canonical]);
+            $sampleIds = collect($ids)->count() <= 3
+                ? $ids
+                : [$ids[0], $ids[intdiv(count($ids), 2)], $ids[count($ids) - 1]];
+
+            $sampleSlugs = collect($sampleIds)
                 ->map(fn ($id) => $posts->firstWhere('id', $id)?->slug)
                 ->filter()
                 ->implode(', ');
