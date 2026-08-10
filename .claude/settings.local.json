@@ -121,7 +121,9 @@
       "Bash(curl -s http://127.0.0.1:8123/blog/category/web-development)",
       "Bash(kill %1)",
       "Bash(pkill -f \"artisan serve\")",
-      "Bash(curl -s http://127.0.0.1:8123/blog/introducing-gpt-4o-and-more-tools-to-chatgpt-free-users)"
+      "Bash(curl -s http://127.0.0.1:8123/blog/introducing-gpt-4o-and-more-tools-to-chatgpt-free-users)",
+      "Bash(curl -s http://127.0.0.1:8123/blog/tag/openai)",
+      "Bash(grep -i \"DB_HOST\\\\|DB_CONNECTION\" .env 2>&1 *)"
     ]
   }
 }
