@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'track.login' => \App\Http\Middleware\TrackLastLogin::class,
             'track.pageviews' => \App\Http\Middleware\TrackPageViews::class,
             'feature' => \App\Http\Middleware\CheckFeatureFlag::class,
+            'blog.api.token' => \App\Http\Middleware\VerifyBlogApiToken::class,
         ]);
 
         // Apply to web routes (excluding admin)

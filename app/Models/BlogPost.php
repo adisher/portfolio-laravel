@@ -17,7 +17,7 @@ class BlogPost extends Model implements Feedable
         'title', 'slug', 'excerpt', 'content', 'featured_image', 'image_alt', 'meta_title',
         'meta_description', 'meta_keywords', 'status', 'noindex', 'noindex_at', 'published_at', 'views', 'raw_views',
         'reading_time', 'category_id', 'user_id', 'source_type', 'original_url', 'original_author',
-    'original_publication', 'original_published_at', 'curator_notes'
+    'original_publication', 'original_published_at', 'curator_notes', 'posted_at', 'posted_via'
     ];
 
     protected $casts = [
@@ -26,6 +26,7 @@ class BlogPost extends Model implements Feedable
         'original_published_at' => 'date',
         'noindex'       => 'boolean',
         'noindex_at'    => 'datetime',
+        'posted_at'     => 'datetime',
     ];
 
     public function sluggable(): array
@@ -56,6 +57,18 @@ class BlogPost extends Model implements Feedable
     public function scopePublished($query)
     {
         return $query->where('status', 'published')->where('published_at', '<=', now());
+    }
+
+    // Articles still waiting in the posting queue (not yet handed to automation).
+    public function scopeNotPosted($query)
+    {
+        return $query->whereNull('posted_at');
+    }
+
+    // Articles already claimed/posted by the automation.
+    public function scopePosted($query)
+    {
+        return $query->whereNotNull('posted_at');
     }
 
     public function getFeaturedImageAltAttribute()
