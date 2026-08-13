@@ -7,6 +7,7 @@ use App\Models\SocialAccount;
 use App\Models\SocialPost;
 use App\Services\Social\Contracts\SocialDriver;
 use App\Services\Social\Drivers\FacebookDriver;
+use App\Services\Social\Drivers\LinkedInDriver;
 use App\Support\Text;
 use Illuminate\Support\Str;
 
@@ -22,6 +23,7 @@ class SocialPublisher
     /** platform key => driver class. */
     private const DRIVERS = [
         'facebook' => FacebookDriver::class,
+        'linkedin' => LinkedInDriver::class,
     ];
 
     /** @return array<string, SocialDriver> keyed by platform. */

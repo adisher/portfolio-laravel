@@ -30,11 +30,26 @@ class FacebookDriver implements SocialDriver
         return 'Facebook Page';
     }
 
+    public function allowsAutomatedPosting(): bool
+    {
+        return true;
+    }
+
     public function credentialFields(): array
     {
         return [
-            'page_id'      => 'Page ID',
-            'access_token' => 'Page Access Token',
+            'page_id' => [
+                'label'    => 'Page ID',
+                'type'     => 'text',
+                'required' => true,
+                'help'     => 'The numeric Facebook Page ID you are posting to.',
+            ],
+            'access_token' => [
+                'label'    => 'Page Access Token',
+                'type'     => 'password',
+                'required' => true,
+                'help'     => 'A long-lived Page token with pages_manage_posts + pages_read_engagement. Stored encrypted.',
+            ],
         ];
     }
 

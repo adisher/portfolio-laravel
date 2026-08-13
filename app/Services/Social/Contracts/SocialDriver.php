@@ -19,7 +19,19 @@ interface SocialDriver
     /** Human label for the admin UI, e.g. "Facebook Page". */
     public function label(): string;
 
-    /** The credential field names this driver expects (for the account form). */
+    /**
+     * Whether this platform permits automated/scheduled posting under its API
+     * terms. LinkedIn's API terms forbid automated posting for self-serve apps,
+     * so its driver returns false and the social:publish scheduler skips it;
+     * manual "Post now" remains available.
+     */
+    public function allowsAutomatedPosting(): bool;
+
+    /**
+     * The credential fields this driver needs, keyed by storage key. Each value
+     * is metadata the account form renders generically:
+     *   ['label' => string, 'type' => 'text'|'password', 'required' => bool, 'help' => string]
+     */
     public function credentialFields(): array;
 
     /**

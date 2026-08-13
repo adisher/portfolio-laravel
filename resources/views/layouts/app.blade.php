@@ -275,6 +275,7 @@
                         @feature('nav.contact')
                         <li><a href="{{ route('contact') }}" class="text-soft hover:text-teal transition-colors">Contact</a></li>
                         @endfeature
+                        <li><a href="{{ route('privacy') }}" class="text-soft hover:text-teal transition-colors">Privacy Policy</a></li>
                     </ul>
                 </div>
 
@@ -314,7 +315,9 @@
             </div>
 
             <div class="border-t border-ocean mt-8 pt-8 text-center text-soft">
-                <p>&copy; {{ date('Y') }} Portfolio. All rights reserved.</p>
+                <p>&copy; {{ date('Y') }} Portfolio. All rights reserved.
+                    <a href="{{ route('privacy') }}" class="hover:text-teal transition-colors ml-2">Privacy Policy</a>
+                </p>
             </div>
         </div>
     </footer>

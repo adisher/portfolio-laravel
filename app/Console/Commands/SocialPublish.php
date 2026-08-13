@@ -45,6 +45,14 @@ class SocialPublish extends Command
         $posted = 0;
 
         foreach ($accounts as $account) {
+            // Some platforms (LinkedIn) forbid automated posting under their API
+            // terms. Never auto-post to those, even if the account has the toggle on.
+            $driver = $publisher->driverFor($account);
+            if (! $driver || ! $driver->allowsAutomatedPosting()) {
+                $this->line("• {$account->name}: automated posting not permitted for {$account->platform} (manual only). Skipped.");
+                continue;
+            }
+
             $articles = $this->eligibleArticles($account, $limit);
 
             if ($articles->isEmpty()) {

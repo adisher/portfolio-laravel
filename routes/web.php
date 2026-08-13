@@ -118,6 +118,9 @@ ROBOTS;
 Route::get('/llms.txt', [App\Http\Controllers\LlmsTxtController::class, 'index'])->name('llms.txt');
 Route::get('/llms-full.txt', [App\Http\Controllers\LlmsTxtController::class, 'full'])->name('llms-full.txt');
 
+// Privacy Policy (always available, not feature-gated, required for API integrations)
+Route::view('/privacy', 'frontend.privacy')->name('privacy');
+
 Route::get('/about', function () {
     $about = [
         'hero_bio'      => setting('about_hero_bio', ''),

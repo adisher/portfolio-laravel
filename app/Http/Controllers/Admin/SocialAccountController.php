@@ -8,6 +8,7 @@ use App\Models\SocialAccount;
 use App\Models\SocialPost;
 use App\Services\Social\SocialPublisher;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class SocialAccountController extends Controller
 {
@@ -36,7 +37,8 @@ class SocialAccountController extends Controller
 
     public function store(Request $request)
     {
-        $data = $this->validateAccount($request);
+        $data = $this->validateBase($request);
+        $this->assertRequiredCredentials($request, $data['platform']);
 
         SocialAccount::create($this->mapAccount($data, $request));
 
@@ -54,7 +56,7 @@ class SocialAccountController extends Controller
 
     public function update(Request $request, SocialAccount $social)
     {
-        $data = $this->validateAccount($request, $social);
+        $data = $this->validateBase($request);
 
         $social->update($this->mapAccount($data, $request, $social));
 
@@ -133,13 +135,14 @@ class SocialAccountController extends Controller
         ]);
     }
 
-    private function validateAccount(Request $request, ?SocialAccount $social = null): array
+    /** Validate the platform-independent fields; credentials handled separately. */
+    private function validateBase(Request $request): array
     {
+        $platforms = implode(',', array_keys($this->publisher->drivers()));
+
         return $request->validate([
-            'platform'          => 'required|string|in:facebook',
+            'platform'          => "required|string|in:{$platforms}",
             'name'              => 'required|string|max:255',
-            'page_id'           => 'nullable|string|max:255',
-            'access_token'      => ($social ? 'nullable' : 'required') . '|string',
             'caption_template'  => 'nullable|string|max:2000',
             'min_human_views'   => 'required|integer|min:0|max:100000',
             'is_active'         => 'boolean',
@@ -147,22 +150,59 @@ class SocialAccountController extends Controller
         ]);
     }
 
+    /** On create, ensure every credential the driver marks required is present. */
+    private function assertRequiredCredentials(Request $request, string $platform): void
+    {
+        $driver = $this->publisher->drivers()[$platform] ?? null;
+        if (! $driver) {
+            return;
+        }
+
+        $missing = [];
+        foreach ($driver->credentialFields() as $key => $meta) {
+            if (! empty($meta['required'])) {
+                $value = $request->input("cred.{$platform}.{$key}");
+                if (! is_string($value) || trim($value) === '') {
+                    $missing[] = $meta['label'];
+                }
+            }
+        }
+
+        if ($missing) {
+            throw ValidationException::withMessages([
+                'credentials' => 'Missing required credential(s): ' . implode(', ', $missing) . '.',
+            ]);
+        }
+    }
+
     /**
-     * Build the model attributes, folding credentials into the encrypted array.
-     * On edit, a blank access token keeps the stored one (so it isn't wiped).
+     * Build the model attributes, folding each driver's declared credential
+     * fields into the encrypted array. Values are read from cred[{platform}][*]
+     * and trimmed (a stray space corrupts tokens). On edit, a blank password
+     * field keeps the stored secret so it is not wiped.
      */
     private function mapAccount(array $data, Request $request, ?SocialAccount $social = null): array
     {
-        $token = $data['access_token']
-            ?? ($social ? $social->credential('access_token') : null);
+        $platform = $data['platform'];
+        $driver   = $this->publisher->drivers()[$platform] ?? null;
+        $fields   = $driver ? $driver->credentialFields() : [];
+
+        $credentials = [];
+        foreach ($fields as $key => $meta) {
+            $value = $request->input("cred.{$platform}.{$key}");
+            $value = is_string($value) ? trim($value) : $value;
+
+            if (($meta['type'] ?? 'text') === 'password' && ($value === null || $value === '')) {
+                $value = $social ? $social->credential($key) : null;
+            }
+
+            $credentials[$key] = $value;
+        }
 
         return [
-            'platform'          => $data['platform'],
+            'platform'          => $platform,
             'name'              => $data['name'],
-            'credentials'       => [
-                'page_id'      => $data['page_id'] ?? null,
-                'access_token' => $token,
-            ],
+            'credentials'       => $credentials,
             'caption_template'  => $data['caption_template'] ?? null,
             'min_human_views'   => $data['min_human_views'],
             'is_active'         => $request->boolean('is_active'),

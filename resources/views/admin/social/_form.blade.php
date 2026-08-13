@@ -1,19 +1,25 @@
 {{-- Shared form for connecting/editing a social account. Expects $account (nullable) and $drivers. --}}
-@php $account = $account ?? null; @endphp
+@php
+    $account = $account ?? null;
+    // Platforms whose API terms forbid automated posting (scheduler skips them).
+    $noAutoPlatforms = collect($drivers)
+        ->reject(fn ($driver) => $driver->allowsAutomatedPosting())
+        ->keys()->values()->all();
+@endphp
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<style>[x-cloak]{display:none !important;}</style>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6"
+     x-data="{ platform: '{{ old('platform', $account->platform ?? 'facebook') }}' }">
     <div class="lg:col-span-2 space-y-6">
         <div class="admin-card p-6">
             <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Account</h2>
             <div class="space-y-4">
                 <div>
                     <label for="platform" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Platform *</label>
-                    <select id="platform" name="platform" required
+                    <select id="platform" name="platform" required x-model="platform"
                         class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         @foreach($drivers as $key => $driver)
-                            <option value="{{ $key }}" {{ old('platform', $account->platform ?? 'facebook') === $key ? 'selected' : '' }}>
-                                {{ $driver->label() }}
-                            </option>
+                            <option value="{{ $key }}">{{ $driver->label() }}</option>
                         @endforeach
                     </select>
                     @error('platform')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
@@ -27,27 +33,29 @@
                     @error('name')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
                 </div>
 
-                <div>
-                    <label for="page_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Page ID</label>
-                    <input type="text" id="page_id" name="page_id" value="{{ old('page_id', $account?->credential('page_id')) }}"
-                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                        placeholder="165445894154299">
-                    @error('page_id')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                {{-- Credential fields are declared per driver and shown for the selected platform. --}}
+                @foreach($drivers as $pkey => $driver)
+                <div x-show="platform === '{{ $pkey }}'" x-cloak class="space-y-4">
+                    @foreach($driver->credentialFields() as $ckey => $meta)
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            {{ $meta['label'] }}@if(!empty($meta['required']) && !$account) *@endif
+                        </label>
+                        <input type="{{ $meta['type'] }}" autocomplete="off" name="cred[{{ $pkey }}][{{ $ckey }}]"
+                            @if($meta['type'] === 'password')
+                                placeholder="{{ $account ? 'Leave blank to keep the current value' : '' }}"
+                            @else
+                                value="{{ old('cred.'.$pkey.'.'.$ckey, ($account && $account->platform === $pkey) ? $account->credential($ckey) : '') }}"
+                            @endif
+                            class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        @if(!empty($meta['help']))
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ $meta['help'] }}</p>
+                        @endif
+                    </div>
+                    @endforeach
                 </div>
-
-                <div>
-                    <label for="access_token" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Page Access Token {{ $account ? '' : '*' }}
-                    </label>
-                    <input type="password" id="access_token" name="access_token" autocomplete="off"
-                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                        placeholder="{{ $account ? 'Leave blank to keep the current token' : 'EAAG...' }}">
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Stored encrypted. A Facebook <strong>Page</strong> token (not a User token) with
-                        <code>pages_manage_posts</code> + <code>pages_read_engagement</code>.
-                    </p>
-                    @error('access_token')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
-                </div>
+                @endforeach
+                @error('credentials')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
             </div>
         </div>
 
@@ -97,6 +105,11 @@
                 <p class="text-xs text-gray-400">
                     Auto-posting runs via the <code>social:publish</code> command and is not on a schedule yet;
                     this toggle decides whether this account takes part once it is.
+                </p>
+                <p x-show="@js($noAutoPlatforms).includes(platform)" x-cloak
+                    class="text-xs text-amber-600 dark:text-amber-400">
+                    This platform prohibits automated posting under its API terms, so the scheduler always skips it
+                    even if this toggle is on. Use <strong>Post now</strong> to publish manually.
                 </p>
             </div>
         </div>
