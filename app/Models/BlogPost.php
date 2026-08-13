@@ -34,6 +34,22 @@ class BlogPost extends Model implements Feedable
         return ['slug' => ['source' => 'title']];
     }
 
+    /**
+     * House style: strip em dashes from author-facing text on every save, so
+     * no em dash reaches the database from the editor, the AI pipeline, or an
+     * import. en dashes (numeric ranges) are left alone. See App\Support\Text.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (BlogPost $post) {
+            foreach (['title', 'excerpt', 'content', 'meta_title', 'meta_description'] as $field) {
+                if (! empty($post->{$field})) {
+                    $post->{$field} = \App\Support\Text::stripEmDashes($post->{$field});
+                }
+            }
+        });
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class);
@@ -52,6 +68,11 @@ class BlogPost extends Model implements Feedable
     public function collectedArticle()
     {
         return $this->hasOne(CollectedArticle::class);
+    }
+
+    public function socialPosts()
+    {
+        return $this->hasMany(SocialPost::class);
     }
 
     public function scopePublished($query)

@@ -10,7 +10,7 @@
         // Canonical URL: fixed host from APP_URL (www) + current path, so a www
         // and a non-www request to the same page emit the SAME canonical. This
         // stops Google indexing two copies and splitting ranking signals across
-        // hosts. Path-only (no query string) — matches the previous
+        // hosts. Path-only (no query string), matches the previous
         // url()->current() behaviour, so tracking params (utm, fbclid) never
         // create duplicate canonicals.
         $__canonPath = trim(request()->path(), '/');

@@ -49,14 +49,14 @@ Schedule::command('articles:process --auto-approve --limit=200')
     ->runInBackground()
     ->withoutOverlapping();
 
-// Auto-publish — once daily at 9 AM, publishes newest article per blog category.
+// Auto-publish, once daily at 9 AM, publishes newest article per blog category.
 // Per-category quota means a single run fills every category for the day.
 Schedule::command('posts:auto-publish')
     ->dailyAt('09:00')
     ->onOneServer()
     ->runInBackground();
 
-// Park approved articles below the publish bar into the reuse pool — daily,
+// Park approved articles below the publish bar into the reuse pool, daily,
 // just after auto-publish so the day's publishable set goes out first and the
 // rest (the ~90/day the auto-approver waves through below the bar) is diverted
 // rather than piling up in the active queue.
@@ -65,8 +65,7 @@ Schedule::command('articles:park --apply')
     ->onOneServer()
     ->runInBackground();
 
-// Re-derive blog view counters (human vs raw) from the reclassified analytics —
-// daily, so the counters correct as behavioural bots get re-flagged. Runs after
+// Re-derive blog view counters (human vs raw) from the reclassified analytics, // daily, so the counters correct as behavioural bots get re-flagged. Runs after
 // the analytics reclassify would have settled for the day.
 Schedule::command('blog:recount-views --apply')
     ->dailyAt('05:00')
@@ -104,26 +103,26 @@ Schedule::command('sitemap:generate --save')
 |--------------------------------------------------------------------------
 */
 
-// 24h reminders — daily at 8 AM PKT
+// 24h reminders, daily at 8 AM PKT
 Schedule::command('demo:send-reminders --hours=24')
     ->dailyAt('08:00')
     ->timezone('Asia/Karachi')
     ->runInBackground()
     ->withoutOverlapping();
 
-// 1h reminders — every 30 minutes
+// 1h reminders, every 30 minutes
 Schedule::command('demo:send-reminders --hours=1')
     ->everyThirtyMinutes()
     ->runInBackground()
     ->withoutOverlapping();
 
-// Follow-up emails — hourly, 2h after demo
+// Follow-up emails, hourly, 2h after demo
 Schedule::command('demo:send-followups')
     ->hourly()
     ->runInBackground()
     ->withoutOverlapping();
 
-// Mark no-shows — hourly, 30min grace period
+// Mark no-shows, hourly, 30min grace period
 Schedule::command('demo:mark-noshows')
     ->hourly()
     ->runInBackground()
@@ -131,7 +130,7 @@ Schedule::command('demo:mark-noshows')
 
 /*
 |--------------------------------------------------------------------------
-| Cricbuzz Sports Scheduler — T20 World Cup 2026
+| Cricbuzz Sports Scheduler, T20 World Cup 2026
 |--------------------------------------------------------------------------
 */
 

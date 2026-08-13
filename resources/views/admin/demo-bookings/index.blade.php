@@ -74,9 +74,9 @@
                 </td>
                 <td class="font-medium text-gray-900 dark:text-white">{{ $booking->name }}</td>
                 <td class="text-sm text-gray-600 dark:text-gray-300">{{ $booking->email }}</td>
-                <td class="text-sm text-gray-600 dark:text-gray-300">{{ $booking->company ?? '—' }}</td>
-                <td class="text-sm text-gray-600 dark:text-gray-300">{{ $booking->project?->title ?? '—' }}</td>
-                <td class="text-sm text-gray-600 dark:text-gray-300">{{ $booking->plan_interest ?? '—' }}</td>
+                <td class="text-sm text-gray-600 dark:text-gray-300">{{ $booking->company ?? '-' }}</td>
+                <td class="text-sm text-gray-600 dark:text-gray-300">{{ $booking->project?->title ?? '-' }}</td>
+                <td class="text-sm text-gray-600 dark:text-gray-300">{{ $booking->plan_interest ?? '-' }}</td>
                 <td>
                     @php
                         $colors = [

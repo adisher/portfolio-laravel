@@ -36,7 +36,7 @@ class ParkLowScoreArticles extends Command
             : (float) \App\Models\AutoPublishSetting::getInstance()->min_score_for_auto_publish;
 
         // Approved, below the publish bar, not already parked, and not already
-        // turned into a blog post — those stay linked to their post.
+        // turned into a blog post, those stay linked to their post.
         $query = CollectedArticle::where('status', 'approved')
             ->whereNull('parked_at')
             ->whereNull('blog_post_id')

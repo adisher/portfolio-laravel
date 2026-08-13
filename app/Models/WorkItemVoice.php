@@ -46,7 +46,7 @@ class WorkItemVoice extends Model
     {
         $line = '"' . trim($this->quote) . '"';
         if ($this->attribution) {
-            $line .= ' — ' . $this->attribution;
+            $line .= ', ' . $this->attribution;
         }
         if ($this->source_url) {
             $line .= ' (source: ' . $this->source_url . ')';

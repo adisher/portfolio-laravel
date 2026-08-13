@@ -215,7 +215,7 @@
                             <option value="colleague" {{ old('type') === 'colleague' ? 'selected' : '' }}>Colleague</option>
                             <option value="user" {{ old('type') === 'user' ? 'selected' : '' }}>Product User</option>
                         </select>
-                        <p class="text-xs text-gray-500 mt-1">For admin reference only — not shown on frontend</p>
+                        <p class="text-xs text-gray-500 mt-1">For admin reference only, not shown on frontend</p>
                     </div>
 
                     <div>

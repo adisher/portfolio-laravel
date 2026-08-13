@@ -129,7 +129,9 @@
       "Read(//tmp/**)",
       "Bash(echo \"EXIT CODE: $?\")",
       "Bash(cp /tmp/score_debug2.php \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--xampp-htdocs-portfolio-website\\\\e7d173a3-7a1d-4a29-891a-e1ea736a1833\\\\scratchpad\\\\score_debug2.php\" *)",
-      "Bash(php -r \"echo bin2hex\\(random_bytes\\(24\\)\\);\")"
+      "Bash(php -r \"echo bin2hex\\(random_bytes\\(24\\)\\);\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" https://www.adilsher.pro/api/blog/articles/latest)",
+      "Bash(curl -s https://www.adilsher.pro/api/blog/articles/latest)"
     ]
   }
 }

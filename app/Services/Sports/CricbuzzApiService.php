@@ -36,7 +36,7 @@ class CricbuzzApiService
     }
 
     // =========================================================================
-    // FETCH — call the Python Flask scraper
+    // FETCH, call the Python Flask scraper
     // =========================================================================
 
     /**
@@ -76,7 +76,7 @@ class CricbuzzApiService
     }
 
     // =========================================================================
-    // LAZY SYNC — auto-fetch on page visit when data is stale
+    // LAZY SYNC, auto-fetch on page visit when data is stale
     // =========================================================================
 
     /**
@@ -132,7 +132,7 @@ class CricbuzzApiService
     }
 
     // =========================================================================
-    // SYNC — persist Cricbuzz data to database
+    // SYNC, persist Cricbuzz data to database
     // =========================================================================
 
     /**
@@ -329,10 +329,10 @@ class CricbuzzApiService
             ? $this->parseCricbuzzScore($matchData['scores']['team2'])
             : null;
 
-        // Parse date — use start_date (Unix timestamp ms) or fallback to date string
+        // Parse date, use start_date (Unix timestamp ms) or fallback to date string
         $scheduledAt = $this->parseMatchDate($matchData['date'] ?? '', $matchData['start_date'] ?? '');
 
-        // Venue — Flask returns an object {ground, city}, flatten to string
+        // Venue, Flask returns an object {ground, city}, flatten to string
         $venue = $matchData['venue'] ?? null;
         if (is_array($venue)) {
             $venue = trim(($venue['ground'] ?? '') . (!empty($venue['city']) ? ', ' . $venue['city'] : ''));
@@ -501,7 +501,7 @@ class CricbuzzApiService
             return null;
         }
 
-        // Collect all score strings — detail uses 'batting'/'bowling', series uses 'team1'/'team2'
+        // Collect all score strings, detail uses 'batting'/'bowling', series uses 'team1'/'team2'
         $scoreStrings = [];
         foreach (['batting', 'bowling', 'team1', 'team2'] as $key) {
             if (isset($teamScores[$key]) && is_string($teamScores[$key]) && trim($teamScores[$key]) !== '') {

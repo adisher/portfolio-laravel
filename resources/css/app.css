@@ -179,7 +179,7 @@
     /* ---------- Admin Styles ---------- */
     /* Dark admin depth model: the page sits at midnight (gray-900), surfaces
        rise to ocean (gray-700). Elevation is carried by a 1px top highlight
-       (light reads as coming from above) plus a soft shadow — not by borders
+       (light reads as coming from above) plus a soft shadow, not by borders
        alone, which is what made the old flat-charcoal treatment look dull. */
     .admin-nav-link {
         @apply relative flex items-center px-6 py-3 text-soft-dark dark:text-gray-300 hover:bg-ocean/50 dark:hover:bg-white/5 hover:text-teal dark:hover:text-teal transition-colors duration-200;
@@ -812,7 +812,7 @@
         box-shadow: 0 0 20px rgba(65, 234, 212, 0.8), 0 0 40px rgba(65, 234, 212, 0.4);
     }
 
-    /* Active — sunset orange, larger, more dramatic */
+    /* Active, sunset orange, larger, more dramatic */
     .globe-marker.active .globe-pin-head {
         background: #FF6B35;
         box-shadow: 0 0 20px rgba(255, 107, 53, 0.7), 0 0 40px rgba(255, 107, 53, 0.3);
@@ -1037,7 +1037,7 @@
     overflow: hidden;
 }
 
-/* Stumps silhouette — top right */
+/* Stumps silhouette, top right */
 .cricket-bg::before {
     content: '';
     position: absolute;
@@ -1053,7 +1053,7 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 180'%3E%3Crect x='20' y='20' width='6' height='160' rx='3' fill='%2341EAD4'/%3E%3Crect x='47' y='20' width='6' height='160' rx='3' fill='%2341EAD4'/%3E%3Crect x='74' y='20' width='6' height='160' rx='3' fill='%2341EAD4'/%3E%3Crect x='16' y='15' width='18' height='5' rx='2' fill='%2341EAD4' transform='rotate(-8 25 17)'/%3E%3Crect x='66' y='15' width='18' height='5' rx='2' fill='%2341EAD4' transform='rotate(8 75 17)'/%3E%3C/svg%3E");
 }
 
-/* Cricket ball with seam — bottom left */
+/* Cricket ball with seam, bottom left */
 .cricket-bg::after {
     content: '';
     position: absolute;
@@ -1069,7 +1069,7 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='none' stroke='%2341EAD4' stroke-width='3'/%3E%3Cpath d='M30 20 Q50 50 30 80' fill='none' stroke='%2341EAD4' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M70 20 Q50 50 70 80' fill='none' stroke='%2341EAD4' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='27' y1='30' x2='22' y2='28' stroke='%2341EAD4' stroke-width='1.5'/%3E%3Cline x1='26' y1='42' x2='20' y2='41' stroke='%2341EAD4' stroke-width='1.5'/%3E%3Cline x1='27' y1='54' x2='21' y2='54' stroke='%2341EAD4' stroke-width='1.5'/%3E%3Cline x1='28' y1='66' x2='22' y2='67' stroke='%2341EAD4' stroke-width='1.5'/%3E%3Cline x1='73' y1='30' x2='78' y2='28' stroke='%2341EAD4' stroke-width='1.5'/%3E%3Cline x1='74' y1='42' x2='80' y2='41' stroke='%2341EAD4' stroke-width='1.5'/%3E%3Cline x1='73' y1='54' x2='79' y2='54' stroke='%2341EAD4' stroke-width='1.5'/%3E%3Cline x1='72' y1='66' x2='78' y2='67' stroke='%2341EAD4' stroke-width='1.5'/%3E%3C/svg%3E");
 }
 
-/* Cricket bat — decorative div element */
+/* Cricket bat, decorative div element */
 .cricket-bat-decor {
     position: absolute;
     top: 40%;

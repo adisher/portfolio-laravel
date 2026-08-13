@@ -61,7 +61,7 @@
                     </div>
                     <div>
                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Paid At</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">{{ $order->paid_at ? $order->paid_at->format('M d, Y \a\t g:i A') : '—' }}</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">{{ $order->paid_at ? $order->paid_at->format('M d, Y \a\t g:i A') : '-' }}</p>
                     </div>
                 </div>
             </div>
@@ -72,11 +72,11 @@
                 <div class="space-y-3">
                     <div class="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
                         <span class="text-sm text-gray-500 dark:text-gray-400">Safepay Tracker</span>
-                        <span class="font-mono text-sm text-gray-800 dark:text-gray-200">{{ $order->safepay_tracker ?: '—' }}</span>
+                        <span class="font-mono text-sm text-gray-800 dark:text-gray-200">{{ $order->safepay_tracker ?: '-' }}</span>
                     </div>
                     <div class="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
                         <span class="text-sm text-gray-500 dark:text-gray-400">Safepay Reference</span>
-                        <span class="font-mono text-sm text-gray-800 dark:text-gray-200">{{ Str::limit($order->safepay_reference, 32) ?: '—' }}</span>
+                        <span class="font-mono text-sm text-gray-800 dark:text-gray-200">{{ Str::limit($order->safepay_reference, 32) ?: '-' }}</span>
                     </div>
                     <div class="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
                         <span class="text-sm text-gray-500 dark:text-gray-400">Currency</span>
@@ -107,7 +107,7 @@
                     </div>
                     <div class="flex justify-between items-center py-2">
                         <span class="text-sm text-gray-500 dark:text-gray-400">Issuer</span>
-                        <span class="text-sm text-gray-800 dark:text-gray-200">{{ $paymentMethod['issuer'] ?? '—' }}</span>
+                        <span class="text-sm text-gray-800 dark:text-gray-200">{{ $paymentMethod['issuer'] ?? '-' }}</span>
                     </div>
                     @endif
                     @if(!$charge && !$paymentMethod)
@@ -241,11 +241,11 @@
                 <div class="space-y-3">
                     <div>
                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</p>
-                        <p class="text-sm text-gray-800 dark:text-white mt-1">{{ $order->customer_name ?: '—' }}</p>
+                        <p class="text-sm text-gray-800 dark:text-white mt-1">{{ $order->customer_name ?: '-' }}</p>
                     </div>
                     <div>
                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</p>
-                        <p class="text-sm text-gray-800 dark:text-white mt-1">{{ $order->customer_email ?: '—' }}</p>
+                        <p class="text-sm text-gray-800 dark:text-white mt-1">{{ $order->customer_email ?: '-' }}</p>
                     </div>
                     @if($order->metadata['ip_address'] ?? null)
                     <div>
@@ -280,7 +280,7 @@
                             To: {{ $emailEvent['details']['to'] ?? $order->customer_email }}<br>
                             Driver: {{ $emailEvent['details']['driver'] ?? 'unknown' }}
                             @if(!($emailEvent['details']['is_real'] ?? true))
-                                <br><span class="text-orange-500">Warning: Using log driver — email NOT actually delivered</span>
+                                <br><span class="text-orange-500">Warning: Using log driver, email NOT actually delivered</span>
                             @endif
                         </p>
                     @endif

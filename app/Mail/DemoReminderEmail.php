@@ -23,7 +23,7 @@ class DemoReminderEmail extends Mailable
     {
         $when = $this->hoursAhead === 1 ? 'in 1 hour' : 'tomorrow';
         return new Envelope(
-            subject: "Reminder: Your Demo is {$when} — " . ($this->booking->project?->title ?? 'Portfolio'),
+            subject: "Reminder: Your Demo is {$when}, " . ($this->booking->project?->title ?? 'Portfolio'),
         );
     }
 

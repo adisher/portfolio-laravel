@@ -516,7 +516,7 @@ Alpine.data('liveScores', () => ({
     }
 }));
 
-// Match Detail Component — cricket-specific with batsmen, bowler, recent balls
+// Match Detail Component, cricket-specific with batsmen, bowler, recent balls
 Alpine.data('matchDetail', (matchId) => ({
     status: null,
     homeScore: null,
@@ -576,7 +576,7 @@ Alpine.data('matchDetail', (matchId) => ({
         const newHome = this.parseScore(this.homeScore);
         const newAway = this.parseScore(this.awayScore);
 
-        // Runs changed — trigger pop animation
+        // Runs changed, trigger pop animation
         if (oldHome && newHome && oldHome.runs !== newHome.runs) {
             this.homeScoreAnimating = true;
             setTimeout(() => this.homeScoreAnimating = false, 600);
@@ -586,7 +586,7 @@ Alpine.data('matchDetail', (matchId) => ({
             setTimeout(() => this.awayScoreAnimating = false, 600);
         }
 
-        // Wicket fallen — trigger shake/flash
+        // Wicket fallen, trigger shake/flash
         if ((oldHome && newHome && newHome.wickets > oldHome.wickets) ||
             (oldAway && newAway && newAway.wickets > oldAway.wickets)) {
             this.wicketFlash = true;
@@ -618,7 +618,7 @@ Alpine.data('matchDetail', (matchId) => ({
     }
 }));
 
-// Project Showcase Component — screenshot carousel + lightbox (project-detail page)
+// Project Showcase Component, screenshot carousel + lightbox (project-detail page)
 Alpine.data('projectShowcase', () => ({
     lightboxOpen: false,
     lightboxIndex: 0,

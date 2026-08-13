@@ -14,7 +14,7 @@
 
         <h1 class="text-4xl font-black text-white mb-4">Coming Soon</h1>
         <p class="text-soft/60 text-lg mb-10 leading-relaxed">
-            This section is under construction. We're working on something great — check back soon.
+            This section is under construction. We're working on something great, check back soon.
         </p>
 
         <a href="{{ url('/') }}"

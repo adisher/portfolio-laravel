@@ -62,8 +62,7 @@ class DashboardController extends Controller
             'total_sources' => RssSource::count(),
             'articles_today' => CollectedArticle::whereDate('created_at', today())->count(),
             'pending_review' => CollectedArticle::where('status', 'pending')->count(),
-            // Active "ready to publish" excludes parked (reuse-pool) articles —
-            // otherwise the card counts the ~12.6k diverted below-bar items as
+            // Active "ready to publish" excludes parked (reuse-pool) articles,             // otherwise the card counts the ~12.6k diverted below-bar items as
             // if they were queued to go out.
             'approved' => CollectedArticle::where('status', 'approved')
                 ->whereNull('blog_post_id')

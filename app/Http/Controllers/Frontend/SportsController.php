@@ -14,7 +14,7 @@ class SportsController extends Controller
     ) {}
 
     /**
-     * T20 Cricket World Cup 2026 — dedicated page.
+     * T20 Cricket World Cup 2026, dedicated page.
      */
     public function index()
     {

@@ -30,7 +30,7 @@
   <div class="body">
     <p class="greeting">Hi {{ $booking->name }},</p>
     <p class="text">
-      Just a reminder — your demo for
+      Just a reminder, your demo for
       <strong>{{ $booking->project?->title ?? 'our product' }}</strong>
       is {{ $hoursAhead === 1 ? 'in about 1 hour' : 'scheduled for tomorrow' }}.
     </p>

@@ -94,20 +94,19 @@
 
                                 {{-- Season --}}
                                 <td class="text-gray-700 dark:text-gray-300">
-                                    {{ $tournament->season ?? '—' }}
+                                    {{ $tournament->season ?? '-' }}
                                 </td>
 
                                 {{-- Dates --}}
                                 <td class="text-sm text-gray-600 dark:text-gray-400">
                                     @if($tournament->start_date && $tournament->end_date)
                                         {{ \Carbon\Carbon::parse($tournament->start_date)->format('M d, Y') }}
-                                        <span class="text-gray-400 dark:text-gray-500">—</span>
+                                        <span class="text-gray-400 dark:text-gray-500">-</span>
                                         {{ \Carbon\Carbon::parse($tournament->end_date)->format('M d, Y') }}
                                     @elseif($tournament->start_date)
                                         {{ \Carbon\Carbon::parse($tournament->start_date)->format('M d, Y') }}
                                     @else
-                                        —
-                                    @endif
+,                                     @endif
                                 </td>
 
                                 {{-- Featured --}}

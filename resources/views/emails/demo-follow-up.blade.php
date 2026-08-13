@@ -32,7 +32,7 @@
     </p>
 
     <p class="text">
-      If you have any questions, want to revisit anything we discussed, or are ready to move forward — just reply to this email.
+      If you have any questions, want to revisit anything we discussed, or are ready to move forward, just reply to this email.
       I'm happy to help.
     </p>
 

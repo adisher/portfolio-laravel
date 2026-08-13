@@ -91,7 +91,7 @@
                         </span>
                     </td>
                     <td class="text-sm text-gray-500 dark:text-gray-400">
-                        {{ $match->tournament->name ?? '—' }}
+                        {{ $match->tournament->name ?? '-' }}
                     </td>
                     <td>
                         @switch($match->status)

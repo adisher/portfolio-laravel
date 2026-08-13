@@ -84,7 +84,7 @@
                     <input type="checkbox" name="voice_ids[]" value="{{ $v->id }}" class="mt-1 rounded border-gray-300 dark:border-gray-600">
                     <span>
                         {{ \Illuminate\Support\Str::limit($v->quote, 90) }}
-                        @if($v->attribution)<span class="text-gray-400">— {{ $v->attribution }}</span>@endif
+                        @if($v->attribution)<span class="text-gray-400">- {{ $v->attribution }}</span>@endif
                         @if($v->media_id)<span class="text-teal text-xs ml-1">[screenshot]</span>@endif
                     </span>
                 </label>

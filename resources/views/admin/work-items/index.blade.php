@@ -38,10 +38,10 @@
                     @if($item->tagline)<div class="text-xs text-gray-400">{{ \Illuminate\Support\Str::limit($item->tagline, 60) }}</div>@endif
                 </td>
                 <td class="text-left"><span class="status-badge">{{ ucfirst($item->type) }}</span></td>
-                <td class="text-left text-gray-600 dark:text-gray-400">{{ $item->project?->title ?? '—' }}</td>
+                <td class="text-left text-gray-600 dark:text-gray-400">{{ $item->project?->title ?? '-' }}</td>
                 <td class="text-center">{{ count($item->pain_points ?? []) }}</td>
                 <td class="text-center">{{ count($item->article_angles ?? []) }}</td>
-                <td class="text-center">{{ $item->active ? '✓' : '—' }}</td>
+                <td class="text-center">{{ $item->active ? '✓' : '-' }}</td>
                 <td class="text-right">
                     <a href="{{ route('admin.work-items.show', $item) }}" class="text-gray-500 hover:text-teal text-xs">View</a>
                     <a href="{{ route('admin.work-items.edit', $item) }}" class="text-blue-500 hover:text-blue-700 text-xs ml-2">Edit</a>

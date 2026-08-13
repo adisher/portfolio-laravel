@@ -52,7 +52,7 @@ class BlogController extends Controller
 
         // Increment view count
         // raw_views counts every load; views counts humans only. This is a
-        // best-effort real-time split (UA-based bot check) — the daily
+        // best-effort real-time split (UA-based bot check), the daily
         // blog:recount-views job re-derives both from the reclassified
         // analytics, which also catches behavioural scrapers a UA check can't.
         $post->increment('raw_views');

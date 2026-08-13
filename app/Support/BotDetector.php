@@ -8,21 +8,21 @@ use Jenssegers\Agent\Agent;
  * Bot classification, layered over jenssegers/agent's isRobot().
  *
  * Two failure modes this fixes, both seen in real prod data (2026-07):
- *   1. isRobot()'s crawler list is stale — it misses Claude-Web and
+ *   1. isRobot()'s crawler list is stale, it misses Claude-Web and
  *      Google-Extended (they slipped through as "human"). We add an explicit,
  *      maintained AI/SEO crawler token list on top.
  *   2. isRobot() is user-agent-string-only, so it structurally cannot catch a
  *      scraper that spoofs a real browser UA (a rotating-proxy scraper put
  *      3,043 fake "human" views on one article). That is a BEHAVIOURAL signal,
- *      only visible in aggregate — see behaviouralScraperUaIds(), used by the
+ *      only visible in aggregate, see behaviouralScraperUaIds(), used by the
  *      reclassify backfill, not by per-request detection.
  *
  * reason() values (stored in visitors.bot_reason; null = human):
- *   'ai_crawler'  — a known AI assistant/training crawler (ClaudeBot, GPTBot…)
- *   'seo_crawler' — a known SEO/index crawler (AhrefsBot, SemrushBot…)
- *   'search_crawler' — a search-engine indexer (Googlebot, bingbot…)
- *   'ua_robot'    — jenssegers flagged it, none of the above matched
- *   'scraper'     — behavioural: spoofed browser UA across many IPs
+ *   'ai_crawler', a known AI assistant/training crawler (ClaudeBot, GPTBot…)
+ *   'seo_crawler', a known SEO/index crawler (AhrefsBot, SemrushBot…)
+ *   'search_crawler', a search-engine indexer (Googlebot, bingbot…)
+ *   'ua_robot', jenssegers flagged it, none of the above matched
+ *   'scraper', behavioural: spoofed browser UA across many IPs
  */
 class BotDetector
 {

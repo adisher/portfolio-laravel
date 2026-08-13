@@ -10,8 +10,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | The Python Flask scraper runs locally and provides two endpoints:
-    |   GET /series/{id}/matches  — all matches in a series
-    |   GET /match/{id}           — detailed match data (live/completed/upcoming)
+    |   GET /series/{id}/matches, all matches in a series
+    |   GET /match/{id}, detailed match data (live/completed/upcoming)
     |
     */
 
@@ -39,7 +39,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Lazy Sync — Auto-fetch fresh data when the sports page is visited
+    | Lazy Sync, Auto-fetch fresh data when the sports page is visited
     |--------------------------------------------------------------------------
     |
     | When enabled, the SportsController will check if data is stale and

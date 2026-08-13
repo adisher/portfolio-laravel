@@ -59,7 +59,7 @@ class BlogApiController extends Controller
     /**
      * POST /api/blog/articles/next
      *
-     * Atomically claims the next article in the posting queue: the oldest
+     * Atomically claims the next article in the posting queue: the newest
      * published article that has not been posted yet. Marks it posted in the
      * same transaction and returns it, so two runs in a row hand out two
      * different articles and nothing is ever posted twice.
@@ -74,7 +74,7 @@ class BlogApiController extends Controller
         $article = DB::transaction(function () use ($via) {
             $post = BlogPost::published()
                 ->notPosted()
-                ->oldest('published_at')
+                ->latest('published_at')
                 ->lockForUpdate()
                 ->first();
 

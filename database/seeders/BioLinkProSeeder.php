@@ -28,9 +28,9 @@ class BioLinkProSeeder extends Seeder
                     ['icon' => 'lightning', 'title' => 'Instant Updates', 'description' => 'Changes reflect instantly. Edit your links, bio, or theme and see updates live in seconds.'],
                     ['icon' => 'globe', 'title' => 'SEO Optimized', 'description' => 'Built-in SEO meta tags, Open Graph support, and structured data for maximum visibility.'],
                     ['icon' => 'link', 'title' => 'Drag-and-Drop Links', 'description' => 'Reorder your links effortlessly with drag-and-drop. Organize your page exactly how you want.'],
-                    ['icon' => 'device', 'title' => 'Fully Responsive', 'description' => 'Looks perfect on every device — desktop, tablet, and mobile. Pixel-perfect responsive design.'],
+                    ['icon' => 'device', 'title' => 'Fully Responsive', 'description' => 'Looks perfect on every device, desktop, tablet, and mobile. Pixel-perfect responsive design.'],
                     ['icon' => 'shield', 'title' => 'White-Label', 'description' => 'No BioLink Pro branding. Your page, your brand. Use your custom domain for a professional look.'],
-                    ['icon' => 'refresh', 'title' => 'Lifetime Updates', 'description' => 'Get free updates forever. New themes, features, and improvements — all included with your purchase.'],
+                    ['icon' => 'refresh', 'title' => 'Lifetime Updates', 'description' => 'Get free updates forever. New themes, features, and improvements, all included with your purchase.'],
                 ],
                 'how_it_works' => [
                     ['title' => 'Purchase', 'description' => 'Choose your plan and complete the purchase. You\'ll get instant access.'],
@@ -73,7 +73,7 @@ class BioLinkProSeeder extends Seeder
                     ],
                 ],
                 'faq' => [
-                    ['question' => 'Do I need coding skills to use BioLink Pro?', 'answer' => 'No! BioLink Pro comes with a visual admin panel where you can manage everything — links, profile, theme, and settings — without touching any code.'],
+                    ['question' => 'Do I need coding skills to use BioLink Pro?', 'answer' => 'No! BioLink Pro comes with a visual admin panel where you can manage everything, links, profile, theme, and settings, without touching any code.'],
                     ['question' => 'How do I get started after purchasing?', 'answer' => 'After purchase, you\'ll receive access to download the source code or deploy directly to Vercel with one click. Follow the setup guide to have your page live in under 5 minutes.'],
                     ['question' => 'Can I use my own custom domain?', 'answer' => 'Absolutely! After deploying to Vercel, you can connect your own custom domain through Vercel\'s dashboard. Full instructions are included in the deployment guide.'],
                     ['question' => 'Is there a monthly fee?', 'answer' => 'No monthly fees. BioLink Pro is a one-time purchase. Vercel\'s free tier handles hosting for most users, so your ongoing cost is $0.'],

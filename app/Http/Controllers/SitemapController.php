@@ -122,7 +122,7 @@ class SitemapController extends Controller
                 }
             });
 
-        // Add sports pages — only when the sports section is enabled
+        // Add sports pages, only when the sports section is enabled
         if (FeatureFlag::enabled('page.sports')) {
             $sitemap->add(
                 Url::create(route('sports.index'))
@@ -289,7 +289,7 @@ class SitemapController extends Controller
                 }
             });
 
-        // Add sports pages — only when the sports section is enabled
+        // Add sports pages, only when the sports section is enabled
         if (FeatureFlag::enabled('page.sports')) {
             $sitemap->add(
                 Url::create(route('sports.index'))

@@ -32,7 +32,7 @@ class FeatureFlag extends Model
     }
 
     /**
-     * Bust the cache — called automatically on save/delete.
+     * Bust the cache, called automatically on save/delete.
      */
     public static function flushFlagCache(): void
     {

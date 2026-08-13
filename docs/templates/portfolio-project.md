@@ -8,9 +8,9 @@ Leave a field blank or write `null` if it doesn't apply.
 ## Core Info
 
 **title:**
-**short_description:** *(max 500 chars — shown on cards and listings)*
+**short_description:** *(max 500 chars, shown on cards and listings)*
 
-**description:** *(supports Markdown — full detail, shown on project detail page)*
+**description:** *(supports Markdown, full detail, shown on project detail page)*
 ```
 [write description here]
 ```
@@ -35,7 +35,7 @@ Leave a field blank or write `null` if it doesn't apply.
 **is_featured:** *(true | false)*
 **is_published:** *(true | false)*
 **sort_order:** *(integer, lower = appears first, default 0)*
-**color_primary:** *(hex, e.g. #41EAD4 — used for project accent colour)*
+**color_primary:** *(hex, e.g. #41EAD4, used for project accent colour)*
 **color_secondary:** *(hex, e.g. #FF6B35)*
 
 ---
@@ -53,7 +53,7 @@ MySQL
 
 ## Metrics
 
-**primary_metric_value:** *(e.g. 10k+, 99%, $50k — the big headline number)*
+**primary_metric_value:** *(e.g. 10k+, 99%, $50k, the big headline number)*
 **primary_metric_label:** *(e.g. Users, Uptime, Revenue Generated)*
 
 Additional metrics *(name: value pairs, one per line)*:

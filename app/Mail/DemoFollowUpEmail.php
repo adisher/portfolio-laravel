@@ -20,7 +20,7 @@ class DemoFollowUpEmail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Thanks for the demo — ' . ($this->booking->project?->title ?? 'Portfolio'),
+            subject: 'Thanks for the demo, ' . ($this->booking->project?->title ?? 'Portfolio'),
         );
     }
 

@@ -21,7 +21,7 @@ class DemoBookingConfirmation extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your Demo is Confirmed — ' . ($this->booking->project?->title ?? 'Portfolio'),
+            subject: 'Your Demo is Confirmed, ' . ($this->booking->project?->title ?? 'Portfolio'),
         );
     }
 

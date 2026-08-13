@@ -11,9 +11,9 @@ reuses them. Capture is a defined task, never an open search.
 
 Two marker types, produced by the generator (`AiContentService::buildWorkItemPrompt`):
 
-- `[[screenshot: slug]]` — a product screenshot. Constrained to the product's
+- `[[screenshot: slug]]`, a product screenshot. Constrained to the product's
   screenshot library (see below), so every marker maps to a real asset.
-- `[[social: description]]` — a social-proof screenshot (a reddit thread, a tweet).
+- `[[social: description]]`, a social-proof screenshot (a reddit thread, a tweet).
   Sits under a blockquote of the same quote; if you have no screenshot, the
   blockquote stands on its own.
 
@@ -22,7 +22,7 @@ fields, so those need no capture.
 
 ## The screenshot library (per work item)
 
-Each work item has a `screenshots` field: a list of `slug — description` entries.
+Each work item has a `screenshots` field: a list of `slug, description` entries.
 The generator may only emit `[[screenshot: slug]]` markers whose slug is in that
 list. Keep the Media filename equal to the slug so drafts map 1:1 to assets.
 
@@ -61,7 +61,7 @@ crops by setting a `selector` per target in `targets.biolink.json`.
 
 ## Adding a new product
 
-1. Add a `screenshots` list (`slug — description`) to that product's work item.
+1. Add a `screenshots` list (`slug, description`) to that product's work item.
 2. Add a `targets.<product>.json` in `scripts/screenshots/` and run the capturer
    with it.
 3. Import the results into Media with slug filenames.

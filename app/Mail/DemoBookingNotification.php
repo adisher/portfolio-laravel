@@ -20,7 +20,7 @@ class DemoBookingNotification extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'New Demo Booked — ' . $this->booking->name,
+            subject: 'New Demo Booked, ' . $this->booking->name,
         );
     }
 

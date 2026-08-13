@@ -132,11 +132,11 @@ Route::get('/about', function () {
     return view('frontend.about', compact('about'));
 })->middleware('feature:page.about')->name('about');
 
-// Product Routes (own products — separate from portfolio case studies)
+// Product Routes (own products, separate from portfolio case studies)
 Route::get('/products/{slug}', [ProductController::class, 'show'])->middleware('feature:page.products')->name('products.show');
 Route::get('/products/{productSlug}/{pageSlug}', [ProductController::class, 'page'])->middleware('feature:page.products')->name('products.page');
 
-// Checkout Routes (Safepay Express Checkout — guest checkout, no auth required)
+// Checkout Routes (Safepay Express Checkout, guest checkout, no auth required)
 Route::post('/checkout/{productSlug}/{tierIndex}', [CheckoutController::class, 'initiate'])->name('checkout.initiate');
 Route::get('/checkout/processing/{orderToken}', [CheckoutController::class, 'processing'])->name('checkout.processing');
 Route::get('/checkout/status/{orderToken}', [CheckoutController::class, 'status'])->name('checkout.status');
@@ -162,7 +162,7 @@ Route::prefix('blog')->name('blog.')->middleware('feature:page.blog')->group(fun
     Route::get('/{slug}', [BlogController::class, 'show'])->name('show');
 });
 
-// Sports Frontend Routes — T20 Cricket World Cup 2026
+// Sports Frontend Routes, T20 Cricket World Cup 2026
 Route::prefix('sports')->name('sports.')->middleware('feature:page.sports')->group(function () {
     Route::get('/', [\App\Http\Controllers\Frontend\SportsController::class, 'index'])->name('index');
     Route::get('/match/{matchSlug}', [\App\Http\Controllers\Frontend\SportsController::class, 'match'])->name('match');
@@ -176,7 +176,7 @@ Route::get('/contact', [ContactController::class, 'index'])->middleware('feature
 // backstop to the honeypot + timing traps in ContactController::store.
 Route::post('/contact', [ContactController::class, 'store'])->middleware(['feature:page.contact', 'throttle:5,1'])->name('contact.store');
 
-// Demo Booking — cancel via email token (no auth required)
+// Demo Booking, cancel via email token (no auth required)
 Route::get('/demo/cancel/{token}', [DemoBookingController::class, 'cancel'])->name('demo.cancel');
 
 // Redirect authenticated users from /dashboard to admin dashboard
@@ -214,7 +214,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('work-items', \App\Http\Controllers\Admin\WorkItemController::class);
     Route::post('work-items/{workItem}/generate-article', [\App\Http\Controllers\Admin\WorkItemController::class, 'generateArticle'])
         ->name('work-items.generate-article');
-    // Voices (social proof) — dedicated section
+    // Voices (social proof), dedicated section
     Route::get('voices', [\App\Http\Controllers\Admin\VoiceController::class, 'index'])->name('voices.index');
     Route::get('voices/{workItem}', [\App\Http\Controllers\Admin\VoiceController::class, 'show'])->name('voices.show');
     Route::post('voices/{workItem}/find', [\App\Http\Controllers\Admin\VoiceController::class, 'find'])->name('voices.find');
@@ -271,6 +271,20 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::get('/blog-report', [\App\Http\Controllers\Admin\AnalyticsController::class, 'blogReport'])->name('blog-report');
         Route::get('/realtime', [\App\Http\Controllers\Admin\AnalyticsController::class, 'realtime'])->name('realtime');
         Route::get('/export', [\App\Http\Controllers\Admin\AnalyticsController::class, 'export'])->name('export');
+    });
+
+    // Social accounts + publishing (in-project social flow)
+    Route::prefix('social')->name('social.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\SocialAccountController::class, 'index'])->name('index');
+        Route::get('/publish', [\App\Http\Controllers\Admin\SocialAccountController::class, 'publishBoard'])->name('publish');
+        Route::post('/publish/now', [\App\Http\Controllers\Admin\SocialAccountController::class, 'postNow'])->name('post-now');
+        Route::post('/publish/preview', [\App\Http\Controllers\Admin\SocialAccountController::class, 'preview'])->name('preview');
+        Route::get('/create', [\App\Http\Controllers\Admin\SocialAccountController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Admin\SocialAccountController::class, 'store'])->name('store');
+        Route::get('/{social}/edit', [\App\Http\Controllers\Admin\SocialAccountController::class, 'edit'])->name('edit');
+        Route::put('/{social}', [\App\Http\Controllers\Admin\SocialAccountController::class, 'update'])->name('update');
+        Route::patch('/{social}/toggle-auto', [\App\Http\Controllers\Admin\SocialAccountController::class, 'toggleAuto'])->name('toggle-auto');
+        Route::delete('/{social}', [\App\Http\Controllers\Admin\SocialAccountController::class, 'destroy'])->name('destroy');
     });
 
     // RSS Sources routes

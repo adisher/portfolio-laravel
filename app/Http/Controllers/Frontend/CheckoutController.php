@@ -85,7 +85,7 @@ class CheckoutController extends Controller
             // 3. Get auth token (tbt) for checkout redirect
             $tbt = $this->safepay->getAuthToken();
 
-            // 4. Build checkout URL — iframe callback URLs include ?iframe=1
+            // 4. Build checkout URL, iframe callback URLs include ?iframe=1
             $checkoutUrl = $this->safepay->getCheckoutUrl(
                 tracker: $payment['tracker'],
                 tbt: $tbt,
@@ -273,7 +273,7 @@ class CheckoutController extends Controller
                 ]);
             }
         } catch (\Exception $e) {
-            // Don't fail the status check — just log and let it retry on next poll
+            // Don't fail the status check, just log and let it retry on next poll
             Log::debug('Active polling: Safepay verification attempt failed (will retry)', [
                 'order_token' => $order->order_token,
                 'error'       => $e->getMessage(),
@@ -400,7 +400,7 @@ class CheckoutController extends Controller
 
             $order->logEvent('verification_error', [
                 'error'   => $e->getMessage(),
-                'message' => 'Failed to verify payment with Safepay. Buyer may have been charged — requires manual check.',
+                'message' => 'Failed to verify payment with Safepay. Buyer may have been charged, requires manual check.',
             ]);
 
             return $this->respond(
@@ -505,7 +505,7 @@ class CheckoutController extends Controller
             ]);
 
             if (!$isRealMailer) {
-                Log::warning('OrderConfirmation dispatched via log/null driver — buyer will NOT receive email', [
+                Log::warning('OrderConfirmation dispatched via log/null driver, buyer will NOT receive email', [
                     'order_id' => $order->id,
                     'email'    => $order->customer_email,
                     'driver'   => $mailDriver,

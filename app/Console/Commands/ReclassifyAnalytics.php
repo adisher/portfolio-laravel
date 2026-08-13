@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
  *   - fills source / source_detail from stored referrer + utm.
  *
  * Dry-run by default: prints exactly what would change. Pass --apply to write.
- * Back up first (mysqldump the visitors table) — this mutates existing rows.
+ * Back up first (mysqldump the visitors table), this mutates existing rows.
  */
 class ReclassifyAnalytics extends Command
 {
@@ -77,7 +77,7 @@ class ReclassifyAnalytics extends Command
                 [$isBot, $reason] = BotDetector::fromUserAgent($ua);
 
                 $q = Visitor::where('user_agent', $ua)
-                    // Never touch behavioural-'scraper' rows — that pass owns them.
+                    // Never touch behavioural-'scraper' rows, that pass owns them.
                     ->where(fn ($w) => $w->whereNull('bot_reason')->orWhere('bot_reason', '<>', 'scraper'))
                     // Only rows whose verdict genuinely differs from what's stored.
                     ->where(function ($w) use ($isBot, $reason) {
@@ -107,7 +107,7 @@ class ReclassifyAnalytics extends Command
      * Behavioural scraper detection. A rotating-proxy scraper spoofs one real
      * browser UA across thousands of distinct IPs, with ~every hit a single
      * page and no referrer. Real popular browsers share a UA too, but their
-     * sessions are a MIX of multi-page and referred visits — so the combination
+     * sessions are a MIX of multi-page and referred visits, so the combination
      * of (many distinct IPs) + (almost all single-page) + (almost all
      * no-referrer) is what isolates a scraper without catching real users.
      */
@@ -118,7 +118,7 @@ class ReclassifyAnalytics extends Command
 
         // Aggregate per user-agent over rows not already flagged as bots.
         // single_page is computed from the ACTUAL page_views table (COUNT per
-        // visitor), NOT the visitors.page_views counter — that counter is
+        // visitor), NOT the visitors.page_views counter, that counter is
         // off-by-one (inserted at DB-default 1, then the tracker increments it),
         // so a genuine single-page visit reads as 2. Counting real rows avoids
         // depending on that bug.
@@ -178,7 +178,7 @@ class ReclassifyAnalytics extends Command
      * Single-IP flood: the scraper heuristic's blind spot. One machine that
      * does NOT rotate IPs (an uptime monitor, a non-distributed scraper) pulls
      * many pages from a single address, each a fresh single-page session with
-     * no referrer. Real users — even behind a shared/NAT IP — carry referrers
+     * no referrer. Real users, even behind a shared/NAT IP, carry referrers
      * and browse multiple pages, so a high volume of single-page + no-referrer
      * hits from one IP is automated.
      */

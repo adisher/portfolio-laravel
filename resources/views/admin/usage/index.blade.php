@@ -132,7 +132,7 @@
                 <td class="text-right">{{ number_format($t->calls) }}</td>
                 <td class="text-right">{{ number_format($t->qty) }} {{ $t->unit }}</td>
                 <td class="text-right">{{ $t->calls > 0 ? number_format(($t->ok / $t->calls) * 100, 0) : 0 }}%</td>
-                <td class="text-right">{{ $t->cost !== null ? '$' . number_format($t->cost, 4) : '—' }}</td>
+                <td class="text-right">{{ $t->cost !== null ? '$' . number_format($t->cost, 4) : '-' }}</td>
             </tr>
             @endforeach
         </tbody>

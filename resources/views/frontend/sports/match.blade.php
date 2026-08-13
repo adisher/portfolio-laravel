@@ -25,7 +25,7 @@
 <div x-data="matchDetail({{ $match->id }})" x-init="init()">
 
 {{-- ============================================================ --}}
-{{-- MATCH HEADER — Wide dramatic layout                           --}}
+{{-- MATCH HEADER, Wide dramatic layout                           --}}
 {{-- ============================================================ --}}
 <section class="bg-gradient-to-br from-midnight via-ocean to-midnight-dark py-10 lg:py-16 relative overflow-hidden">
     {{-- Background decorative orbs --}}
@@ -177,7 +177,7 @@
 </section>
 
 {{-- ============================================================ --}}
-{{-- MATCH DETAILS — Cricket background themed                     --}}
+{{-- MATCH DETAILS, Cricket background themed                     --}}
 {{-- ============================================================ --}}
 <section class="section-padding bg-soft-light dark:bg-midnight cricket-bg">
     {{-- Cricket bat decorative element --}}

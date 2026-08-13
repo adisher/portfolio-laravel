@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function () {
         projectCards.forEach(card => { card.style.opacity = '0'; });
 
         setTimeout(() => {
-            // Step 2: toggle visibility after fade completes — no visible reflow
+            // Step 2: toggle visibility after fade completes, no visible reflow
             projectCards.forEach(card => {
                 const matches = category === 'all' || card.dataset.category === category;
                 card.style.display = matches ? '' : 'none';

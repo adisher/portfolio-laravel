@@ -407,7 +407,7 @@
                 </ul>
                 @endif
 
-                {{-- CTA — demo scheduling OR Safepay checkout depending on cta_type --}}
+                {{-- CTA, demo scheduling OR Safepay checkout depending on cta_type --}}
                 @if($isDemo)
                 <button onclick="window.dispatchEvent(new CustomEvent('open-demo-modal', {detail:{plan:'{{ addslashes($tier['name']) }}'}}))"
                         class="block w-full text-center py-3.5 rounded-xl font-semibold transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer

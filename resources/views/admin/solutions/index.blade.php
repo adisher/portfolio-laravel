@@ -80,7 +80,7 @@
                             @endforeach
                         </div>
                         @else
-                        <span class="text-sm text-gray-400">—</span>
+                        <span class="text-sm text-gray-400">-</span>
                         @endif
                     </td>
                     <td>

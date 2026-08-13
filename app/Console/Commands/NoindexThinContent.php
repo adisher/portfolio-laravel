@@ -28,7 +28,7 @@ class NoindexThinContent extends Command
     public function handle(GscService $gsc)
     {
         if (!$gsc->isConfigured()) {
-            $this->error('GSC is not configured (services.gsc.site_url / credentials missing). Refusing to run — impressions can\'t be verified, so nothing would be a safe candidate.');
+            $this->error('GSC is not configured (services.gsc.site_url / credentials missing). Refusing to run, impressions can\'t be verified, so nothing would be a safe candidate.');
             return self::FAILURE;
         }
 
@@ -66,7 +66,7 @@ class NoindexThinContent extends Command
         $this->info("{$candidates->count()} candidate(s) found (score < {$threshold}, 0 impressions over {$days}d).");
 
         if (!$apply) {
-            $this->comment('Dry run — no changes made. Re-run with --apply to noindex these.');
+            $this->comment('Dry run, no changes made. Re-run with --apply to noindex these.');
             return self::SUCCESS;
         }
 
@@ -74,7 +74,7 @@ class NoindexThinContent extends Command
             $post->update(['noindex' => true, 'noindex_at' => now()]);
         }
 
-        $this->info("Noindexed {$candidates->count()} post(s). They stay live and readable — just excluded from the sitemap and marked noindex for crawlers.");
+        $this->info("Noindexed {$candidates->count()} post(s). They stay live and readable, just excluded from the sitemap and marked noindex for crawlers.");
 
         return self::SUCCESS;
     }

@@ -64,7 +64,7 @@
 
     <p class="text">
       You'll receive a reminder 24 hours before and again 1 hour before the demo.
-      A calendar invite (.ics) is attached to this email — add it to your calendar to be prepared.
+      A calendar invite (.ics) is attached to this email, add it to your calendar to be prepared.
     </p>
 
     <p class="text" style="margin-bottom: 8px;">Need to cancel or reschedule?</p>

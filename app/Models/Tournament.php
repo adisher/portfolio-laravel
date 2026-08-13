@@ -51,7 +51,7 @@ class Tournament extends Model
     }
 
     /**
-     * Get the correct logo URL — handles both ESPN CDN URLs and local storage paths.
+     * Get the correct logo URL, handles both ESPN CDN URLs and local storage paths.
      */
     public function getLogoUrlAttribute(): ?string
     {
@@ -67,7 +67,7 @@ class Tournament extends Model
     }
 
     /**
-     * Ongoing tournaments — have live/scheduled matches within ±7 days, or date range includes today.
+     * Ongoing tournaments, have live/scheduled matches within ±7 days, or date range includes today.
      */
     public function scopeOngoing($query)
     {
@@ -90,7 +90,7 @@ class Tournament extends Model
     }
 
     /**
-     * Upcoming tournaments — start in the future or only have future scheduled matches.
+     * Upcoming tournaments, start in the future or only have future scheduled matches.
      */
     public function scopeUpcomingTournaments($query)
     {

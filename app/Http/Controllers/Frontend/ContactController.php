@@ -34,7 +34,7 @@ class ContactController extends Controller
     {
         // ── Bot traps ────────────────────────────────────────────────
         // Return the normal success response so bots believe it worked and
-        // don't adapt — but save nothing and send no email.
+        // don't adapt, but save nothing and send no email.
         $successMessage = 'Thank you for your message! I\'ll get back to you soon.';
 
         // 1. Honeypot: the off-screen "website" field is invisible to humans.

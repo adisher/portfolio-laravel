@@ -98,7 +98,7 @@ class AnalyticsController extends Controller
      * Blog performance report: rolls up per-article search + on-site metrics
      * to niche (category) and to source_type (curated vs original).
      *
-     * The join is the whole point — GSC is keyed by URL, first-party views by
+     * The join is the whole point, GSC is keyed by URL, first-party views by
      * content_id, and the axes the user actually cares about (niche, curated
      * vs original) live on blog_posts. Nothing in the stock dashboard rolls up
      * to those axes, so we do it here.
@@ -148,8 +148,7 @@ class AnalyticsController extends Controller
             ];
         });
 
-        // GSC blog URLs that matched no current post (renamed/deleted slugs) —
-        // surfaced so the totals are transparent rather than silently dropped.
+        // GSC blog URLs that matched no current post (renamed/deleted slugs),         // surfaced so the totals are transparent rather than silently dropped.
         $unmatched = collect($searchBySlug)
             ->reject(fn($_, $slug) => isset($matchedSlugs[$slug]))
             ->values()
@@ -171,7 +170,7 @@ class AnalyticsController extends Controller
     /**
      * Who actually reaches the blog: the human traffic-source split (incl. AI
      * assistants), the AI-crawler activity that precedes citations, and the
-     * bot-vs-human view split — so one scraper can never again masquerade as
+     * bot-vs-human view split, so one scraper can never again masquerade as
      * real readership. All keyed off blog_post page-views in the window.
      */
     private function blogAudience(int $days)
@@ -228,8 +227,7 @@ class AnalyticsController extends Controller
 
     /**
      * Group article rows by a key and aggregate. Average position is
-     * impression-weighted (an unweighted mean of positions is meaningless —
-     * a page with 2 impressions would count as much as one with 2,000).
+     * impression-weighted (an unweighted mean of positions is meaningless,      * a page with 2 impressions would count as much as one with 2,000).
      */
     private function rollup($articles, string $key)
     {
@@ -263,7 +261,7 @@ class AnalyticsController extends Controller
 
     /**
      * Actionable articles: ranking on page 1-2 (position 4-20) with real
-     * impression volume but a weak click-through — i.e. a title/meta tweak or
+     * impression volume but a weak click-through, i.e. a title/meta tweak or
      * a small ranking push is the cheapest available win.
      */
     private function opportunityArticles($articles)

@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('work_items', function (Blueprint $table) {
-            // Canonical screenshot library for this product: "slug — description".
+            // Canonical screenshot library for this product: "slug, description".
             // The generator may only emit [[screenshot: slug]] markers from this list.
             $table->json('screenshots')->nullable()->after('voices');
         });

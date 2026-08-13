@@ -30,7 +30,7 @@ class CollectedArticle extends Model
         'ai_enhanced'        => 'boolean',
     ];
 
-    /** Diverted into the reuse pool — kept, but never published to this blog. */
+    /** Diverted into the reuse pool, kept, but never published to this blog. */
     public function scopeParked($query)
     {
         return $query->whereNotNull('parked_at');

@@ -66,7 +66,7 @@ class RecountBlogViews extends Command
         });
 
         $this->line(($apply ? 'Updated ' : 'Would update ') . number_format($changed) . ' post(s).');
-        $this->line('Totals from analytics — human: ' . number_format($totalHuman) . ', raw: ' . number_format($totalRaw)
+        $this->line('Totals from analytics, human: ' . number_format($totalHuman) . ', raw: ' . number_format($totalRaw)
             . ($totalRaw > 0 ? ' (' . round($totalHuman / $totalRaw * 100) . '% human)' : ''));
 
         if (!$apply) {

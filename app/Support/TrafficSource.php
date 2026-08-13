@@ -14,7 +14,7 @@ namespace App\Support;
  *
  * NOTE ON AI ATTRIBUTION: many AI apps strip the Referer header on click
  * (in-app browsers, privacy settings). Those arrive with a null referrer and
- * are classified Direct — indistinguishable from a typed URL. So AI-assistant
+ * are classified Direct, indistinguishable from a typed URL. So AI-assistant
  * counts from this classifier are a FLOOR, never a complete total.
  */
 class TrafficSource
@@ -80,7 +80,7 @@ class TrafficSource
         $ref = strtolower(trim((string) $referrer));
         $utm = strtolower(trim((string) $utmSource));
 
-        // Explicit UTM tagging wins when present — it is a deliberate signal.
+        // Explicit UTM tagging wins when present, it is a deliberate signal.
         if ($utm !== '') {
             if (str_contains($utm, 'chatgpt') || str_contains($utm, 'openai')) return [self::AI, 'ChatGPT'];
             if (str_contains($utm, 'claude'))     return [self::AI, 'Claude'];

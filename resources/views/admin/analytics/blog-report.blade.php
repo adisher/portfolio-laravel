@@ -4,7 +4,7 @@
 
 @php
     $pct  = fn($v) => number_format(($v ?? 0) * 100, 1) . '%';
-    $pos  = fn($v) => $v === null ? '—' : number_format($v, 1);
+    $pos  = fn($v) => $v === null ? '-' : number_format($v, 1);
     $num  = fn($v) => number_format($v ?? 0);
     // Small helper for the niche bar widths (relative to the busiest niche).
     $maxNicheImpr = $byNiche->max('impressions') ?: 1;
@@ -111,7 +111,7 @@
     {{-- AI crawler activity --}}
     <div class="admin-card p-6">
         <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">AI crawlers reading you</h3>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Bot fetches by AI engines — your leading indicator for being cited.</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Bot fetches by AI engines, your leading indicator for being cited.</p>
         @forelse($aiCrawlers as $name => $c)
         <div class="flex justify-between items-center py-1.5 border-b border-gray-100 dark:border-white/5 last:border-0">
             <span class="text-sm text-gray-700 dark:text-gray-300">{{ $name }}</span>

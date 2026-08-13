@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Demo Booking — ' . $demoBooking->name)
+@section('title', 'Demo Booking, ' . $demoBooking->name)
 
 @section('content')
 <div class="flex items-center gap-3 mb-6">
@@ -40,15 +40,15 @@
                 </div>
                 <div>
                     <dt class="text-gray-500 dark:text-gray-400 font-medium">Company</dt>
-                    <dd class="mt-1 text-gray-900 dark:text-white">{{ $demoBooking->company ?? '—' }}</dd>
+                    <dd class="mt-1 text-gray-900 dark:text-white">{{ $demoBooking->company ?? '-' }}</dd>
                 </div>
                 <div>
                     <dt class="text-gray-500 dark:text-gray-400 font-medium">Plan Interest</dt>
-                    <dd class="mt-1 text-gray-900 dark:text-white">{{ $demoBooking->plan_interest ?? '—' }}</dd>
+                    <dd class="mt-1 text-gray-900 dark:text-white">{{ $demoBooking->plan_interest ?? '-' }}</dd>
                 </div>
                 <div>
                     <dt class="text-gray-500 dark:text-gray-400 font-medium">Product</dt>
-                    <dd class="mt-1 text-gray-900 dark:text-white">{{ $demoBooking->project?->title ?? '—' }}</dd>
+                    <dd class="mt-1 text-gray-900 dark:text-white">{{ $demoBooking->project?->title ?? '-' }}</dd>
                 </div>
                 <div>
                     <dt class="text-gray-500 dark:text-gray-400 font-medium">Duration</dt>

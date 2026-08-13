@@ -427,7 +427,7 @@ class AiContentService
         return <<<PROMPT
 You are collecting REAL USER COMMENTS to use as social proof in an article about "{$wi->name}".
 
-Background (context only — do NOT search these commercial phrases, they surface vendor listicles):
+Background (context only, do NOT search these commercial phrases, they surface vendor listicles):
 What it is: {$wi->tagline}
 Who it is for: {$wi->target_audience}
 
@@ -438,7 +438,7 @@ SEARCH ONLY THESE PLATFORMS: {$platforms}
 
 Search the way a frustrated user writes, not the way a marketer does.
 Good queries: "linktree got so expensive", "why am I paying monthly for a link page", "anyone else annoyed by".
-Bad queries: "best link in bio alternative" — that is exactly what vendor listicles are optimised for.
+Bad queries: "best link in bio alternative", that is exactly what vendor listicles are optimised for.
 
 WHAT COUNTS AS A VOICE:
 - A comment, post or reply written by an INDIVIDUAL describing their own experience or frustration, at a specific URL on one of the platforms above.
@@ -447,7 +447,7 @@ WHAT COUNTS AS A VOICE:
 WHAT NEVER COUNTS (do not return these under any circumstances):
 - Company blogs, vendor pages, product marketing, or "best/top/alternatives/vs" round-up articles written to sell something.
 - Anything written by a business promoting a product, especially a competitor of this one.
-- **BUILDER / LAUNCH / SHOWCASE POSTS.** Any post where someone announces, launches or shows off a product they built — "I made X", "Show HN", an Indie Hackers launch, "I built an alternative because existing tools were too complex". That person is a COMPETITOR, not a user, even when they open by complaining about existing tools. This is the single most common false positive: reject it every time.
+- **BUILDER / LAUNCH / SHOWCASE POSTS.** Any post where someone announces, launches or shows off a product they built, "I made X", "Show HN", an Indie Hackers launch, "I built an alternative because existing tools were too complex". That person is a COMPETITOR, not a user, even when they open by complaining about existing tools. This is the single most common false positive: reject it every time.
 - An article author's own generic commentary. We want users, not authors.
 (To be clear: a customer's own review IS a voice. Vendor round-up ARTICLES and builder launch posts are NOT.)
 
@@ -533,7 +533,7 @@ PROMPT;
             $lines = [];
             foreach (collect($voices)->values() as $i => $v) {
                 $n = $i + 1;
-                $attr = $v->attribution ? " — {$v->attribution}" : '';
+                $attr = $v->attribution ? ", {$v->attribution}" : '';
                 $src  = $v->source_url ? " (source: {$v->source_url})" : '';
                 $line = "Voice {$n}: \"" . trim($v->quote) . "\"{$attr}{$src}.";
                 if ($v->media && $v->media->url) {
@@ -749,7 +749,7 @@ PROMPT;
     {
         $content = trim($response);
 
-        // Extract headline from first # line — Claude puts it at the top
+        // Extract headline from first # line, Claude puts it at the top
         $title = $article->title;
         if (preg_match('/^#\s+(.+)/m', $content, $m)) {
             $title = trim($m[1]);

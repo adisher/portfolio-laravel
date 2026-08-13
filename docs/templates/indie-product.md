@@ -9,14 +9,14 @@ Note: `is_own_product` is always `true` for indie products.
 ## Core Info
 
 **title:**
-**short_description:** *(max 500 chars — shown on cards and listings)*
+**short_description:** *(max 500 chars, shown on cards and listings)*
 
-**description:** *(supports Markdown — full product overview, shown at top of product page)*
+**description:** *(supports Markdown, full product overview, shown at top of product page)*
 ```
 [write description here]
 ```
 
-**project_date:** *(YYYY-MM-DD — launch date or first release)*
+**project_date:** *(YYYY-MM-DD, launch date or first release)*
 **status:** *(completed | in_progress | on_hold)*
 **category:** *(exact category name, e.g. SaaS, Tool, Chrome Extension)*
 **tags:** *(comma-separated, e.g. Laravel, React, MySQL)*
@@ -25,7 +25,7 @@ Note: `is_own_product` is always `true` for indie products.
 
 ## Links
 
-**project_url:** *(live product URL — also used as default CTA target)*
+**project_url:** *(live product URL, also used as default CTA target)*
 **github_url:** *(if open source)*
 
 ---
@@ -53,7 +53,7 @@ MySQL
 
 ## Metrics
 
-**primary_metric_value:** *(e.g. 500+, 4.9★, Free — the big headline number)*
+**primary_metric_value:** *(e.g. 500+, 4.9★, Free, the big headline number)*
 **primary_metric_label:** *(e.g. Users, Rating, Pricing)*
 
 Additional metrics *(name: value pairs, one per line)*:
@@ -87,7 +87,7 @@ Uptime: 99.9%
 
 ---
 
-## Product Page — Features
+## Product Page, Features
 
 *(Each feature shown in the Features section of the product page)*
 
@@ -110,7 +110,7 @@ Uptime: 99.9%
 
 ---
 
-## Product Page — How It Works
+## Product Page, How It Works
 
 *(Step-by-step section on the product page)*
 
@@ -133,7 +133,7 @@ Uptime: 99.9%
 
 ---
 
-## Product Page — Pricing
+## Product Page, Pricing
 
 *(Leave this whole section blank if the product is free or has no pricing page)*
 
@@ -142,7 +142,7 @@ Uptime: 99.9%
 - price: *(number only, e.g. 0, 9, 29)*
 - billing_period: *(e.g. /month, /year, one-time, free)*
 - description: *(one-line tagline for the plan)*
-- highlighted: *(true | false — marks this as the recommended plan)*
+- highlighted: *(true | false, marks this as the recommended plan)*
 - cta_label: *(e.g. Get Started, Buy Now, Upgrade)*
 - cta_url: *(link for this plan's CTA button)*
 - features:
@@ -166,7 +166,7 @@ Uptime: 99.9%
 
 ---
 
-## Product Page — FAQ
+## Product Page, FAQ
 
 **Q1**
 - question:
@@ -184,7 +184,7 @@ Uptime: 99.9%
 
 ---
 
-## Product Page — CTA
+## Product Page, CTA
 
 **cta_url:** *(main call-to-action link, e.g. signup URL or purchase URL)*
 **cta_label:** *(button text, e.g. Get Started Free, Buy Now, Try It Free)*

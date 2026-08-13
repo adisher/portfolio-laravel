@@ -48,7 +48,7 @@ class Team extends Model
     }
 
     /**
-     * Get the correct logo URL — handles both ESPN CDN URLs and local storage paths.
+     * Get the correct logo URL, handles both ESPN CDN URLs and local storage paths.
      */
     public function getLogoUrlAttribute(): ?string
     {
@@ -56,7 +56,7 @@ class Team extends Model
             return null;
         }
 
-        // External URLs (ESPN CDN) — return as-is
+        // External URLs (ESPN CDN), return as-is
         if (str_starts_with($this->logo, 'http://') || str_starts_with($this->logo, 'https://')) {
             return $this->logo;
         }

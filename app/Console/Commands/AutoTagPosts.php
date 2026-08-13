@@ -39,7 +39,7 @@ class AutoTagPosts extends Command
         'Gemini' => ['gemini'],
         'LLM' => ['llm', 'large language model'],
         'Machine Learning' => ['machine learning', '\bml\b'],
-        // Bare "ai" is deliberately excluded — on an AI-heavy blog it matches
+        // Bare "ai" is deliberately excluded, on an AI-heavy blog it matches
         // ~40% of all posts and stops being a useful discriminator. Require
         // the full phrase instead.
         'Artificial Intelligence' => ['artificial intelligence'],
@@ -67,7 +67,7 @@ class AutoTagPosts extends Command
         'Laravel' => ['laravel'],
         'PHP' => ['\bphp\b'],
         'Node.js' => ['node\.js', '\bnodejs\b'],
-        // Bare "api" is deliberately excluded — same over-matching problem as
+        // Bare "api" is deliberately excluded, same over-matching problem as
         // bare "ai" (37% of all posts on prod). Require an API-specific phrase.
         'API Design' => ['rest api', 'api design', 'graphql api', 'api endpoint'],
         'Tailwind CSS' => ['tailwind'],
@@ -149,7 +149,7 @@ class AutoTagPosts extends Command
         foreach ($coverage as $canonical => $count) {
             // Spread the sample across the matched set (not just the first 3
             // by post ID) so broad tags don't all show the same handful of
-            // early posts — makes the preview table actually useful to eyeball.
+            // early posts, makes the preview table actually useful to eyeball.
             $ids = array_keys($matches[$canonical]);
             $sampleIds = collect($ids)->count() <= 3
                 ? $ids
@@ -167,11 +167,11 @@ class AutoTagPosts extends Command
 
         $droppedForMin = collect($matches)->filter(fn ($postIds) => count($postIds) > 0 && count($postIds) < $min)->count();
         if ($droppedForMin > 0) {
-            $this->comment("{$droppedForMin} term(s) matched at least one article but were dropped for being below the minimum of {$min} — raise coverage or lower --min to include them.");
+            $this->comment("{$droppedForMin} term(s) matched at least one article but were dropped for being below the minimum of {$min}, raise coverage or lower --min to include them.");
         }
 
         if (!$apply) {
-            $this->comment('Dry run — no changes made. Re-run with --apply to write these tag assignments.');
+            $this->comment('Dry run, no changes made. Re-run with --apply to write these tag assignments.');
             return self::SUCCESS;
         }
 

@@ -106,20 +106,20 @@ class BioLinkProWorkItemSeeder extends Seeder
             // one-time migration of any legacy flat voices into work_item_voices
             // records. Each is reviewed, screenshotted, and approved by hand.
 
-            // Canonical screenshot library ("slug — description"). The generator may
+            // Canonical screenshot library ("slug, description"). The generator may
             // only emit [[screenshot: slug]] markers from this list. Capture the
             // own-UI shots with scripts/screenshots; the two Vercel screens are
             // captured manually. See docs/screenshot-library.md.
             'screenshots' => [
-                'live-page — the public bio page in the default theme',
-                'live-themes — two or three of the five themes shown together',
-                'admin-dashboard — the admin overview after login',
-                'analytics — the page views and link clicks panel',
-                'link-editor — the links list with drag-and-drop handles',
-                'theme-picker — the five-theme selector',
-                'profile-editor — the profile fields (photo, bio, social links)',
-                'vercel-deploy — the one-click Vercel deploy screen (external, capture manually)',
-                'custom-domain — the Vercel custom-domain settings (external, capture manually)',
+                'live-page, the public bio page in the default theme',
+                'live-themes, two or three of the five themes shown together',
+                'admin-dashboard, the admin overview after login',
+                'analytics, the page views and link clicks panel',
+                'link-editor, the links list with drag-and-drop handles',
+                'theme-picker, the five-theme selector',
+                'profile-editor, the profile fields (photo, bio, social links)',
+                'vercel-deploy, the one-click Vercel deploy screen (external, capture manually)',
+                'custom-domain, the Vercel custom-domain settings (external, capture manually)',
             ],
 
             // Allowlist of community platforms searched for user voices. Only these

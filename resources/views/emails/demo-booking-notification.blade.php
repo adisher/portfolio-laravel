@@ -53,7 +53,7 @@
       @endif
       <div class="detail-row">
         <span class="detail-label">Product</span>
-        <span class="detail-value">{{ $booking->project?->title ?? '—' }}</span>
+        <span class="detail-value">{{ $booking->project?->title ?? '-' }}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Date & Time</span>
@@ -71,7 +71,7 @@
   </div>
 
   <div class="footer">
-    <p>Admin notification — {{ config('app.name') }}</p>
+    <p>Admin notification, {{ config('app.name') }}</p>
   </div>
 </div>
 </body>

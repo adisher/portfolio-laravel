@@ -121,7 +121,7 @@ class BraveSearchService
 
     /**
      * Build site:-restricted queries from the manual's PAIN POINTS (user language),
-     * not its commercial keywords — commercial keywords are exactly what SEO
+     * not its commercial keywords, commercial keywords are exactly what SEO
      * listicles rank for, which is why they used to dominate the results.
      */
     protected function buildQueries(WorkItem $wi, array $domains): array

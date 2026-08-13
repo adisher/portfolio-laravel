@@ -169,7 +169,7 @@ class GscService
      * All blog article pages with their search metrics, keyed by slug.
      *
      * Pulls the full `page` dimension (up to 1000 rows) and keeps only
-     * /blog/{slug} article URLs — excludes the index, category, search,
+     * /blog/{slug} article URLs, excludes the index, category, search,
      * proof-of-work and feed routes so the caller can roll up by article →
      * category without re-filtering. Returned map: slug => metrics row.
      */
@@ -184,7 +184,7 @@ class GscService
                 $url  = $r['keys'][0] ?? '';
                 $path = parse_url($url, PHP_URL_PATH) ?? '';
 
-                // Match exactly /blog/{slug} — one segment after /blog/.
+                // Match exactly /blog/{slug}, one segment after /blog/.
                 if (!preg_match('#/blog/([^/]+)/?$#', $path, $m)) {
                     continue;
                 }

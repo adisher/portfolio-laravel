@@ -9,7 +9,7 @@ class SafepayService
 {
     // Nullable: the Safepay env vars are unset on a fresh install, and a non-null
     // typehint here would throw a TypeError the moment the container resolves this
-    // service — 500ing the webhook route instead of failing gracefully per-call.
+    // service, 500ing the webhook route instead of failing gracefully per-call.
     protected ?string $baseUrl;
     protected ?string $apiKey;
     protected ?string $apiSecret;
@@ -42,7 +42,7 @@ class SafepayService
     /**
      * Create a payment session on Safepay.
      *
-     * Uses /order/payments/v3/ — the v3 endpoint compatible with the /embedded checkout page.
+     * Uses /order/payments/v3/, the v3 endpoint compatible with the /embedded checkout page.
      * Amount must be in the lowest currency denomination (paisa for PKR, cents for USD).
      *
      * @return array{token: string, tracker: string}
@@ -161,7 +161,7 @@ class SafepayService
      * Verify a payment by its tracker token.
      *
      * Uses the reporter endpoint (GET-friendly) as primary, with v3 as fallback.
-     * The v3 endpoint returns 405 on GET — it only supports POST for creation.
+     * The v3 endpoint returns 405 on GET, it only supports POST for creation.
      *
      * @return array Full payment data from Safepay
      * @throws \Exception
