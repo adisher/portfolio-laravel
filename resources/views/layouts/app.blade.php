@@ -36,13 +36,25 @@
     <!-- Sitemap reference -->
     <link rel="sitemap" type="application/xml" href="{{ url('/sitemap.xml') }}">
 
+    @php
+        // Social scrapers (LinkedIn especially) drop a relative og:image, and on
+        // prod Storage::url() can come out relative (/storage/...). Force absolute.
+        $ogImage = trim($__env->yieldContent('og_image'));
+        if ($ogImage === '') {
+            $ogImage = asset('og-image.png');
+        } elseif (! \Illuminate\Support\Str::startsWith($ogImage, ['http://', 'https://'])) {
+            $ogImage = rtrim(config('app.url'), '/') . '/' . ltrim($ogImage, '/');
+        }
+    @endphp
+
     <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="@yield('og_type', 'website')">
     <meta property="og:url" content="{{ $canonicalUrl }}">
     <meta property="og:title" content="@yield('title', 'Portfolio - Full Stack Developer')">
     <meta property="og:description"
         content="@yield('description', 'Professional portfolio showcasing web development projects and technical expertise')">
-    <meta property="og:image" content="@yield('og_image', asset('og-image.png'))">
+    <meta property="og:image" content="{{ $ogImage }}">
+    <meta property="og:image:secure_url" content="{{ $ogImage }}">
     <meta property="og:site_name" content="{{ config('app.name') }}">
     @hasSection('og_published_time')
     <meta property="article:published_time" content="@yield('og_published_time')">
@@ -53,7 +65,7 @@
     <meta name="twitter:url" content="{{ $canonicalUrl }}">
     <meta name="twitter:title" content="@yield('title', 'Portfolio - Full Stack Developer')">
     <meta name="twitter:description" content="@yield('description', 'Professional portfolio showcasing web development projects and technical expertise')">
-    <meta name="twitter:image" content="@yield('og_image', asset('og-image.png'))">
+    <meta name="twitter:image" content="{{ $ogImage }}">
 
     @stack('meta')
 

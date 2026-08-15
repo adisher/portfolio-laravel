@@ -47,7 +47,7 @@
                     </td>
                     <td>
                         <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                            {{ ucfirst($account->platform) }}
+                            {{ $account->platformLabel() }}
                         </span>
                     </td>
                     <td class="text-sm text-gray-500 dark:text-gray-400">{{ number_format($account->posted_count) }}</td>
@@ -60,13 +60,24 @@
                             <span class="status-badge {{ $account->is_active ? 'status-published' : 'status-draft' }}">
                                 {{ $account->is_active ? 'Active' : 'Inactive' }}
                             </span>
-                            <span class="text-xs {{ $account->auto_post_enabled ? 'text-green-600 dark:text-green-400' : 'text-gray-400' }}">
-                                Auto-post {{ $account->auto_post_enabled ? 'ON' : 'off' }}
-                            </span>
+                            @if($account->allowsAutomatedPosting())
+                                <span class="text-xs {{ $account->auto_post_enabled ? 'text-green-600 dark:text-green-400' : 'text-gray-400' }}">
+                                    Auto-post {{ $account->auto_post_enabled ? 'ON' : 'off' }}
+                                </span>
+                            @else
+                                <span class="text-xs text-gray-400">Manual only</span>
+                            @endif
+                            @if($account->token_expires_at)
+                                @php $days = (int) floor(now()->floatDiffInDays($account->token_expires_at, false)); @endphp
+                                <span class="text-xs {{ $days < 0 ? 'text-red-600 dark:text-red-400' : ($days <= 14 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400') }}">
+                                    Token {{ $days < 0 ? 'expired' : 'expires ' . $account->token_expires_at->diffForHumans() }}
+                                </span>
+                            @endif
                         </div>
                     </td>
                     <td>
                         <div class="flex items-center space-x-2">
+                            @if($account->allowsAutomatedPosting())
                             <form method="POST" action="{{ route('admin.social.toggle-auto', $account) }}" class="inline">
                                 @csrf @method('PATCH')
                                 <button type="submit" class="text-gray-400 hover:text-green-600" title="Toggle auto-posting">
@@ -75,6 +86,7 @@
                                     </svg>
                                 </button>
                             </form>
+                            @endif
                             <a href="{{ route('admin.social.edit', $account) }}" class="text-gray-400 hover:text-blue-600" title="Edit">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>

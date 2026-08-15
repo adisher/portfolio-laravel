@@ -40,6 +40,11 @@ class LinkedInDriver implements SocialDriver
         return false;
     }
 
+    public function tokenLifetimeDays(): ?int
+    {
+        return 60; // LinkedIn member access tokens last ~60 days
+    }
+
     public function credentialFields(): array
     {
         return [

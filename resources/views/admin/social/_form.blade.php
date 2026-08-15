@@ -76,19 +76,6 @@
         <div class="admin-card p-6">
             <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Publishing</h2>
             <div class="space-y-4">
-                <div>
-                    <label for="min_human_views" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Auto-post gate (min human views) *
-                    </label>
-                    <input type="number" id="min_human_views" name="min_human_views" min="0" max="100000" required
-                        value="{{ old('min_human_views', $account->min_human_views ?? 5) }}"
-                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Only articles with at least this many human views are auto-posted.
-                    </p>
-                    @error('min_human_views')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
-                </div>
-
                 <label class="flex items-center gap-2">
                     <input type="checkbox" name="is_active" value="1"
                         {{ old('is_active', $account->is_active ?? true) ? 'checked' : '' }}
@@ -96,20 +83,38 @@
                     <span class="text-sm text-gray-700 dark:text-gray-300">Active (connected &amp; usable)</span>
                 </label>
 
-                <label class="flex items-center gap-2">
-                    <input type="checkbox" name="auto_post_enabled" value="1"
-                        {{ old('auto_post_enabled', $account->auto_post_enabled ?? false) ? 'checked' : '' }}
-                        class="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700">
-                    <span class="text-sm text-gray-700 dark:text-gray-300">Enable auto-posting</span>
-                </label>
-                <p class="text-xs text-gray-400">
-                    Auto-posting runs via the <code>social:publish</code> command and is not on a schedule yet;
-                    this toggle decides whether this account takes part once it is.
-                </p>
+                {{-- Auto-posting settings only apply to platforms whose terms allow it. --}}
+                <div x-show="!@js($noAutoPlatforms).includes(platform)" class="space-y-4">
+                    <div>
+                        <label for="min_human_views" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Auto-post gate (min human views) *
+                        </label>
+                        <input type="number" id="min_human_views" name="min_human_views" min="0" max="100000" required
+                            value="{{ old('min_human_views', $account->min_human_views ?? 5) }}"
+                            class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Only articles with at least this many human views are auto-posted.
+                        </p>
+                        @error('min_human_views')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" name="auto_post_enabled" value="1"
+                            {{ old('auto_post_enabled', $account->auto_post_enabled ?? false) ? 'checked' : '' }}
+                            class="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Enable auto-posting</span>
+                    </label>
+                    <p class="text-xs text-gray-400">
+                        Auto-posting runs via the <code>social:publish</code> command and is not on a schedule yet;
+                        this toggle decides whether this account takes part once it is.
+                    </p>
+                </div>
+
+                {{-- Manual-only platforms (e.g. LinkedIn) get no auto-posting option at all. --}}
                 <p x-show="@js($noAutoPlatforms).includes(platform)" x-cloak
                     class="text-xs text-amber-600 dark:text-amber-400">
-                    This platform prohibits automated posting under its API terms, so the scheduler always skips it
-                    even if this toggle is on. Use <strong>Post now</strong> to publish manually.
+                    This platform is manual-only: its API terms prohibit automated posting, so there is no auto-post
+                    option. Publish with <strong>Post now</strong> on the Publish Board.
                 </p>
             </div>
         </div>

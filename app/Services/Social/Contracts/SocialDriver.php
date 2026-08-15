@@ -28,6 +28,13 @@ interface SocialDriver
     public function allowsAutomatedPosting(): bool;
 
     /**
+     * How many days a freshly issued access token stays valid, or null if the
+     * platform issues non-expiring tokens. Used to schedule an expiry reminder.
+     * Facebook Page tokens are permanent (null); LinkedIn member tokens ~60 days.
+     */
+    public function tokenLifetimeDays(): ?int;
+
+    /**
      * The credential fields this driver needs, keyed by storage key. Each value
      * is metadata the account form renders generically:
      *   ['label' => string, 'type' => 'text'|'password', 'required' => bool, 'help' => string]

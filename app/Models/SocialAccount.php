@@ -17,6 +17,7 @@ class SocialAccount extends Model
     protected $fillable = [
         'platform', 'name', 'credentials', 'caption_template',
         'is_active', 'auto_post_enabled', 'min_human_views', 'last_posted_at',
+        'token_expires_at', 'token_reminded_at',
     ];
 
     protected $casts = [
@@ -25,6 +26,8 @@ class SocialAccount extends Model
         'auto_post_enabled' => 'boolean',
         'min_human_views'   => 'integer',
         'last_posted_at'    => 'datetime',
+        'token_expires_at'  => 'datetime',
+        'token_reminded_at' => 'datetime',
     ];
 
     // Never expose the encrypted blob when the model is serialised.
@@ -56,5 +59,21 @@ class SocialAccount extends Model
     {
         return $this->caption_template
             ?: "{title}\n\n{excerpt}\n\nRead more: {url}\n\n{hashtags}";
+    }
+
+    /** Whether this account's platform permits automated/scheduled posting. */
+    public function allowsAutomatedPosting(): bool
+    {
+        $driver = app(\App\Services\Social\SocialPublisher::class)->driverFor($this);
+
+        return $driver ? $driver->allowsAutomatedPosting() : false;
+    }
+
+    /** Human-friendly platform name from the driver (e.g. "Facebook Page", "LinkedIn"). */
+    public function platformLabel(): string
+    {
+        $driver = app(\App\Services\Social\SocialPublisher::class)->driverFor($this);
+
+        return $driver ? $driver->label() : ucfirst($this->platform);
     }
 }

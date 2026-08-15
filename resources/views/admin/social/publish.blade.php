@@ -29,7 +29,10 @@
                     <th>Human views</th>
                     <th>Published</th>
                     @foreach($accounts as $account)
-                        <th>{{ $account->name }}</th>
+                        <th>
+                            {{ $account->name }}
+                            <span class="block text-xs font-normal text-gray-400 normal-case">{{ $account->platformLabel() }}</span>
+                        </th>
                     @endforeach
                 </tr>
             </thead>

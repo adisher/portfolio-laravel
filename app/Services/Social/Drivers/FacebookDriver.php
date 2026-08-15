@@ -35,6 +35,11 @@ class FacebookDriver implements SocialDriver
         return true;
     }
 
+    public function tokenLifetimeDays(): ?int
+    {
+        return null; // long-lived Page tokens do not expire
+    }
+
     public function credentialFields(): array
     {
         return [

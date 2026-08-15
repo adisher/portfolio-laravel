@@ -97,6 +97,15 @@ Schedule::command('sitemap:generate --save')
     ->onOneServer()
     ->runInBackground();
 
+// Warn by email before a social access token expires (e.g. LinkedIn ~60-day
+// member tokens), daily at 8 AM. Sends one reminder per token; Facebook's
+// non-expiring tokens are ignored. This is a notification, not automated
+// posting, so it is safe to schedule.
+Schedule::command('social:token-reminders')
+    ->dailyAt('08:00')
+    ->onOneServer()
+    ->runInBackground();
+
 /*
 |--------------------------------------------------------------------------
 | Demo Scheduling Automation

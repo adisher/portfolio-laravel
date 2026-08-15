@@ -75,6 +75,10 @@ class SocialAccountController extends Controller
     /** Flip the per-account auto-posting gate. */
     public function toggleAuto(SocialAccount $social)
     {
+        if (! $social->allowsAutomatedPosting()) {
+            return back()->with('error', ucfirst($social->platform) . ' does not permit automated posting; use Post now instead.');
+        }
+
         $social->update(['auto_post_enabled' => ! $social->auto_post_enabled]);
 
         return back()->with('success', sprintf(
@@ -199,7 +203,7 @@ class SocialAccountController extends Controller
             $credentials[$key] = $value;
         }
 
-        return [
+        $attributes = [
             'platform'          => $platform,
             'name'              => $data['name'],
             'credentials'       => $credentials,
@@ -208,5 +212,16 @@ class SocialAccountController extends Controller
             'is_active'         => $request->boolean('is_active'),
             'auto_post_enabled' => $request->boolean('auto_post_enabled'),
         ];
+
+        // When a new token is entered, (re)compute its expiry from the driver's
+        // token lifetime and clear the reminder flag so a fresh warning can fire.
+        // A blank token field on edit leaves the stored expiry untouched.
+        if ($driver && filled($request->input("cred.{$platform}.access_token"))) {
+            $lifetime = $driver->tokenLifetimeDays();
+            $attributes['token_expires_at']  = $lifetime ? now()->addDays($lifetime) : null;
+            $attributes['token_reminded_at'] = null;
+        }
+
+        return $attributes;
     }
 }
