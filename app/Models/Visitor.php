@@ -253,4 +253,25 @@ class Visitor extends Model
             'referral' => (int) ($counts[TrafficSource::REFERRAL] ?? 0),
         ];
     }
+
+    /**
+     * Human social visits broken down by platform (Facebook, LinkedIn, X, ...),
+     * from the persisted source_detail. Reliable for our own posted links, which
+     * are UTM-tagged; referrer-only clicks that got stripped still land in Direct.
+     *
+     * @return \Illuminate\Support\Collection<string,int> platform => visits
+     */
+    public static function getSocialBreakdown(?int $days = null)
+    {
+        $q = static::notBot()->where('source', TrafficSource::SOCIAL);
+        if ($days !== null) {
+            $q->where('created_at', '>=', now()->subDays($days));
+        }
+
+        return $q->select('source_detail', DB::raw('count(*) as c'))
+            ->whereNotNull('source_detail')
+            ->groupBy('source_detail')
+            ->orderByDesc('c')
+            ->pluck('c', 'source_detail');
+    }
 }

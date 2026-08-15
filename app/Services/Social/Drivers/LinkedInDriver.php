@@ -6,6 +6,7 @@ use App\Models\BlogPost;
 use App\Models\SocialAccount;
 use App\Services\Social\Contracts\SocialDriver;
 use App\Services\Social\PublishResult;
+use App\Support\SocialUrl;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -86,7 +87,7 @@ class LinkedInDriver implements SocialDriver
                     'shareMediaCategory' => 'ARTICLE',
                     'media'              => [[
                         'status'      => 'READY',
-                        'originalUrl' => route('blog.show', $post->slug),
+                        'originalUrl' => SocialUrl::for($post, $this->key()),
                         'title'       => ['text' => Str::limit($post->title, 190, '')],
                         'description' => ['text' => Str::limit((string) $post->excerpt, 250, '')],
                     ]],

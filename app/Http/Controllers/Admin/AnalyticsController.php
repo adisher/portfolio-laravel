@@ -35,6 +35,7 @@ class AnalyticsController extends Controller
         $deviceBreakdown = Visitor::getDeviceBreakdown();
         $topCountries = Visitor::getTopCountries(10);
         $trafficSources = Visitor::getTrafficSources();
+        $socialBreakdown = Visitor::getSocialBreakdown($days);
         $browserStats = Visitor::getBrowserBreakdown();
 
         // Country breakdown (first-party visits)
@@ -58,6 +59,7 @@ class AnalyticsController extends Controller
             'deviceBreakdown',
             'topCountries',
             'trafficSources',
+            'socialBreakdown',
             'browserStats',
             'contactStats',
             'contactSources',

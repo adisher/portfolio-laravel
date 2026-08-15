@@ -55,9 +55,12 @@ class BlogController extends Controller
         // best-effort real-time split (UA-based bot check), the daily
         // blog:recount-views job re-derives both from the reclassified
         // analytics, which also catches behavioural scrapers a UA check can't.
-        $post->increment('raw_views');
-        if (!BotDetector::isBot(request()->userAgent())) {
-            $post->increment('views');
+        // Internal visits (owner/staff) are excluded from both counters.
+        if (!\App\Support\InternalVisitor::check(request())) {
+            $post->increment('raw_views');
+            if (!BotDetector::isBot(request()->userAgent())) {
+                $post->increment('views');
+            }
         }
 
         // Related posts: same category first, then fill to 3 with recent posts

@@ -121,6 +121,18 @@ Route::get('/llms-full.txt', [App\Http\Controllers\LlmsTxtController::class, 'fu
 // Privacy Policy (always available, not feature-gated, required for API integrations)
 Route::view('/privacy', 'frontend.privacy')->name('privacy');
 
+// Analytics self-exclusion: mark/unmark the current browser as internal so the
+// owner's own visits are not counted. Visit these URLs from the browser to toggle.
+Route::get('/exclude-me', function () {
+    return response('This browser is now excluded from analytics and view counts. Visit /include-me to undo.')
+        ->cookie(cookie()->forever(\App\Support\InternalVisitor::COOKIE, '1'));
+})->name('analytics.exclude-me');
+
+Route::get('/include-me', function () {
+    return response('This browser is counted in analytics again.')
+        ->cookie(\Illuminate\Support\Facades\Cookie::forget(\App\Support\InternalVisitor::COOKIE));
+})->name('analytics.include-me');
+
 Route::get('/about', function () {
     $about = [
         'hero_bio'      => setting('about_hero_bio', ''),

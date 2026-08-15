@@ -86,6 +86,17 @@ class TrafficSource
             if (str_contains($utm, 'claude'))     return [self::AI, 'Claude'];
             if (str_contains($utm, 'perplexity')) return [self::AI, 'Perplexity'];
             if (str_contains($utm, 'gemini') || str_contains($utm, 'bard')) return [self::AI, 'Gemini'];
+
+            // Our own posted links tag utm_source with the platform key, so an
+            // exact map attributes them even when the referrer is stripped.
+            $utmSocial = [
+                'facebook' => 'Facebook', 'linkedin' => 'LinkedIn', 'x' => 'X',
+                'twitter' => 'X', 'instagram' => 'Instagram', 'threads' => 'Threads',
+                'telegram' => 'Telegram', 'reddit' => 'Reddit', 'youtube' => 'YouTube',
+                'mastodon' => 'Mastodon',
+            ];
+            if (isset($utmSocial[$utm])) return [self::SOCIAL, $utmSocial[$utm]];
+
             if (str_contains($utm, 'social'))  return [self::SOCIAL, ucfirst($utm)];
             if (str_contains($utm, 'search'))  return [self::SEARCH, ucfirst($utm)];
             if (str_contains($utm, 'newsletter') || str_contains($utm, 'email')) return [self::REFERRAL, 'Email/Newsletter'];

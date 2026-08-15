@@ -86,7 +86,7 @@ class SocialPublisher
         $replacements = [
             '{title}'    => $post->title,
             '{excerpt}'  => $post->excerpt,
-            '{url}'      => route('blog.show', $post->slug),
+            '{url}'      => \App\Support\SocialUrl::for($post, $account->platform),
             '{category}' => optional($post->category)->name ?? '',
             '{hashtags}' => $this->hashtags($post),
         ];

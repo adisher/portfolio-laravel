@@ -4,14 +4,22 @@ namespace App\Http\Middleware;
 
 use App\Models\Visitor;
 use App\Models\PageView;
+use App\Support\InternalVisitor;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Symfony\Component\HttpFoundation\Response;
 
 class TrackPageViews
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Once an admin is logged in, brand this browser as internal so their
+        // later public browsing (even after logout) is excluded from analytics.
+        if (auth()->check() && ! $request->cookie(InternalVisitor::COOKIE)) {
+            Cookie::queue(Cookie::forever(InternalVisitor::COOKIE, '1'));
+        }
+
         return $next($request);
     }
 
@@ -34,7 +42,8 @@ class TrackPageViews
                !$request->is('api/*') &&
                !$request->ajax() &&
                !$this->isAssetRequest($request) &&
-               !$this->isLocalRequest($request);
+               !$this->isLocalRequest($request) &&
+               !InternalVisitor::check($request);
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Models\BlogPost;
 use App\Models\SocialAccount;
 use App\Services\Social\Contracts\SocialDriver;
 use App\Services\Social\PublishResult;
+use App\Support\SocialUrl;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -72,7 +73,7 @@ class FacebookDriver implements SocialDriver
                 ->timeout(20)
                 ->post("https://graph.facebook.com/" . self::GRAPH_VERSION . "/{$pageId}/feed", [
                     'message'      => $message,
-                    'link'         => route('blog.show', $post->slug),
+                    'link'         => SocialUrl::for($post, $this->key()),
                     'access_token' => $token,
                 ]);
         } catch (\Throwable $e) {

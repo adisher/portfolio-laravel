@@ -214,6 +214,23 @@
             </div>
             @endforeach
         </div>
+
+        @if($socialBreakdown->isNotEmpty())
+        <div class="mt-5 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3">Social by platform</h3>
+            <div class="space-y-2">
+                @foreach($socialBreakdown as $platform => $count)
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 rounded-full mr-3 bg-blue-500"></div>
+                        <span class="text-sm text-gray-900 dark:text-white">{{ $platform }}</span>
+                    </div>
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ number_format($count) }}</span>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
     </div>
 
     <!-- Top Countries -->
