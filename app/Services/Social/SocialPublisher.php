@@ -99,12 +99,29 @@ class SocialPublisher
         return trim(preg_replace("/\n{3,}/", "\n\n", $caption));
     }
 
-    /** Turn tag names into space-joined #CamelCase hashtags (max 6). */
+    /**
+     * Space-joined #CamelCase hashtags (max 6), from the richest source available:
+     *   1. the article's tags (specific, curated)
+     *   2. its SEO meta_keywords (specific, relevant) when it has no tags
+     *   3. the category name as a last resort so a post is never left bare
+     */
     public function hashtags(BlogPost $post): string
     {
-        return $post->tags
+        $names = $post->tags->pluck('name');
+
+        if ($names->isEmpty() && ! empty($post->meta_keywords)) {
+            $names = collect($post->meta_keywords);
+        }
+
+        if ($names->isEmpty() && $post->category) {
+            $names = collect([$post->category->name]);
+        }
+
+        return $names
+            ->map(fn ($name) => '#' . Str::studly(preg_replace('/[^A-Za-z0-9 ]/', '', (string) $name)))
+            ->reject(fn ($tag) => $tag === '#')
+            ->unique()
             ->take(6)
-            ->map(fn ($tag) => '#' . Str::studly(preg_replace('/[^A-Za-z0-9 ]/', '', $tag->name)))
             ->implode(' ');
     }
 

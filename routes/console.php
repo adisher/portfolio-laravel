@@ -97,6 +97,13 @@ Schedule::command('sitemap:generate --save')
     ->onOneServer()
     ->runInBackground();
 
+// Auto-tag published articles daily so they carry real tags (used for hashtags,
+// related posts, and tag pages). Runs after auto-publish. Idempotent + additive.
+Schedule::command('blog:auto-tag --apply')
+    ->dailyAt('09:30')
+    ->onOneServer()
+    ->runInBackground();
+
 // Warn by email before a social access token expires (e.g. LinkedIn ~60-day
 // member tokens), daily at 8 AM. Sends one reminder per token; Facebook's
 // non-expiring tokens are ignored. This is a notification, not automated
