@@ -2,12 +2,18 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\BreakingNewsPublished;
 use App\Models\CollectedArticle;
 use App\Models\AutoPublishSetting;
+use App\Models\User;
 use App\Services\ArticleScoringService;
+use App\Services\AutoPublishService;
 use App\Services\CategoryAssignmentService;
 use App\Services\DuplicateDetectionService;
+use App\Services\SignificanceDetector;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class ProcessArticles extends Command
 {
@@ -21,7 +27,9 @@ class ProcessArticles extends Command
     public function handle(
         ArticleScoringService $scoringService,
         CategoryAssignmentService $categoryService,
-        DuplicateDetectionService $duplicateService
+        DuplicateDetectionService $duplicateService,
+        SignificanceDetector $significanceDetector,
+        AutoPublishService $autoPublishService
     ): int {
         $this->info('Processing articles...');
 
@@ -59,6 +67,7 @@ class ProcessArticles extends Command
             'duplicates' => 0,
             'approved' => 0,
             'rejected' => 0,
+            'breaking_published' => 0,
         ];
 
         $settings = AutoPublishSetting::getInstance();
@@ -84,6 +93,37 @@ class ProcessArticles extends Command
                 $category = $categoryService->assignCategory($article);
                 if ($category) {
                     $stats['categorized']++;
+                }
+
+                // 3.5. Breaking-news fast path: a trigger term (acquisition,
+                // funding, IPO...) and a notable entity (major company or
+                // founder/exec) co-occurring in the same sentence skips the
+                // normal score gate entirely and publishes immediately in
+                // this run, instead of waiting on the daily batch or getting
+                // stuck pending review like ordinary sub-threshold content.
+                if ($autoApprove && $category) {
+                    $significance = $significanceDetector->check($article);
+                    if ($significance['significant'] ?? false) {
+                        Log::info("Breaking-news auto-publish: article {$article->id} matched '{$significance['matched_trigger']}' + '{$significance['matched_entity']}' in: {$significance['matched_sentence']}");
+
+                        $article->update(['status' => 'approved']);
+                        $stats['approved']++;
+
+                        try {
+                            $post = $autoPublishService->publishSpecificArticle($article->fresh());
+                            $stats['breaking_published']++;
+
+                            if ($post) {
+                                $this->notifyBreakingNewsPublished($post, $significance);
+                            }
+                        } catch (\Exception $e) {
+                            Log::error("Breaking-news publish failed for article {$article->id}: " . $e->getMessage());
+                        }
+
+                        $stats['processed']++;
+                        $bar->advance();
+                        continue;
+                    }
                 }
 
                 // 4. Auto-approve if enabled and meets threshold
@@ -120,9 +160,36 @@ class ProcessArticles extends Command
                 ['Duplicates Found', $stats['duplicates']],
                 ['Auto-Approved', $stats['approved']],
                 ['Rejected', $stats['rejected']],
+                ['Breaking News Auto-Published', $stats['breaking_published']],
             ]
         );
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Best-effort email so the fast-path stays visible instead of a post
+     * just quietly appearing. Never allowed to fail the publish itself.
+     */
+    private function notifyBreakingNewsPublished($post, array $significance): void
+    {
+        try {
+            $recipients = User::query()->whereNotNull('email')->pluck('email')->all();
+            if (empty($recipients) && $from = config('mail.from.address')) {
+                $recipients = [$from];
+            }
+            if (empty($recipients)) {
+                return;
+            }
+
+            Mail::to($recipients)->send(new BreakingNewsPublished(
+                $post,
+                $significance['matched_entity'],
+                $significance['matched_trigger'],
+                $significance['matched_sentence'],
+            ));
+        } catch (\Exception $e) {
+            Log::warning("Breaking-news notification email failed for post {$post->id}: " . $e->getMessage());
+        }
     }
 }

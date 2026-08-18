@@ -132,6 +132,52 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Breaking-News Significance Detection
+    |--------------------------------------------------------------------------
+    |
+    | A cheap, deterministic (no AI cost) signal that catches major stories
+    | the normal per-category keyword scorer misses because it only judges
+    | keyword-density on a short RSS snippet. When a trigger word/phrase and
+    | a notable entity co-occur in the SAME SENTENCE of the article, the
+    | story is treated as significant regardless of its composite score,
+    | auto-approved, and published immediately (not queued for the next
+    | daily batch). See App\Services\SignificanceDetector.
+    |
+    */
+    'significance' => [
+        'enabled' => env('SIGNIFICANCE_DETECTION_ENABLED', true),
+
+        // Company/individual names whose presence signals a story matters.
+        // Matched case-insensitively as whole words/phrases.
+        'notable_entities' => [
+            'openai', 'anthropic', 'spacex', 'google', 'microsoft', 'meta',
+            'xai', 'nvidia', 'apple', 'amazon', 'tesla', 'cursor', 'github',
+            'elon musk', 'sam altman', 'dario amodei', 'daniela amodei',
+            'satya nadella', 'sundar pichai', 'mark zuckerberg', 'jensen huang',
+            'demis hassabis',
+        ],
+
+        // Regex patterns (case-insensitive) for trigger language. Word
+        // families/synonyms, not single exact words, so phrasing variance
+        // (acquisition vs acquired vs acquiring) doesn't cause a miss.
+        'trigger_patterns' => [
+            '/\bacqui(?:re|res|red|ring|sition|sitions)\b/i',
+            '/\b(?:buy|buys|bought|buying)\b/i',
+            '/\bmerger?s?\b/i',
+            '/\btakeover\b/i',
+            '/\bIPO\b/i',
+            '/\$\s?\d[\d,.]*\s?(?:billion|million|trillion|B|M|T)\b/i',
+        ],
+
+        // Only escalate to a full-article HTTP fetch (still no AI cost, just
+        // bandwidth) when the cheap snippet-level scan already found a hit —
+        // keeps the expensive step rare instead of running on every article.
+        'fetch_full_article' => env('SIGNIFICANCE_FETCH_FULL_ARTICLE', true),
+        'fetch_timeout_seconds' => 6,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | RSS Fetch Settings
     |--------------------------------------------------------------------------
     */
