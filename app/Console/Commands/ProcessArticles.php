@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Mail\BreakingNewsPublished;
 use App\Models\CollectedArticle;
 use App\Models\AutoPublishSetting;
-use App\Models\User;
 use App\Services\ArticleScoringService;
 use App\Services\AutoPublishService;
 use App\Services\CategoryAssignmentService;
@@ -114,6 +113,7 @@ class ProcessArticles extends Command
                             $stats['breaking_published']++;
 
                             if ($post) {
+                                $post->update(['is_breaking_news' => true]);
                                 $this->notifyBreakingNewsPublished($post, $significance);
                             }
                         } catch (\Exception $e) {
@@ -174,7 +174,9 @@ class ProcessArticles extends Command
     private function notifyBreakingNewsPublished($post, array $significance): void
     {
         try {
-            $recipients = User::query()->whereNotNull('email')->pluck('email')->all();
+            // A dedicated alert address, NOT the admin User's login email
+            // (that's a placeholder used only for authentication).
+            $recipients = array_filter([config('blog_automation.significance.alert_email')]);
             if (empty($recipients) && $from = config('mail.from.address')) {
                 $recipients = [$from];
             }

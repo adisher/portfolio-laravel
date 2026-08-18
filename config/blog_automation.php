@@ -147,6 +147,12 @@ return [
     'significance' => [
         'enabled' => env('SIGNIFICANCE_DETECTION_ENABLED', true),
 
+        // Who gets the "breaking news auto-published" email. Deliberately NOT
+        // the admin User's login email (that's a placeholder used only for
+        // authentication, not a real inbox) — a dedicated address, same
+        // pattern as ai.budget_alert_email above.
+        'alert_email' => env('BREAKING_NEWS_ALERT_EMAIL', 'adil@adilsher.pro'),
+
         // Company/individual names whose presence signals a story matters.
         // Matched case-insensitively as whole words/phrases.
         'notable_entities' => [

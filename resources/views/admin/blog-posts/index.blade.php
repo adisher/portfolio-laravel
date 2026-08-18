@@ -86,7 +86,15 @@
                             </div>
                             @endif
                             <div>
-                                <div class="font-medium text-gray-900 dark:text-white">{{ $post->title }}</div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium text-gray-900 dark:text-white">{{ $post->title }}</span>
+                                    @if($post->is_breaking_news)
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300"
+                                        title="Auto-published outside the normal queue by the significance detector">
+                                        ⚡ Breaking
+                                    </span>
+                                    @endif
+                                </div>
                                 <div class="text-sm text-gray-500 dark:text-gray-400">{{ Str::limit($post->excerpt, 50)
                                     }}</div>
                                 <div class="text-xs text-gray-400 dark:text-gray-500">{{ $post->reading_time }} min read

@@ -15,7 +15,7 @@ class BlogPost extends Model implements Feedable
 
     protected $fillable = [
         'title', 'slug', 'excerpt', 'content', 'featured_image', 'image_alt', 'meta_title',
-        'meta_description', 'meta_keywords', 'status', 'noindex', 'noindex_at', 'published_at', 'views', 'raw_views',
+        'meta_description', 'meta_keywords', 'status', 'is_breaking_news', 'noindex', 'noindex_at', 'published_at', 'views', 'raw_views',
         'reading_time', 'category_id', 'user_id', 'source_type', 'original_url', 'original_author',
     'original_publication', 'original_published_at', 'curator_notes', 'posted_at', 'posted_via'
     ];
@@ -25,6 +25,7 @@ class BlogPost extends Model implements Feedable
         'published_at'  => 'datetime',
         'original_published_at' => 'date',
         'noindex'       => 'boolean',
+        'is_breaking_news' => 'boolean',
         'noindex_at'    => 'datetime',
         'posted_at'     => 'datetime',
     ];
