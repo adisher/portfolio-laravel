@@ -9,17 +9,44 @@ use Illuminate\Support\Facades\Log;
 class SignificanceDetector
 {
     /**
-     * Cheap check: does the title+description contain any trigger language
-     * or notable entity at all? Used to decide whether the (still free, but
-     * slower) full-article fetch is worth doing. Pure substring/regex, no
-     * network, no AI.
+     * Is this source allowed to trigger the breaking-news fast path?
+     *
+     * Community/aggregator blogs are excluded: their posts are tutorials and
+     * personal essays, and their page boilerplate ("Buy Me a Coffee" links,
+     * footers, tag lists) is what produced 10/10 false positives on the first
+     * production run. An empty allowlist means "no restriction".
+     */
+    public function sourceIsEligible(?CollectedArticle $article): bool
+    {
+        $allowlist = config('blog_automation.significance.source_allowlist', []);
+
+        if (empty($allowlist)) {
+            return true;
+        }
+
+        $name = $article?->rssSource?->name;
+        if (empty($name)) {
+            return false; // unknown provenance never qualifies as breaking news
+        }
+
+        foreach ($allowlist as $allowed) {
+            if (strcasecmp($name, $allowed) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Cheap check: does the text contain any trigger language or notable
+     * entity at all? Used to decide whether the (still free, but slower)
+     * full-article fetch is worth doing. No network, no AI.
      */
     public function quickScan(string $snippet): bool
     {
-        $snippet = strtolower($snippet);
-
         foreach (config('blog_automation.significance.notable_entities', []) as $entity) {
-            if (str_contains($snippet, strtolower($entity))) {
+            if ($this->matchesEntity($snippet, $entity)) {
                 return true;
             }
         }
@@ -34,11 +61,9 @@ class SignificanceDetector
     }
 
     /**
-     * Full check for one article. Escalates to fetching the full article
-     * body (still no AI cost) only if the cheap snippet scan already found
-     * something, then looks for a trigger term and a notable entity
-     * co-occurring in the SAME sentence — the "context" check, done with
-     * plain string/regex logic rather than an LLM call.
+     * Full check for one article: a trigger term and a notable entity must
+     * co-occur in the SAME prose sentence. Plain string/regex logic — no
+     * LLM call, no API cost.
      */
     public function check(CollectedArticle $article): array
     {
@@ -46,19 +71,25 @@ class SignificanceDetector
             return ['significant' => false];
         }
 
-        $snippet = $article->title . ' ' . ($article->description ?? '');
+        if (!$this->sourceIsEligible($article)) {
+            return ['significant' => false];
+        }
+
+        $snippet = $article->title . '. ' . ($article->description ?? '');
 
         if (!$this->quickScan($snippet)) {
             return ['significant' => false];
         }
 
-        // Snippet alone already qualifies (some feeds give a full teaser)
-        $hit = $this->findCoOccurrence($snippet);
+        // The RSS title+description is clean, editor-written prose — by far
+        // the most reliable place to detect this, and enough on its own for
+        // real headlines ("SpaceX officially closes its Cursor acquisition").
+        $hit = $this->findCoOccurrence($this->normalise($snippet));
         if ($hit) {
             return $hit;
         }
 
-        if (!config('blog_automation.significance.fetch_full_article', true)) {
+        if (!config('blog_automation.significance.fetch_full_article', false)) {
             return ['significant' => false];
         }
 
@@ -67,14 +98,22 @@ class SignificanceDetector
             return ['significant' => false];
         }
 
-        $hit = $this->findCoOccurrence($fullText);
-
-        return $hit ?? ['significant' => false];
+        return $this->findCoOccurrence($fullText) ?? ['significant' => false];
     }
 
     /**
-     * Split into sentences, return the first sentence where a trigger term
-     * and a notable entity both appear.
+     * Whole-word entity match. Never a bare substring: str_contains matched
+     * "amazon" inside "amazonaws.com" and "meta" inside markup, which is how
+     * an S3 image URL in a footer became breaking news.
+     */
+    protected function matchesEntity(string $text, string $entity): bool
+    {
+        return (bool) preg_match('/\b' . preg_quote($entity, '/') . '\b/i', $text);
+    }
+
+    /**
+     * Split into sentences and return the first PROSE sentence where a
+     * trigger term and a notable entity both appear.
      */
     protected function findCoOccurrence(string $text): ?array
     {
@@ -83,11 +122,13 @@ class SignificanceDetector
         $patterns = config('blog_automation.significance.trigger_patterns', []);
 
         foreach ($sentences as $sentence) {
-            $lower = strtolower($sentence);
+            if (!$this->isProseSentence($sentence)) {
+                continue;
+            }
 
             $matchedEntity = null;
             foreach ($entities as $entity) {
-                if (str_contains($lower, strtolower($entity))) {
+                if ($this->matchesEntity($sentence, $entity)) {
                     $matchedEntity = $entity;
                     break;
                 }
@@ -112,9 +153,45 @@ class SignificanceDetector
     }
 
     /**
-     * Fetch the article's own page and strip it to plain text. Used only
-     * transiently for this check — never persisted — to avoid storing a
-     * copy of someone else's full copyrighted article in the database.
+     * Is this a real prose sentence, rather than CSS, markup residue, a nav
+     * menu or a footer run? Without this the "same sentence" rule silently
+     * degrades into "same page" on de-tagged HTML, which is what let a CSS
+     * block and a comment-section footer qualify as breaking news.
+     */
+    protected function isProseSentence(string $sentence): bool
+    {
+        $length = mb_strlen(trim($sentence));
+        $min = (int) config('blog_automation.significance.sentence_min_chars', 20);
+        $max = (int) config('blog_automation.significance.sentence_max_chars', 400);
+
+        if ($length < $min || $length > $max) {
+            return false;
+        }
+
+        // Markup / stylesheet / script / URL residue: never prose.
+        if (preg_match('/[{}<>]|!important|@media|https?:\/\//i', $sentence)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Collapse whitespace and decode entities so sentence splitting works on
+     * real text rather than raw markup.
+     */
+    protected function normalise(string $text): string
+    {
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = strip_tags($text);
+
+        return trim(preg_replace('/\s+/', ' ', $text));
+    }
+
+    /**
+     * Fetch the article's page and reduce it to plain text. Used only
+     * transiently for this check — never persisted — so no copy of someone
+     * else's full article is stored.
      */
     protected function fetchFullText(?string $url): ?string
     {
@@ -130,10 +207,12 @@ class SignificanceDetector
                 return null;
             }
 
-            $text = strip_tags($response->body());
-            $text = preg_replace('/\s+/', ' ', $text);
+            // strip_tags removes the TAGS but keeps whatever sits between
+            // them, so <style>/<script> bodies survive as raw CSS/JS text
+            // unless they are removed wholesale first.
+            $html = preg_replace('#<(script|style|noscript)\b[^>]*>.*?</\1>#is', ' ', $response->body());
 
-            return trim($text);
+            return $this->normalise($html);
         } catch (\Exception $e) {
             Log::warning("SignificanceDetector: full-article fetch failed for {$url}: " . $e->getMessage());
             return null;

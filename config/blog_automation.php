@@ -151,10 +151,34 @@ return [
         // the admin User's login email (that's a placeholder used only for
         // authentication, not a real inbox) — a dedicated address, same
         // pattern as ai.budget_alert_email above.
-        'alert_email' => env('BREAKING_NEWS_ALERT_EMAIL', 'adil@adilsher.pro'),
+        'alert_email' => env('BREAKING_NEWS_ALERT_EMAIL', 'adilsher973@gmail.com'),
 
         // Company/individual names whose presence signals a story matters.
         // Matched case-insensitively as whole words/phrases.
+        // ONLY these RSS sources may trigger the breaking-news fast path.
+        // Matched against rss_sources.name. Community/aggregator blogs
+        // (dev.to etc.) are deliberately absent: their posts are tutorials
+        // and personal essays whose boilerplate ("Buy Me a Coffee" links,
+        // footers, tag lists) produced 10/10 false positives on the first
+        // run. An empty array disables the allowlist (allows every source).
+        'source_allowlist' => [
+            'TechCrunch',
+            'Ars Technica',
+            'The Verge',
+            'Wired',
+        ],
+
+        // Sentence sanity bounds. The "same sentence" rule is the core
+        // guardrail, but on de-tagged HTML the splitter produced page-sized
+        // blobs (nav + CSS + footer), silently degrading it to "same page".
+        // Anything outside these bounds, or containing markup/code residue,
+        // is not real prose and is skipped.
+        'sentence_min_chars' => 20,
+        'sentence_max_chars' => 400,
+
+        // Matched as WHOLE WORDS (\b-delimited), never substrings — plain
+        // str_contains matched "amazon" inside "amazonaws.com" and "meta"
+        // inside markup, which is how an S3 image URL became breaking news.
         'notable_entities' => [
             'openai', 'anthropic', 'spacex', 'google', 'microsoft', 'meta',
             'xai', 'nvidia', 'apple', 'amazon', 'tesla', 'cursor', 'github',
@@ -166,19 +190,32 @@ return [
         // Regex patterns (case-insensitive) for trigger language. Word
         // families/synonyms, not single exact words, so phrasing variance
         // (acquisition vs acquired vs acquiring) doesn't cause a miss.
+        // Acquisition/funding language specifically. Deliberately NARROW:
+        // bare buy/bought/buying were removed after matching "Buy Me a
+        // Coffee", "Buy a Mac" and "bought a copy of a C++ book". Real deals
+        // are still caught because the money pattern fires on them
+        // ("SpaceX buys Cursor for $60 billion" matches on "$60 billion").
+        // NOTE: mergers? must NOT be written merger?s? — that also matches
+        // the word "merge" and fired on Git merge-conflict tutorials.
         'trigger_patterns' => [
             '/\bacqui(?:re|res|red|ring|sition|sitions)\b/i',
-            '/\b(?:buy|buys|bought|buying)\b/i',
-            '/\bmerger?s?\b/i',
-            '/\btakeover\b/i',
+            '/\bmergers?\b/i',
+            '/\btakeovers?\b/i',
             '/\bIPO\b/i',
+            '/\braises?\s+\$/i',
+            '/\bfunding\s+round\b/i',
+            '/\bvaluation\b/i',
             '/\$\s?\d[\d,.]*\s?(?:billion|million|trillion|B|M|T)\b/i',
         ],
 
-        // Only escalate to a full-article HTTP fetch (still no AI cost, just
-        // bandwidth) when the cheap snippet-level scan already found a hit —
-        // keeps the expensive step rare instead of running on every article.
-        'fetch_full_article' => env('SIGNIFICANCE_FETCH_FULL_ARTICLE', true),
+        // Full-article HTTP fetch (no AI cost, just bandwidth). Default OFF:
+        // every false positive in the first production run came from page
+        // chrome (footers, CSS, author bios, comment sections) rather than
+        // article prose, while the story this was built for (the SpaceX /
+        // Cursor deal) is detectable from the RSS title and description
+        // alone. Enable once the guards above are observed holding on real
+        // traffic.
+        'fetch_full_article' => env('SIGNIFICANCE_FETCH_FULL_ARTICLE', false),
         'fetch_timeout_seconds' => 6,
     ],
 

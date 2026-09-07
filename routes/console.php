@@ -65,7 +65,18 @@ Schedule::command('articles:park --apply')
     ->onOneServer()
     ->runInBackground();
 
-// Re-derive blog view counters (human vs raw) from the reclassified analytics, // daily, so the counters correct as behavioural bots get re-flagged. Runs after
+// Re-flag behavioural bots before the recount reads the is_bot flags. Real-time
+// detection is user-agent-only, so it structurally cannot catch a scraper that
+// spoofs a real browser UA; that class is only visible in aggregate and only
+// this pass flags it. Without it the recount re-derives "human" view counts
+// from stale flags every night and the counters inflate.
+Schedule::command('analytics:reclassify --apply')
+    ->dailyAt('04:30')
+    ->onOneServer()
+    ->runInBackground();
+
+// Re-derive blog view counters (human vs raw) from the reclassified analytics,
+// daily, so the counters correct as behavioural bots get re-flagged. Runs after
 // the analytics reclassify would have settled for the day.
 Schedule::command('blog:recount-views --apply')
     ->dailyAt('05:00')
