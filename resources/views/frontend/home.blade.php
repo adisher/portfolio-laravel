@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Home - Portfolio')
-@section('description', 'Full Stack Developer specializing in modern web applications and API development')
+@section('title', 'Adil Sher: Full Stack Developer in Islamabad, Pakistan')
+@section('description', 'Adil Sher is a full stack developer based in Islamabad, Pakistan, building Laravel, Python and modern JavaScript web applications and APIs.')
 
 @section('content')
 
@@ -20,15 +20,16 @@
             {{-- Hero Content --}}
             <div class="hero-text">
                 <p class="hero-word text-teal font-medium tracking-widest uppercase text-sm mb-6">
-                    Full Stack Developer
+                    Adil Sher &middot; Full Stack Developer &middot; Islamabad, Pakistan
                 </p>
                 <h1 class="hero-word text-5xl lg:text-7xl font-black text-midnight dark:text-soft-light leading-[1.1] mb-8">
                     Building digital experiences that
                     <span class="text-gradient">stand out</span>
                 </h1>
                 <p class="hero-word text-xl text-soft-dark dark:text-soft leading-relaxed mb-10 max-w-lg">
-                    Crafting performant, accessible web applications with modern technologies.
-                    Focused on clean code and exceptional user experiences.
+                    I'm Adil Sher, a full stack developer in Islamabad, Pakistan, crafting performant,
+                    accessible web applications with modern technologies. Focused on clean code and
+                    exceptional user experiences.
                 </p>
                 <div class="hero-word flex flex-wrap gap-4">
                     <a href="{{ route('portfolio.index') }}" class="btn-primary">
@@ -49,7 +50,7 @@
                     <div class="absolute inset-0 bg-gradient-to-br from-teal/20 to-sunset/20 rounded-3xl blur-2xl"></div>
                     <div class="relative bg-ocean/10 dark:bg-ocean/30 rounded-3xl backdrop-blur-sm border border-soft/10 h-full flex items-center">
                         <img src="{{ asset('storage/media/home-header-2.webp') }}"
-                            alt="Development"
+                            alt="Adil Sher, full stack developer based in Islamabad, Pakistan"
                             class="w-full h-full object-cover object-[center_30%] rounded-2xl"
                             loading="eager">
                     </div>

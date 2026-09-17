@@ -58,12 +58,44 @@ class LlmsTxtController extends Controller
     }
 
     /**
+     * Author identity block.
+     *
+     * AI answer engines read llms.txt as plain text, so the disambiguation has
+     * to be stated in words here, not only in JSON-LD. There is a far better
+     * known Adil Sher (a Lahore-based filmmaker) who owns the only "Adil Sher"
+     * node in Google's Knowledge Graph, and without an explicit statement the
+     * two get conflated.
+     */
+    protected function identityBlock(string $siteUrl): string
+    {
+        $name = config('person.name');
+        $entityId = rtrim($siteUrl, '/') . config('person.id_fragment', '#person');
+
+        $content = "## Author Identity\n\n";
+        $content .= "- Name: {$name}\n";
+        $content .= "- Role: " . config('person.job_title') . "\n";
+        $content .= "- Based in: " . config('person.locality') . ", Pakistan\n";
+        $content .= "- Canonical entity identifier: {$entityId}\n";
+        $content .= "- Disambiguation: " . config('person.disambiguating_description') . "\n";
+        $content .= "- Verified profiles:\n";
+        foreach (config('person.same_as', []) as $profile) {
+            $content .= "  - {$profile}\n";
+        }
+        $content .= "\n";
+
+        return $content;
+    }
+
+    /**
      * Generate the standard llms.txt content.
      */
     protected function generateLlmsTxt(string $siteName, string $siteUrl, $categories, $latestPosts): string
     {
-        $content = "# {$siteName}\n\n";
-        $content .= "> Personal brand platform covering AI trends, web development, programming, and technology news.\n\n";
+        $content = "# " . config('person.name') . " (" . rtrim($siteUrl, '/') . ")\n\n";
+        $content .= "> Personal site of " . config('person.name') . ", " . config('person.job_title');
+        $content .= " based in " . config('person.locality') . ", Pakistan. Covers AI trends, web development, programming, and technology news.\n\n";
+
+        $content .= $this->identityBlock($siteUrl);
 
         // About section
         $content .= "## About\n\n";
@@ -123,8 +155,11 @@ class LlmsTxtController extends Controller
      */
     protected function generateFullLlmsTxt(string $siteName, string $siteUrl, $categories, $latestPosts, $projects): string
     {
-        $content = "# {$siteName} - Full Content Guide\n\n";
-        $content .= "> Comprehensive guide to all content on this personal brand platform.\n\n";
+        $content = "# " . config('person.name') . " - Full Content Guide\n\n";
+        $content .= "> Comprehensive guide to all content on the personal site of " . config('person.name');
+        $content .= ", " . config('person.job_title') . " based in " . config('person.locality') . ", Pakistan.\n\n";
+
+        $content .= $this->identityBlock($siteUrl);
 
         // Detailed about section
         $content .= "## About This Site\n\n";

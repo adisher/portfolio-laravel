@@ -3,6 +3,15 @@
 @section('title', $project->title . ' - Portfolio')
 @section('description', $project->short_description)
 
+@push('schema')
+<x-schema.creative-work :project="$project" />
+<x-schema.breadcrumb :items="[
+    ['name' => 'Home', 'url' => route('home')],
+    ['name' => 'Portfolio', 'url' => route('portfolio.index')],
+    ['name' => $project->title],
+]" />
+@endpush
+
 @php
     $accent = $project->color_primary ?? '#41EAD4';
     $accentSecondary = $project->color_secondary ?? '#FF6B35';

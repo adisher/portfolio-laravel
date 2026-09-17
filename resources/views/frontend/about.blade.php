@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'About - My Story & Experience')
-@section('description', 'Learn more about my background, experience, and passion for web development')
+@section('title', 'About Adil Sher: Full Stack Developer in Islamabad, Pakistan')
+@section('description', 'Background, experience and skills of Adil Sher, a full stack developer based in Islamabad, Pakistan. Not the filmmaker of the same name.')
 
 @push('schema')
-<x-schema.person name="Adil Sher" jobTitle="Full Stack Developer" />
+{{-- Person is emitted site-wide in layouts/app.blade.php, do not repeat it here --}}
 <x-schema.breadcrumb :items="[
     ['name' => 'Home', 'url' => route('home')],
     ['name' => 'About'],
@@ -25,7 +25,7 @@
         <div class="lg:w-1/2">
             <span class="badge badge-teal mb-4 animate-up">About Me</span>
             <h1 class="animate-up text-4xl lg:text-5xl font-black mb-6">
-                About <span class="text-gradient">Me</span>
+                About <span class="text-gradient">Adil Sher</span>
             </h1>
             <p class="animate-up text-lg text-soft mb-8">
                 {{ $about['hero_bio'] }}

@@ -83,7 +83,13 @@
 
     @stack('styles')
 
+    <!-- Identity / rel=me (reciprocal signal for the sameAs profiles below) -->
+    @foreach(config('person.same_as', []) as $__profile)
+    <link rel="me" href="{{ $__profile }}">
+    @endforeach
+
     <!-- Structured Data -->
+    <x-schema.person />
     <x-schema.organization />
     <x-schema.website />
     @stack('schema')
