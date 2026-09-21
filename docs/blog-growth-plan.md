@@ -2,7 +2,9 @@
 
 Running doc. Updated as we work. Status legend: DONE / DOING / TODO / BLOCKED / DECIDED.
 
-Last updated: 2026-09-08 (step 3)
+
+Rule: all data in this doc comes from PROD. The local DB is a stale June snapshot and is never used as evidence.
+Last updated: 2026-09-19
 
 ---
 
@@ -23,16 +25,36 @@ Last updated: 2026-09-08 (step 3)
 - [x] **Read the scoring + generation pipeline.** See "How the system actually works" below.
 - [x] **Corrected two of my own earlier errors:** `image_alt` was never broken (model accessor falls back to title); the "1,277 plausibly real visitors" figure was inflated by self-referrals.
 
+## BUILT 2026-09-21 (not deployed)
+- `App\Services\RewriteQualityService`: the rules-based output gate. `evaluate()` scores a stored post; `evaluateRawResponse()` adds the missing-H1 check that only works pre-parse. Hard fails: title >= 70% similar to source, body 5-gram overlap >= 50%, under 500 words, no attribution, refusal/placeholder text, non-ASCII > 20%. Soft flags (-10 each, pass mark 70): < 2 headings, no first person, overlap 25-50%, word count 500-600 or > 1200, no excerpt, headline < 40 or > 100 chars.
+- `php artisan blog:score-rewrites` (READ ONLY dry run; `--limit`, `--failing-only`, `--show`, `--ids`). Reports blocked count, rules tallied, score distribution, worst offenders.
+- `tests/Unit/RewriteQualityServiceTest`: 10 tests, all passing. Suite 99 -> 109 passing; the same 6 pre-existing ProfileTest/ExampleTest failures remain.
+- **IMPORTANT FINDING while building:** the earlier "45/45 passthrough posts have no `# ` heading" check was NOT evidence. `parseTransformationResponse()` strips the `# ` line from the body, so NO stored post has one, passthrough or not. The check could not discriminate. The parser-bug diagnosis still stands on the title evidence (45 posts byte-identical to their source headline), but the H1 rule can only be enforced live on the raw model output.
+- NEXT: deploy, then run `php artisan blog:score-rewrites` on PROD to calibrate the thresholds against the 452 real posts.
+
 ## DOING
 
 - [ ] **Analysis continues.** User asked to HOLD all code fixes until we have more data and shared understanding.
+- [ ] **Publishing stopped: last post 2026-09-10.** Reviewed 2026-09-19: nothing in this work stopped it. No publish-path code changed after 2026-09-07 (commits since: `b11253b` = breaking-news detector + reclassify schedule, `10b0d6d` = SEO/schema only). Auto-publish still falls back to basic content if AI fails, so an AI error can't silently block a post. Remaining suspects: no article clears the funnel (score >= 75 AND fetched within 30d AND not parked AND auto_publish source), the cron stopped, or someone turned auto-publish off in admin. Diagnostic commands issued, awaiting prod output.
+  - **2026-09-19 FOUND THE MECHANISM:** fetching is current (newest article 2026-09-19), auto-publish enabled, min 75. There ARE 32 approved, unparked, fresh articles scoring >= 75 from auto-publish sources, but **all 32 have `assigned_category_id = NULL`**. The publisher loops `Category::active()->forBlog()` and selects by category, so uncategorized articles are invisible to it. `posts:auto-publish --dry-run` -> "No eligible articles". Funnel: 296 approved+unparked articles HAVE a category, but 0 of them were fetched in the last 30 days.
+  - Contributing design flaw: `ProcessArticles` approves on score alone and never requires a category, so articles get approved and then stranded without any warning.
+  - Nothing ever clears a category once set (`reassignCategory` is never called), so these were never categorized.
+  - **2026-09-19 ROOT CAUSE (revised after weekly supply data):**
+    - ~~Aug 4 tightening choked supply~~ **WRONG.** After Aug 4 the real scorer kept producing 33-44 articles >= 75 per week (Aug 3 wk: 44, Aug 10 wk: 33). Supply did not thin; categorization STOPPED. Week of Aug 17 is partial (946) and nothing after; newest categorized >= 75 article is 2026-08-19 00:00.
+    - **Leading theory: queue clog in `ProcessArticles`.** "Not yet processed" is detected as `assigned_category_id IS NULL` (or score 0, but the fetch step already gives every article a nonzero score). An article the keyword detector cannot categorize is scored, stays `pending` with NULL category, and so looks unprocessed forever. The query has NO `ORDER BY` and `--limit=200`, so every hourly run takes the same oldest 200. Once >= 200 uncategorizable articles pile up at the front, every run re-processes the same dead 200, and no new article is ever reached. Silent: nothing throws, nothing logs. Confirmation command issued (predicts ~200 of the picked articles touched in the last 2h, and all picked articles fetched before Aug 19).
+    - **Why an article goes uncategorized (from code, 2026-09-20):** a source with `target_category_id` ALWAYS categorizes, so only sources without one can fail. Then keyword detection reads ONLY title + RSS description, needs a score >= 30, i.e. 2 keyword hits in one category (DB lists: hits / 5 x 100, so 1 hit = 20), and matches English substrings only. Fails on non-English posts, essay-style titles, and empty/short RSS descriptions, which is exactly Dev.to.
+    - **2026-09-20 PROD RESULT:** the 200 picked rows are all genuinely uncategorizable (classes C/D/E/F, no A/B) but **none were touched in the last 2h**, so `articles:process` is not running them. The clog is real but NOT the stopper. New leading suspect: the command dies with a fatal (memory: it loads 200 rows whose `content_data` holds raw source XML) or a per-article `Error` that `catch(Exception)` misses. Also confirmed: the Aug 19 prod kill switch `SIGNIFICANCE_DETECTION_ENABLED=false` is STILL active, so breaking-news has been off since Aug 19 (separate, user decision pending).
+    - ~~Queue-clog theory unconfirmed~~ superseded by the line above. Original note: Two possibilities: (a) the hourly job runs but keeps re-processing the same 200 uncategorizable rows, or (b) the job isn't running/finishing and the rows would categorize fine. Prod diagnostic issued (reason classes A-F + re-processed-in-last-2h count); awaiting output.
+    - The Aug 18 commit `150d169` (breaking-news path in `ProcessArticles`) has no fatal error, since each article is in a try/catch. The date lines up but it isn't shown to be the cause.
+    - Aug 4 changes (`min_score` 50 -> 75, `for_blog=false` on programming + career-growth, parking) are real but secondary. Prod: 15 articles >= 75 in `programming` + 2 in `career-growth` are invisible to the publisher.
+    - **Separate pre-existing bug (June):** `RssFeedService::parseRssXml()` runs a crude scorer at FETCH time and sets `status = 'approved'` when it scores >= 70, so those articles skip real scoring and categorization. Prod: 88 (Jun), 102 (Jul), 85 (Aug), 48 (Sep) such articles; 0 ever published. These are the 32 stranded Dev.to articles. Scores step in 3.53s (60/17 keywords). Their 75+ is from the crude scorer, NOT the real one.
+  - Nothing in this session's work caused the stop. The cause is the Aug 4 settings change working as designed, plus a thin-supply situation it created.
 
 ## HELD (agreed, do not action yet)
 
 - [ ] Fix the title-passthrough parser bug + prompt contradiction. 45 posts affected.
 - [ ] Regenerate the 45 affected posts with `RegeneratePostContent`.
 - [ ] Self-referral scraper blind spot in `flagBehaviouralScrapers`.
-- [ ] Hide/noindex the 7 empty category pages.
 
 ## VERIFIED 2026-09-08
 
@@ -50,11 +72,27 @@ Last updated: 2026-09-08 (step 3)
 - [x] **CONTRADICTION UNRESOLVED:** the gate is 75, yet 307 of 452 published posts scored 50-59 and 5 scored under 50. Either they predate the raise to 75, or they published through a path that bypasses the gate. Needs a publish-date-vs-score check.
 - [x] **`require_review_below_score = 25`** (config default is 75). Effectively nothing is ever held for human review.
 - [x] **Canonical is CLEAN.** `original_url` never reaches rel=canonical/og:url; canonical is computed from APP_URL + path in `layouts/app.blade.php`. Only other use is `llms-full-txt.blade.php`. So attribution was never telling Google the source outranks us.
-- [x] **Empty categories: not in the sitemap** (`SitemapController` filters on `whereHas('blogPosts', published)`), BUT all 7 are `is_active = true` and the blog sidebar renders every active category with no zero-count filter, so they are linked sitewide from every blog page and therefore crawlable.
+- [x] ~~Empty categories linked sitewide~~ **CORRECTED 2026-09-19:** the 7 empty categories are all `for_blog = 0` (portfolio categories). The blog sidebar uses `forBlog()`, so they never appear on blog pages, and the sitemap excludes them too. Not a blog issue. The earlier count query just didn't filter by `for_blog`.
+
+## PIPELINE REDESIGN (user's spec, 2026-09-21) - agreed direction, NOT started
+
+Target flow: `fetch -> pre-filter sources -> AI rewrite -> categorize (never stuck) -> score the OUTPUT -> publish if it passes`. Fewer, better articles.
+
+1. **Source pre-filter** (before any AI spend): drop non-English, no/short description, and clear junk. Cheapest gate, runs first.
+2. **AI rewrite** as today.
+3. **Categorization fallback chain, so nothing ends up stuck:** (a) RSS source `target_category_id`; (b) DB keywords at a lower threshold; (c) built-in keyword lists; (d) same match run over the article BODY, not just the RSS description; (e) cheap AI classification. Final rule: every article ends **categorized OR explicitly rejected**, never pending-with-no-category. Needs a real processed marker (column or status) so "no category" stops meaning "unprocessed" - that is what creates the clog.
+4. **Output-side quality gate (NEW, the key change):** score the REWRITTEN article, not the source headline. Today nothing judges the generated text. Articles failing the gate get parked, not deleted, so the AI spend is reusable.
+5. **Publish only what passes.**
+6. **Randomised publish times:** 7-day pattern (2 days 09:00, 2 days 15:00, 2 days 21:00, 1 day 01:00). Implement by running the publisher every 15 min and having the command decide if the current slot is today's, derived deterministically from the date. Quarterly drift: +15 min for 3 months, then -15 min back, stored as one offset setting. NOTE: cosmetic/anti-pattern only, no SEO benefit.
+
+**DECIDED 2026-09-21: the output gate is RULES-BASED, no AI call.** Free, deterministic, testable, and it catches the failures actually observed (45 title passthroughs, 33 posts with >50% source overlap). An AI judge stays a later option if rules prove too blunt.
+
+Open decisions: exact thresholds (proposed below); whether non-English is rejected at fetch time or at pre-filter.
 
 ## TODO (ordered)
 
-1. [ ] **Refresh GSC data.** July baseline is stale; corpus grew 327 -> 451 since. Decides whether the "derived content has a ranking ceiling" thesis holds.
+1. [ ] **Find why `articles:process` stopped running (~Aug 19).** Diagnostics issued 2026-09-20 (last-touched timestamps, stuck overlap mutex, broad log grep for memory/fatal/TypeError, crontab + schedule:list): AWAITING OUTPUT. Everything else in the redesign depends on this.
+2. [ ] **Refresh GSC data.** July baseline is stale; corpus grew 327 -> 451 since. Decides whether the "derived content has a ranking ceiling" thesis holds.
 2. [ ] **Add an output-side quality gate.** Current scoring judges the SOURCE item before generation; nothing scores the generated article. This is the single biggest gap for an "editorial oversight" argument.
 3. [ ] **Fix the self-referral scraper blind spot** in `flagBehaviouralScrapers` (self-referral + single page view is impossible for a real browser; currently evades the `noRefRatio >= 0.9` test).
 4. [ ] **Decide the category strategy**: concentrate on one category to build topical authority, vs continue broad.
@@ -108,7 +146,7 @@ If the model returns its headline as `## Heading`, bold text, or plain prose rat
 the regex misses and the post **silently keeps the source article's exact title**. The prompt asks for
 "a creative, opinionated headline" but never states it must be an H1, while a later rule says
 "Use ## headings for sections, no H1" -- actively steering the model away from the one format the parser accepts.
-Confirmed locally: 2/2 passthrough posts had no `# ` line in the body.
+Confirmed on PROD 2026-09-08: 45 exact passthroughs, 45/45 with no `# ` line in the body.
 FIX: make the prompt demand `# Headline` explicitly, and have the parser fall back to
 a first `## ` line or first bold line before ever reusing the original title; if nothing parses, fail the
 article rather than publishing it under the source's headline.
