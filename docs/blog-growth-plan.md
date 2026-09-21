@@ -30,7 +30,10 @@ Last updated: 2026-09-19
 - `php artisan blog:score-rewrites` (READ ONLY dry run; `--limit`, `--failing-only`, `--show`, `--ids`). Reports blocked count, rules tallied, score distribution, worst offenders.
 - `tests/Unit/RewriteQualityServiceTest`: 10 tests, all passing. Suite 99 -> 109 passing; the same 6 pre-existing ProfileTest/ExampleTest failures remain.
 - **IMPORTANT FINDING while building:** the earlier "45/45 passthrough posts have no `# ` heading" check was NOT evidence. `parseTransformationResponse()` strips the `# ` line from the body, so NO stored post has one, passthrough or not. The check could not discriminate. The parser-bug diagnosis still stands on the title evidence (45 posts byte-identical to their source headline), but the H1 rule can only be enforced live on the raw model output.
-- NEXT: deploy, then run `php artisan blog:score-rewrites` on PROD to calibrate the thresholds against the 452 real posts.
+- **PROD CALIBRATION RUN 2026-09-21 (454 posts):** blocked 225 (49.6%), all on hard failures. Rules that matched independent evidence and are CORRECTLY calibrated: `title_matches_source` 50 (~45 known passthroughs + near-misses), `body_copies_source` 34 (33 known), `too_short` 12, `not_english` 3, `missing_attribution` 1. Soft flags barely fire (396 of 454 scored 100; 0 blocked on score alone).
+- **BUG FOUND BY THE RUN:** `placeholder_or_refusal` hit 173 posts because the pattern flagged any line starting with ``` . The prompt ASKS for code snippets, so fenced blocks are correct output. FIXED: only a fence wrapping the whole response, or an explicit ```markdown wrapper, counts. Two regression tests added (12 total, all passing). Expected real block rate after the fix: roughly 60-70 posts (~14%), which is the known-bad set.
+- **LIMITATION found:** `not_english` uses a non-ASCII ratio, so it catches Thai/Chinese/Korean/Russian but NOT Latin-script languages. Post 331 is Portuguese and passed that rule. A stopword-based check would be needed; deferred.
+- NEXT: re-deploy and re-run `php artisan blog:score-rewrites` on PROD to confirm the corrected block rate.
 
 ## DOING
 

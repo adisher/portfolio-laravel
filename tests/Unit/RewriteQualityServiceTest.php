@@ -176,4 +176,40 @@ class RewriteQualityServiceTest extends TestCase
         $this->assertNotContains('missing_h1_headline', $result['hard_failures']);
         $this->assertTrue($result['passed'], json_encode($result));
     }
+
+    /** A code snippet is what the prompt asks for, not scaffolding. */
+    public function test_a_fenced_code_block_in_the_body_is_not_a_failure(): void
+    {
+        $body = str_repeat('I rewrote the retry helper and measured it again. ', 60);
+        $content = "## The fix\n\n{$body}\n\n```php\n\$retries = 3;\n```\n\n## My take\n\n{$body}"
+            . "\n\n*Source: [Read the original article](https://example.com/post)*";
+
+        $result = $this->quality->evaluate(
+            'Why I Rewrote My Retry Helper From Scratch',
+            $content,
+            'A totally different original title',
+            null,
+            'excerpt',
+            'https://example.com/post'
+        );
+
+        $this->assertNotContains('placeholder_or_refusal', $result['hard_failures']);
+        $this->assertTrue($result['passed'], json_encode($result));
+    }
+
+    /** But a fence wrapping the entire answer is scaffolding. */
+    public function test_a_fence_wrapping_the_whole_response_is_a_failure(): void
+    {
+        $result = $this->quality->evaluate(
+            'Why I Rewrote My Retry Helper From Scratch',
+            "```markdown\n## The fix\n\n" . str_repeat('I rewrote the retry helper again. ', 90)
+                . "\n```\n\n*Source: [Read the original article](https://example.com/post)*",
+            'A totally different original title',
+            null,
+            'excerpt',
+            'https://example.com/post'
+        );
+
+        $this->assertContains('placeholder_or_refusal', $result['hard_failures']);
+    }
 }

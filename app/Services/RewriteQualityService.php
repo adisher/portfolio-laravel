@@ -23,13 +23,21 @@ class RewriteQualityService
     public const PASS_MARK = 70;
     private const SOFT_FLAG_PENALTY = 10;
 
-    /** Refusals and scaffolding that mean the generation went wrong. */
+    /**
+     * Refusals and scaffolding that mean the generation went wrong.
+     *
+     * NOTE: a fenced code block is NOT one of them. The prompt asks for a code
+     * snippet where the topic warrants it, so ``` at the start of a line is
+     * expected output. An earlier version flagged it and condemned 173 of 454
+     * published posts for doing exactly what they were told. Only a fence
+     * wrapping the WHOLE response (caught below, not here) is scaffolding.
+     */
     private const PLACEHOLDER_PATTERNS = [
         '/\bas an ai\b/i',
         '/\bi\'m sorry\b/i',
         '/\bi cannot (?:help|assist|comply)\b/i',
         '/\bhere(?:\'s| is) the (?:blog post|article|rewritten)\b/i',
-        '/^```/m',
+        '/```(?:markdown|md)\b/i',
     ];
 
     /**
@@ -231,7 +239,9 @@ class RewriteQualityService
             }
         }
 
-        return false;
+        // A fence on the very first line means the model wrapped its entire
+        // answer in a code block. Fences anywhere else are real snippets.
+        return str_starts_with(ltrim($content), '```');
     }
 
     private function hasFirstPerson(string $plain): bool
