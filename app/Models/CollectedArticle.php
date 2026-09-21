@@ -14,7 +14,7 @@ class CollectedArticle extends Model
         'blog_post_id', 'curator_notes',
         'assigned_category_id', 'category_confidence', 'is_duplicate',
         'duplicate_of_id', 'ai_enhanced', 'ai_generated_content',
-        'scheduled_publish_at', 'seo_data', 'parked_at',
+        'scheduled_publish_at', 'seo_data', 'parked_at', 'processed_at',
     ];
 
     protected $casts = [
@@ -24,6 +24,7 @@ class CollectedArticle extends Model
         'published_at'       => 'datetime',
         'scheduled_publish_at' => 'datetime',
         'parked_at'          => 'datetime',
+        'processed_at'       => 'datetime',
         'relevance_score'    => 'decimal:2',
         'category_confidence' => 'decimal:2',
         'is_duplicate'       => 'boolean',

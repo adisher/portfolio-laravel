@@ -36,18 +36,24 @@ class ProcessArticles extends Command
         $autoApprove = $this->option('auto-approve');
         $force = $this->option('force');
 
-        // Get articles to process
+        // Get articles to process.
+        //
+        // "Not yet processed" is `processed_at IS NULL`, never "has no
+        // category". Inferring it from the category is what stalled the whole
+        // pipeline: an article the keyword detector cannot classify keeps a
+        // null category, so it stayed in the queue permanently. Combined with
+        // no ORDER BY, every hourly run re-took the same 200 unusable rows and
+        // never reached the rest, writing nothing (re-scoring an unchanged row
+        // is a no-op in Eloquent, so not even updated_at moved).
         $query = CollectedArticle::where('status', 'pending');
 
         if (!$force) {
-            // Only process articles that haven't been scored yet
-            $query->where(function ($q) {
-                $q->whereNull('assigned_category_id')
-                  ->orWhere('relevance_score', 0);
-            });
+            $query->whereNull('processed_at');
         }
 
-        $articles = $query->limit($limit)->get();
+        // Oldest first, so the queue drains in a deterministic order instead of
+        // whatever the database happens to return.
+        $articles = $query->orderBy('id')->limit($limit)->get();
 
         if ($articles->isEmpty()) {
             $this->info('No articles to process.');
@@ -72,6 +78,13 @@ class ProcessArticles extends Command
         $settings = AutoPublishSetting::getInstance();
 
         foreach ($articles as $article) {
+            // Mark it processed BEFORE doing the work, and force the write so
+            // it lands even when nothing else about the row changes. This is
+            // what lets the queue advance: an article that cannot be
+            // categorised, or one that throws below, still leaves the queue
+            // instead of blocking every future run.
+            $article->forceFill(['processed_at' => now()])->save();
+
             try {
                 // 1. Check for duplicates
                 $isDuplicate = $duplicateService->checkAndMark($article);
