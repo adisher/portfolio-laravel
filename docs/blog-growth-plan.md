@@ -25,7 +25,16 @@ Last updated: 2026-09-19
 - [x] **Read the scoring + generation pipeline.** See "How the system actually works" below.
 - [x] **Corrected two of my own earlier errors:** `image_alt` was never broken (model accessor falls back to title); the "1,277 plausibly real visitors" figure was inflated by self-referrals.
 
-## FIX BUILT 2026-09-21: the pipeline stall (not deployed)
+## AGE GATE BUILT 2026-09-22 (not deployed)
+Decision: **14 days, and park rather than reject** (park keeps the article as knowledge-base source material; reject would let `articles:cleanup` delete it after 30 days).
+Evidence it is calibrated: scoring a 1,500-row sample of the pending backlog in memory showed only **0.4% clear 75** (~134 of 33,425 extrapolated, wide margin on 6 hits), and all 6 were published within 30 days (1 within 7d, 2 in 7-14d, 3 in 14-30d). A 7-day gate would have discarded 5 of 6, so it would starve an already thin supply.
+- `config/blog_automation.php`: new `publishing.max_source_age_days` (env `AUTO_PUBLISH_MAX_SOURCE_AGE_DAYS`, default 14).
+- `ProcessArticles`: age gate placed BEFORE the breaking-news path (a fortnight-old story is not breaking). Too old -> `parked_at` set, status stays `pending`, counted in a new "Parked (source too old)" stat. Uses `published_at ?? created_at`.
+- `AutoPublishService`: publish query now also requires `COALESCE(published_at, created_at) >= now() - max_source_age_days`. The existing `freshness_days` only measured when WE fetched it, so a months-old story fetched last week counted as fresh.
+- Tests: 3 added (stale parked not approved, fresh not parked, boundary follows config). Suite 119 passing, same 6 pre-existing failures.
+- NOTE: `collected_articles.published_at` is NOT NULL in the schema, so the null-date fallback is defensive only; a test for it was removed as unreachable.
+
+## FIX BUILT 2026-09-21: the pipeline stall (committed 651d4a3 / deecbe8)
 Root cause: `articles:process` inferred "not yet processed" from "has no category", so uncategorisable rows never left the queue; with no ORDER BY every hourly run re-took the same 200 and never reached the ~14,370 behind them. Invisible because re-scoring an unchanged row is an Eloquent no-op (not even `updated_at` moved).
 - **Migration** `2026_09_21_120000_add_processed_at_to_collected_articles_table`: adds `processed_at` + index `(status, processed_at, id)`.
 - **`ProcessArticles`**: selects `pending AND processed_at IS NULL` (was: null category OR score 0), adds `orderBy('id')`, and `forceFill(['processed_at' => now()])->save()` on EVERY article BEFORE the work, so a row that cannot be categorised, or one that throws, still leaves the queue. `--force` re-runs processed rows.

@@ -26,8 +26,20 @@ return [
         // Publish at least this many posts per blog category per day
         'per_category_per_day' => env('AUTO_PUBLISH_PER_CATEGORY', 1),
 
-        // Only auto-publish articles fetched within this many days (freshness cap)
+        // Only auto-publish articles FETCHED within this many days (freshness cap)
         'freshness_days' => env('AUTO_PUBLISH_FRESHNESS_DAYS', 30),
+
+        // How old the SOURCE article itself may be, by its own published_at,
+        // before it is parked instead of approved. `freshness_days` above only
+        // measures when WE fetched it, so a story written in March but picked
+        // up last week used to count as fresh. Publishing month-old news as
+        // though it were current is worse than publishing nothing.
+        //
+        // 14 days chosen from live data (2026-09-22): scoring a 1,500-article
+        // sample of the pending backlog showed only 0.4% clear the 75 bar, and
+        // every one of those was published within 30 days, 3 of 6 within 14.
+        // Supply is thin, so a 7-day gate would have discarded 5 of the 6.
+        'max_source_age_days' => env('AUTO_PUBLISH_MAX_SOURCE_AGE_DAYS', 14),
     ],
 
     /*

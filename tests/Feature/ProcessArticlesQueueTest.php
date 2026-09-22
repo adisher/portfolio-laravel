@@ -134,4 +134,59 @@ class ProcessArticlesQueueTest extends TestCase
 
         $this->assertNotNull($article->fresh()->processed_at);
     }
+
+    // -- Source-age gate (14 days by default) ---------------------------
+
+    /** An article can be categorisable and high-scoring, yet still be stale news. */
+    private function recentArticle(int $publishedDaysAgo, string $topic = 'CI/CD pipelines'): CollectedArticle
+    {
+        return CollectedArticle::create([
+            'rss_source_id'   => $this->source()->id,
+            'title'           => 'Kubernetes and Docker: a complete guide to ' . $topic,
+            'description'     => 'A step by step guide to kubernetes, docker, terraform and aws deployment pipelines for devops teams.',
+            'url'             => 'https://example.com/post-' . uniqid(),
+            'author'          => 'Jane Doe',
+            'published_at'    => now()->subDays($publishedDaysAgo),
+            'relevance_score' => 0,
+            'status'          => 'pending',
+            'is_duplicate'    => false,
+        ]);
+    }
+
+    public function test_a_stale_source_article_is_parked_not_approved(): void
+    {
+        $article = $this->recentArticle(20);
+
+        $this->artisan('articles:process', ['--limit' => 5, '--auto-approve' => true])->assertSuccessful();
+
+        $article->refresh();
+
+        $this->assertNotNull($article->parked_at, 'Stale articles must be parked, so they stay as source material.');
+        $this->assertSame('pending', $article->status, 'Parking must not approve it.');
+        $this->assertNotNull($article->processed_at);
+    }
+
+    public function test_a_fresh_source_article_is_not_parked(): void
+    {
+        $article = $this->recentArticle(2);
+
+        $this->artisan('articles:process', ['--limit' => 5, '--auto-approve' => true])->assertSuccessful();
+
+        $this->assertNull($article->fresh()->parked_at, 'A 2-day-old article is well inside the 14-day window.');
+    }
+
+    public function test_the_age_gate_boundary_follows_config(): void
+    {
+        config(['blog_automation.publishing.max_source_age_days' => 7]);
+
+        // Distinct topics: identical titles would trip duplicate detection
+        // and be rejected before the age gate is ever reached.
+        $justInside = $this->recentArticle(6, 'blue-green deploys');
+        $justOutside = $this->recentArticle(8, 'canary rollouts');
+
+        $this->artisan('articles:process', ['--limit' => 5, '--auto-approve' => true])->assertSuccessful();
+
+        $this->assertNull($justInside->fresh()->parked_at);
+        $this->assertNotNull($justOutside->fresh()->parked_at);
+    }
 }

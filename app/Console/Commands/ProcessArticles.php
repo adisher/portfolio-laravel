@@ -73,6 +73,7 @@ class ProcessArticles extends Command
             'approved' => 0,
             'rejected' => 0,
             'breaking_published' => 0,
+            'parked_as_stale' => 0,
         ];
 
         $settings = AutoPublishSetting::getInstance();
@@ -105,6 +106,23 @@ class ProcessArticles extends Command
                 $category = $categoryService->assignCategory($article);
                 if ($category) {
                     $stats['categorized']++;
+                }
+
+                // 3.4. Age gate. The source article's OWN age decides this,
+                // not when we happened to fetch it. Too old is parked, never
+                // approved: parked articles stay in the reuse pool as source
+                // material but can never reach the blog, so stale news cannot
+                // be published as though it were current. Deliberately placed
+                // before the breaking-news path, since a fortnight-old story
+                // is not breaking whatever its wording says.
+                if ($this->isTooOldToPublish($article)) {
+                    if ($article->parked_at === null) {
+                        $article->update(['parked_at' => now()]);
+                    }
+                    $stats['parked_as_stale']++;
+                    $stats['processed']++;
+                    $bar->advance();
+                    continue;
                 }
 
                 // 3.5. Breaking-news fast path: a trigger term (acquisition,
@@ -174,10 +192,30 @@ class ProcessArticles extends Command
                 ['Auto-Approved', $stats['approved']],
                 ['Rejected', $stats['rejected']],
                 ['Breaking News Auto-Published', $stats['breaking_published']],
+                ['Parked (source too old)', $stats['parked_as_stale']],
             ]
         );
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Is the SOURCE article too old to publish as current?
+     *
+     * Falls back to the fetch date when a feed gives no publication date, so
+     * a missing date can never be treated as "fresh by default".
+     */
+    private function isTooOldToPublish(CollectedArticle $article): bool
+    {
+        $maxAgeDays = (int) config('blog_automation.publishing.max_source_age_days', 14);
+
+        if ($maxAgeDays <= 0) {
+            return false;
+        }
+
+        $publishedAt = $article->published_at ?? $article->created_at;
+
+        return $publishedAt !== null && $publishedAt->lt(now()->subDays($maxAgeDays));
     }
 
     /**

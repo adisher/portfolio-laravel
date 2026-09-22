@@ -45,6 +45,7 @@ class AutoPublishService
 
         $perCategory   = $perCategoryMax ?? (int) config('blog_automation.publishing.per_category_per_day', 1);
         $freshnessDays = (int) config('blog_automation.publishing.freshness_days', 30);
+        $maxSourceAgeDays = (int) config('blog_automation.publishing.max_source_age_days', 14);
         $minScore      = $settings->min_score_for_auto_publish;
 
         $results = [
@@ -77,6 +78,12 @@ class AutoPublishService
                 ->where('assigned_category_id', $category->id)
                 ->where('relevance_score', '>=', $minScore)
                 ->where('created_at', '>=', now()->subDays($freshnessDays))
+                // The source article's own age, independent of when we fetched
+                // it. Without this a story written months ago but picked up
+                // last week passes the freshness cap above and publishes as if
+                // it were news. COALESCE so a feed with no date falls back to
+                // the fetch date rather than slipping through.
+                ->whereRaw('COALESCE(published_at, created_at) >= ?', [now()->subDays($maxSourceAgeDays)])
                 ->whereHas('rssSource', fn($q) => $q->where('auto_publish', true))
                 ->orderByDesc('created_at')
                 ->limit($toPublish)
