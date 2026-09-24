@@ -694,7 +694,7 @@ URL: {$article->url}
 
 **Write the blog post following this exact structure:**
 
-1. A creative, opinionated headline that is NOT the original article title. Frame it from your perspective (e.g. "Why I Changed My Mind About X", "The CSS Feature I've Been Waiting For", "A Question That Changed How I Think About Y").
+1. A creative, opinionated headline that is NOT the original article title. Frame it from your perspective (e.g. "Why I Changed My Mind About X", "The CSS Feature I've Been Waiting For", "A Question That Changed How I Think About Y"). Write it as the FIRST line, as a single H1: `# Your headline here`. This exact format is required, the post is rejected without it.
 
 2. An opening hook (2-3 paragraphs). Start with a personal anecdote, a question, or an observation from your own work that connects to this topic. Make the reader feel you genuinely encountered this.
 
@@ -712,7 +712,7 @@ URL: {$article->url}
 **Rules:**
 - Write in first person throughout (I, my, we)
 - Total length: 600-900 words
-- Use ## headings for sections, no H1
+- One H1 only, the headline on the first line; use ## for every section heading
 - Short paragraphs (2-4 sentences max)
 - Do not reproduce large sections of the original verbatim
 - Sound like a developer who read the article and has genuine thoughts about it
@@ -749,8 +749,15 @@ PROMPT;
     {
         $content = trim($response);
 
-        // Extract headline from first # line, Claude puts it at the top
-        $title = $article->title;
+        // Extract the headline from the leading "# " line.
+        //
+        // This used to default to the SOURCE article's title, so whenever the
+        // model returned its headline in any other shape the post was
+        // published under someone else's headline with no warning: 45 live
+        // posts, up to 86% of the source text intact. Now an unparsed headline
+        // yields null, and the caller treats that as a failed generation
+        // rather than quietly borrowing the original.
+        $title = null;
         if (preg_match('/^#\s+(.+)/m', $content, $m)) {
             $title = trim($m[1]);
             // Strip the headline from body so it's not doubled in rendering
@@ -783,6 +790,9 @@ PROMPT;
             'title'           => $title,
             'content'         => $content,
             'tldr'            => $excerpt,
+            // The headline was missing or unparseable, so nothing here is
+            // trustworthy enough to publish. The quality gate reads this.
+            'headline_missing' => $title === null,
             'original_title'  => $article->title,
             'original_url'    => $article->url,
             'original_author' => $article->author,

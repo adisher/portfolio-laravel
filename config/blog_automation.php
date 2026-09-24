@@ -40,6 +40,13 @@ return [
         // every one of those was published within 30 days, 3 of 6 within 14.
         // Supply is thin, so a 7-day gate would have discarded 5 of the 6.
         'max_source_age_days' => env('AUTO_PUBLISH_MAX_SOURCE_AGE_DAYS', 14),
+
+        // Where to send an alert when the quality gate rejects a draft. The
+        // daily run is a cron job nobody watches, and a rejection publishes
+        // nothing, so without this a blocked draft looks identical to a quiet
+        // day. Same address as the other automation alerts; a dedicated inbox,
+        // not the admin login email.
+        'quality_alert_email' => env('QUALITY_GATE_ALERT_EMAIL', 'adilsher973@gmail.com'),
     ],
 
     /*

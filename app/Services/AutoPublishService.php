@@ -6,8 +6,10 @@ use App\Models\AutoPublishSetting;
 use App\Models\BlogPost;
 use App\Models\Category;
 use App\Models\CollectedArticle;
+use App\Mail\QualityGateRejected;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class AutoPublishService
@@ -15,15 +17,18 @@ class AutoPublishService
     protected AiContentService $aiContentService;
     protected AiBudgetService $budgetService;
     protected IndexNowService $indexNowService;
+    protected RewriteQualityService $qualityService;
 
     public function __construct(
         AiContentService $aiContentService,
         AiBudgetService $budgetService,
-        IndexNowService $indexNowService
+        IndexNowService $indexNowService,
+        RewriteQualityService $qualityService
     ) {
         $this->aiContentService = $aiContentService;
         $this->budgetService = $budgetService;
         $this->indexNowService = $indexNowService;
+        $this->qualityService = $qualityService;
     }
 
     /**
@@ -86,10 +91,22 @@ class AutoPublishService
                 ->whereRaw('COALESCE(published_at, created_at) >= ?', [now()->subDays($maxSourceAgeDays)])
                 ->whereHas('rssSource', fn($q) => $q->where('auto_publish', true))
                 ->orderByDesc('created_at')
-                ->limit($toPublish)
+                // One spare candidate: if a rewrite fails the quality gate it
+                // is parked, and we try the next article rather than losing
+                // the day's post. Capped at one retry so a bad run cannot walk
+                // the whole queue burning AI budget.
+                ->limit($toPublish + 1)
                 ->get();
 
+            $publishedHere = 0;
+
             foreach ($articles as $article) {
+                // The extra candidate exists only as a retry, so stop as soon
+                // as this category has what it needs.
+                if ($publishedHere >= $toPublish) {
+                    break;
+                }
+
                 try {
                     if ($dryRun) {
                         $results['posts'][] = [
@@ -100,6 +117,7 @@ class AutoPublishService
                             'action' => 'would_publish',
                         ];
                         $results['published']++;
+                        $publishedHere++;
                         continue;
                     }
 
@@ -107,6 +125,7 @@ class AutoPublishService
 
                     if ($post) {
                         $results['published']++;
+                        $publishedHere++;
                         $results['posts'][] = [
                             'article_id' => $article->id,
                             'post_id' => $post->id,
@@ -150,6 +169,39 @@ class AutoPublishService
         // Get content (AI-generated or fallback)
         $content = $article->ai_generated_content ?? $this->generateBasicContent($article);
 
+        // Quality gate on the REWRITE, not the source. Nothing used to judge
+        // the text we actually publish: the relevance score only ever looked
+        // at the source headline. A draft that fails is parked, never
+        // published, so the AI spend stays reusable and the caller can try the
+        // next candidate.
+        $verdict = $this->qualityService->evaluate(
+            $content['title'] ?? null,
+            $content['content'] ?? '',
+            $article->title,
+            $this->sourceTextFor($article),
+            $content['tldr'] ?? null,
+            $article->url
+        );
+
+        if (($content['headline_missing'] ?? false) === true) {
+            $verdict['passed'] = false;
+            array_unshift($verdict['hard_failures'], 'missing_h1_headline');
+        }
+
+        if (! $verdict['passed']) {
+            Log::warning(sprintf(
+                'Quality gate rejected article %d (score %d): %s',
+                $article->id,
+                $verdict['score'],
+                implode(', ', $verdict['hard_failures'] ?: $verdict['soft_flags'])
+            ));
+
+            $article->update(['parked_at' => now()]);
+            $this->notifyQualityGateRejection($article, $verdict, $content['title'] ?? null);
+
+            return null;
+        }
+
         // Get or create author
         $author = User::first();
 
@@ -192,6 +244,45 @@ class AutoPublishService
         Log::info("Auto-published article {$article->id} as blog post {$post->id}");
 
         return $post;
+    }
+
+    /**
+     * Best-effort alert so a blocked draft is visible instead of looking like
+     * a quiet day. Never allowed to affect publishing: a mail failure must not
+     * turn a rejected draft into an exception in the daily run.
+     */
+    private function notifyQualityGateRejection(CollectedArticle $article, array $verdict, ?string $draftTitle): void
+    {
+        $recipient = config('blog_automation.publishing.quality_alert_email');
+
+        if (empty($recipient)) {
+            return;
+        }
+
+        try {
+            Mail::to($recipient)->send(new QualityGateRejected($article, $verdict, $draftTitle));
+        } catch (\Exception $e) {
+            Log::warning("Quality-gate alert email failed for article {$article->id}: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * The source article's own text, for the overlap check in the quality
+     * gate. Returns null when there is too little to compare against.
+     */
+    private function sourceTextFor(CollectedArticle $article): ?string
+    {
+        $text = (string) ($article->description ?? '');
+
+        if (is_array($article->content_data)) {
+            foreach ($article->content_data as $value) {
+                if (is_string($value)) {
+                    $text .= ' ' . $value;
+                }
+            }
+        }
+
+        return trim($text) === '' ? null : $text;
     }
 
     /**

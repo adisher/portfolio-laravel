@@ -10,7 +10,9 @@ use App\Models\RssSource;
 use App\Models\User;
 use App\Services\AutoPublishService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Mail\QualityGateRejected;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -74,9 +76,32 @@ class AutoPublishTest extends TestCase
         ]);
     }
 
+
+    /**
+     * A rewrite that satisfies the quality gate: its own headline, enough of
+     * its own prose, sections, first person and the attribution line.
+     *
+     * Without this the tests fall back to generateBasicContent(), which
+     * publishes the SOURCE title over a two-line stub and is now (correctly)
+     * blocked by the gate.
+     */
+    private function goodDraft(): array
+    {
+        $body = str_repeat('I wired this into a production queue last week and the tradeoffs surprised me. ', 40);
+
+        return [
+            'title' => 'Why I Stopped Trusting My Own Queue Metrics',
+            'content' => "## Where this bites\n\n{$body}\n\n## My take\n\n{$body}\n\n"
+                . '*Source: [Read the original article](https://example.com/post)*',
+            'tldr' => 'A short excerpt about queue metrics.',
+            'headline_missing' => false,
+        ];
+    }
+
     private function article(Category $category, array $attributes = [], ?RssSource $source = null): CollectedArticle
     {
         return CollectedArticle::create(array_merge([
+            'ai_generated_content' => $this->goodDraft(),
             'rss_source_id'        => ($source ?? $this->source())->id,
             'title'                => 'A Perfectly Good Article ' . uniqid(),
             'description'          => 'Something worth reading about software.',
@@ -330,7 +355,7 @@ class AutoPublishTest extends TestCase
         $this->assertDatabaseCount('blog_posts', 1);
     }
 
-    public function test_generates_fallback_content_when_ai_is_disabled(): void
+    public function test_publishes_a_rewrite_that_clears_the_quality_gate(): void
     {
         $this->settings(['ai_enhancement_enabled' => false]);
         $this->article($this->blogCategory());
@@ -340,5 +365,72 @@ class AutoPublishTest extends TestCase
         $post = BlogPost::first();
         $this->assertStringContainsString('Read the original article', $post->content);
         $this->assertGreaterThanOrEqual(1, $post->reading_time);
+    }
+
+    /**
+     * The non-AI fallback publishes the SOURCE headline over a two-line stub,
+     * which is exactly what the quality gate exists to stop. So when the AI
+     * rewrite is unavailable (budget exhausted, API failure) the article is
+     * parked and nothing is published, rather than a thin post going out under
+     * someone else's headline.
+     */
+    public function test_the_basic_fallback_stub_is_blocked_and_parked(): void
+    {
+        $this->settings(['ai_enhancement_enabled' => false]);
+        $category = $this->blogCategory();
+        $article = $this->article($category, ['ai_generated_content' => null]);
+
+        $this->service->run();
+
+        $this->assertSame(0, BlogPost::count(), 'A stub under the source headline must never publish.');
+        $this->assertNotNull($article->fresh()->parked_at, 'The failed draft should be parked, not left in the queue.');
+    }
+
+    public function test_every_rejection_sends_an_alert_email(): void
+    {
+        Mail::fake();
+
+        $this->settings(['ai_enhancement_enabled' => false]);
+        $category = $this->blogCategory();
+        $article = $this->article($category, ['ai_generated_content' => null]);
+
+        $this->service->run();
+
+        Mail::assertSent(QualityGateRejected::class, function ($mail) use ($article) {
+            return $mail->article->id === $article->id
+                && in_array('title_matches_source', $mail->verdict['hard_failures'], true);
+        });
+    }
+
+    public function test_a_failing_alert_email_does_not_break_the_run(): void
+    {
+        $this->settings(['ai_enhancement_enabled' => false]);
+        $category = $this->blogCategory();
+        $article = $this->article($category, ['ai_generated_content' => null]);
+
+        config(['mail.default' => 'no-such-transport']);
+
+        $this->service->run();
+
+        $this->assertNotNull($article->fresh()->parked_at, 'Parking must happen even when the alert cannot be sent.');
+    }
+
+    public function test_a_failed_draft_is_retried_once_with_the_next_candidate(): void
+    {
+        $this->settings(['ai_enhancement_enabled' => false]);
+        $category = $this->blogCategory();
+
+        // Newest first, so this one is tried first and fails the gate.
+        $this->article($category, [
+            'ai_generated_content' => null,
+            'created_at' => now(),
+        ]);
+        $good = $this->article($category, ['created_at' => now()->subHour()]);
+
+        $this->service->run();
+
+        $this->assertSame(1, BlogPost::count(), 'The retry should still produce the day post.');
+        $this->assertSame($good->id, CollectedArticle::find($good->id)->id);
+        $this->assertNotNull($good->fresh()->blog_post_id, 'The second candidate is the one that published.');
     }
 }

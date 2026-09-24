@@ -25,7 +25,17 @@ Last updated: 2026-09-19
 - [x] **Read the scoring + generation pipeline.** See "How the system actually works" below.
 - [x] **Corrected two of my own earlier errors:** `image_alt` was never broken (model accessor falls back to title); the "1,277 plausibly real visitors" figure was inflated by self-referrals.
 
-## AGE GATE BUILT 2026-09-22 (not deployed)
+## QUALITY GATE WIRED IN 2026-09-24 (not deployed)
+- **Parser fix** (`AiContentService::parseTransformationResponse`): the title no longer defaults to the SOURCE article's title. No parseable `# ` headline now yields `title = null` plus a `headline_missing` flag, which the gate treats as a hard failure. This is the bug that published 45 posts under other people's headlines.
+- **Prompt fix**: the prompt demanded "a creative headline" while the rules said "no H1", steering the model away from the only format the parser accepted. Now: headline must be the first line as `# Headline`, `##` for sections.
+- **Gate wired into `AutoPublishService::publishArticle()`**: evaluates the REWRITE before `BlogPost::create()`. Fail -> article parked, `null` returned, nothing published, AI spend reusable.
+- **One retry**: the per-category query takes `$toPublish + 1` candidates and stops once the category has its post, so a failed draft costs one extra AI call at most.
+- **BEHAVIOUR CHANGE, user informed:** `generateBasicContent` (the non-AI fallback) publishes the SOURCE title over a two-line stub, so it now fails the gate and is parked. When the AI rewrite is unavailable (budget exhausted, API error) NOTHING publishes instead of a thin post. Likely the origin of several of the 45 bad posts.
+- Tests: `AutoPublishTest` articles now carry a gate-passing draft; 2 new cases (stub blocked + parked, retry publishes the next candidate). Suite 121 passing, same 6 pre-existing failures.
+- **Email alert on every rejection** (user request 2026-09-24): `App\Mail\QualityGateRejected` + `emails/quality-gate-rejected` blade, sent from `AutoPublishService` when the gate parks a draft. Shows source title, draft headline, score, hard failures, soft flags and metrics. Recipient: `blog_automation.publishing.quality_alert_email` (env `QUALITY_GATE_ALERT_EMAIL`, default adilsher973@gmail.com). Best-effort: a mail failure is logged and never breaks the run, pinned by a test.
+- PENDING after deploy: drop `min_score_for_auto_publish` 75 -> 70 (DB row, no deploy needed) to restore ~1.4 candidates/day.
+
+## AGE GATE BUILT 2026-09-22 (deployed)
 Decision: **14 days, and park rather than reject** (park keeps the article as knowledge-base source material; reject would let `articles:cleanup` delete it after 30 days).
 Evidence it is calibrated: scoring a 1,500-row sample of the pending backlog in memory showed only **0.4% clear 75** (~134 of 33,425 extrapolated, wide margin on 6 hits), and all 6 were published within 30 days (1 within 7d, 2 in 7-14d, 3 in 14-30d). A 7-day gate would have discarded 5 of 6, so it would starve an already thin supply.
 - `config/blog_automation.php`: new `publishing.max_source_age_days` (env `AUTO_PUBLISH_MAX_SOURCE_AGE_DAYS`, default 14).
