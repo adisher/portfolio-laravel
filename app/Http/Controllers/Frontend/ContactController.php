@@ -6,6 +6,7 @@ use App\Mail\ContactFormAutoReply;
 use App\Mail\ContactFormSubmitted;
 use App\Models\Contact;
 use App\Models\Setting;
+use App\Support\BookingLink;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
@@ -27,17 +28,8 @@ class ContactController extends Controller
             'social_instagram' => Setting::get('social_instagram'),
         ];
 
-        // Google Calendar booking page. Only the full appointments/schedules
-        // URL accepts ?gv=true and can be framed; short calendar.app.google
-        // links redirect to a page Google refuses to embed, so those get a
-        // plain "open in new tab" button instead.
-        $bookingUrl = config('services.google_calendar.booking_url');
-        $bookingEmbedUrl = null;
-        if ($bookingUrl && str_contains($bookingUrl, '/calendar/appointments/schedules/')) {
-            $bookingUrl = preg_replace('/([?&])gv=true(&|$)/', '$1', $bookingUrl);
-            $bookingUrl = rtrim($bookingUrl, '?&');
-            $bookingEmbedUrl = $bookingUrl . (str_contains($bookingUrl, '?') ? '&' : '?') . 'gv=true';
-        }
+        $bookingUrl = BookingLink::url();
+        $bookingEmbedUrl = BookingLink::embedUrl();
 
         return view('frontend.contact', compact('contactSettings', 'bookingUrl', 'bookingEmbedUrl'));
     }

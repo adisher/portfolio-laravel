@@ -85,6 +85,15 @@ class SettingsSeeder extends Seeder
                 'description' => 'Your location or availability',
                 'sort_order' => 3,
             ],
+            [
+                'key' => 'booking_url',
+                'value' => null,
+                'type' => 'url',
+                'group' => 'contact',
+                'label' => 'Booking Page URL',
+                'description' => 'Google Calendar booking page. Paste the "Website embed > Inline" src URL to show the scheduler on the contact page, or the short calendar.app.google link to open it in a new tab. Leave empty to hide all "Book a call" buttons.',
+                'sort_order' => 4,
+            ],
 
             // Social Media
             [
