@@ -327,12 +327,14 @@
                 Pick a 30 minute slot that works for you. You'll get a Google Meet link by email right after booking.
             </p>
         </div>
-        {{-- Google's embed has a transparent background and dark text, so the
-            wrapper must stay white in dark mode too (no .card, which turns
-            ocean-blue under dark:). --}}
-        <div class="animate-up rounded-2xl overflow-hidden shadow-lg ring-1 ring-gray-900/5" style="background-color: #ffffff;">
+        {{-- Google's embed is light-only, transparent and cross-origin, so it
+            can't be themed from here. Keep it on white in light mode, and in
+            dark mode invert it (hue-rotate keeps blues and the avatar close to
+            their real colours). Styles are plain CSS below because production
+            serves the committed public/build bundle. --}}
+        <div class="booking-frame-wrap animate-up rounded-2xl overflow-hidden">
             <iframe src="{{ $bookingEmbedUrl }}" title="Book a 30 minute call with Adil Sher"
-                class="w-full block" style="border: 0; height: 760px; background-color: #ffffff; color-scheme: light;" loading="lazy"></iframe>
+                class="booking-frame w-full block" loading="lazy"></iframe>
         </div>
         <p class="mt-4 text-center text-sm text-soft-dark dark:text-soft">
             Trouble seeing the calendar?
@@ -375,6 +377,15 @@
     </div>
 </section>
 @endsection
+
+@push('styles')
+<style>
+    .booking-frame-wrap { background-color: #ffffff; box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    .booking-frame { border: 0; height: 760px; background-color: #ffffff; color-scheme: light; }
+    .dark .booking-frame-wrap { background-color: #1f1f1f; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08); }
+    .dark .booking-frame { filter: invert(0.88) hue-rotate(180deg); }
+</style>
+@endpush
 
 @push('scripts')
 <script>
