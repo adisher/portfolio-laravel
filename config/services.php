@@ -58,4 +58,13 @@ return [
         'key' => env('BRAVE_SEARCH_API_KEY'),
     ],
 
+    // Google Calendar appointment schedule ("Booking page"). Paste either the
+    // short share link (https://calendar.app.google/...) or the full
+    // https://calendar.google.com/calendar/appointments/schedules/... URL.
+    // Only the full schedules URL can be embedded inline; a short link is
+    // rendered as a button that opens the booking page in a new tab.
+    'google_calendar' => [
+        'booking_url' => env('GOOGLE_CALENDAR_BOOKING_URL'),
+    ],
+
 ];
