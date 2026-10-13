@@ -316,7 +316,7 @@
 
 {{-- Book a Call (Google Calendar appointment schedule) --}}
 @if($bookingEmbedUrl)
-<section id="book-a-call" class="section-padding bg-white dark:bg-midnight-dark scroll-mt-20">
+<section id="book-a-call" class="section-padding bg-white dark:bg-midnight-dark" style="scroll-margin-top: 5rem;">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-10">
             <span class="badge badge-teal mb-4 animate-up">Book a Call</span>
