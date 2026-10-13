@@ -327,9 +327,12 @@
                 Pick a 30 minute slot that works for you. You'll get a Google Meet link by email right after booking.
             </p>
         </div>
-        <div class="animate-up card overflow-hidden bg-white">
+        {{-- Google's embed has a transparent background and dark text, so the
+            wrapper must stay white in dark mode too (no .card, which turns
+            ocean-blue under dark:). --}}
+        <div class="animate-up rounded-2xl overflow-hidden shadow-lg ring-1 ring-gray-900/5" style="background-color: #ffffff;">
             <iframe src="{{ $bookingEmbedUrl }}" title="Book a 30 minute call with Adil Sher"
-                class="w-full block" style="border: 0; height: 720px;" loading="lazy"></iframe>
+                class="w-full block" style="border: 0; height: 760px; background-color: #ffffff; color-scheme: light;" loading="lazy"></iframe>
         </div>
         <p class="mt-4 text-center text-sm text-soft-dark dark:text-soft">
             Trouble seeing the calendar?
