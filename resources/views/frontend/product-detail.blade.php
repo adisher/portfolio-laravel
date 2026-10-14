@@ -16,6 +16,12 @@
     $ctaLabel = $product->product_cta_label ?? 'Get Started';
     $ctaType = $product->product_data['cta_type'] ?? 'purchase';
     $isDemo = $ctaType === 'demo';
+    // Demo buttons go to the Google Calendar booking page (Admin > Settings >
+    // Contact > Booking Page URL). The built-in scheduler modal is only a
+    // fallback for when that setting is empty.
+    $googleBookingHref = $isDemo ? \App\Support\BookingLink::href() : null;
+    $googleBookingExternal = $googleBookingHref && \App\Support\BookingLink::opensExternally();
+    $useBuiltInScheduler = $isDemo && !$googleBookingHref;
 @endphp
 
 @push('styles')
@@ -658,7 +664,7 @@
 @endfeature
 
 {{-- ========== DEMO SCHEDULING MODAL ========== --}}
-@if($isDemo)
+@if($useBuiltInScheduler)
 <div x-data="demoScheduler('{{ $product->slug }}', {{ $product->product_data['slot_duration'] ?? 30 }})"
      @open-demo-modal.window="openModal($event.detail.plan)"
      @keydown.escape.window="closeModal()"
@@ -874,7 +880,20 @@
 @endif
 
 @push('scripts')
-@if($isDemo)
+@if($googleBookingHref)
+<script>
+// Every "Schedule a Demo" button dispatches open-demo-modal; send it to the
+// Google Calendar booking page instead of the built-in scheduler.
+window.addEventListener('open-demo-modal', function () {
+    @if($googleBookingExternal)
+    window.open(@json($googleBookingHref), '_blank', 'noopener');
+    @else
+    window.location.href = @json($googleBookingHref);
+    @endif
+});
+</script>
+@endif
+@if($useBuiltInScheduler)
 <script>
 function demoScheduler(productSlug, duration) {
     return {
