@@ -13,6 +13,7 @@
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Reels</h1>
         <p class="text-gray-600 dark:text-gray-400">Short videos for Instagram Reels and YouTube Shorts. Nothing posts until you approve it.</p>
     </div>
+    <a href="{{ route('admin.social.reels.settings') }}" class="btn-secondary text-sm py-2 px-4">Studio settings</a>
 </div>
 
 {{-- Start a reel from a well-performing article --}}

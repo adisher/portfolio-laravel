@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'track.pageviews' => \App\Http\Middleware\TrackPageViews::class,
             'feature' => \App\Http\Middleware\CheckFeatureFlag::class,
             'blog.api.token' => \App\Http\Middleware\VerifyBlogApiToken::class,
+            'social.render.token' => \App\Http\Middleware\VerifySocialRenderToken::class,
         ]);
 
         // Apply to web routes (excluding admin)

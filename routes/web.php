@@ -301,15 +301,23 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::post('/publish/preview', [\App\Http\Controllers\Admin\SocialAccountController::class, 'preview'])->name('preview');
 
         // Social Studio: reel drafts (docs/social-distribution-plan.md)
+        Route::prefix('reels/settings')->name('reels.settings')->controller(\App\Http\Controllers\Admin\SocialStudioController::class)->group(function () {
+            Route::get('/', 'edit')->name('');
+            Route::post('/voice', 'uploadVoice')->name('.voice');
+            Route::get('/voice', 'voicePreview')->name('.voice-preview');
+            Route::post('/github', 'connectGithub')->name('.github');
+        });
         Route::prefix('reels')->name('reels.')->controller(\App\Http\Controllers\Admin\SocialReelController::class)->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/', 'store')->name('store');
-            Route::get('/{draft}', 'show')->name('show');
-            Route::put('/{draft}', 'update')->name('update');
-            Route::post('/{draft}/regenerate', 'regenerate')->name('regenerate');
-            Route::patch('/{draft}/targets/{target}/approve', 'approveTarget')->name('targets.approve');
-            Route::patch('/{draft}/targets/{target}/reject', 'rejectTarget')->name('targets.reject');
-            Route::delete('/{draft}', 'destroy')->name('destroy');
+            Route::get('/{draft}', 'show')->whereNumber('draft')->name('show');
+            Route::get('/{draft}/status', 'status')->whereNumber('draft')->name('status');
+            Route::put('/{draft}', 'update')->whereNumber('draft')->name('update');
+            Route::post('/{draft}/regenerate', 'regenerate')->whereNumber('draft')->name('regenerate');
+            Route::post('/{draft}/render', 'render')->whereNumber('draft')->name('render');
+            Route::patch('/{draft}/targets/{target}/approve', 'approveTarget')->whereNumber('draft')->name('targets.approve');
+            Route::patch('/{draft}/targets/{target}/reject', 'rejectTarget')->whereNumber('draft')->name('targets.reject');
+            Route::delete('/{draft}', 'destroy')->whereNumber('draft')->name('destroy');
         });
         Route::get('/create', [\App\Http\Controllers\Admin\SocialAccountController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\Admin\SocialAccountController::class, 'store'])->name('store');

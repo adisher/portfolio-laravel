@@ -1,0 +1,4 @@
+# torch/torchaudio 2.6.0 are installed first from the CPU index (see render-reel.yml).
+chatterbox-tts==0.1.7
+soundfile
+pyloudnorm

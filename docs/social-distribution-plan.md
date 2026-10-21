@@ -3,7 +3,7 @@
 Running doc. Updated as we work. Status legend: DONE / DOING / TODO / BLOCKED / DECIDED.
 
 Last updated: 2026-10-21
-Status: Phase 0 DONE (2026-10-21). Next: Phase 1 render pipeline.
+Status: Phase 0 DONE, Phase 1 BUILT (2026-10-21, waiting on the owner's voice recording + GitHub token for the first real render). Next: Phase 2 publishing.
 
 ---
 
@@ -149,6 +149,16 @@ Admin: pick article for social
 - Alerts go to `config('social.reels.alert_email')` (env `SOCIAL_ALERT_EMAIL`, default adilsher973@gmail.com).
 - Tests: `tests/Feature/SocialReelTest` (7). Full suite: 139 passing, same 6 pre-existing ProfileTest/ExampleTest failures.
 
+## Phase 1 as built (2026-10-21)
+
+- **Studio settings** (Admin > Reels > Studio settings, table `social_studio_settings`, model `SocialStudioSettings`): voice recording upload (private `local` disk), GitHub fine-grained token (encrypted). Connecting verifies the token, generates a render token and saves it as the `SOCIAL_RENDER_TOKEN` Actions secret itself (sealed with the repo public key via `sodium_crypto_box_seal`), so the owner never copies secrets by hand. Token needs Actions + Secrets read/write on this repo only.
+- **Render button** dispatches `.github/workflows/render-reel.yml` (`workflow_dispatch`, input `draft_id`) via `GithubRenderClient`; marks the draft `rendering` and resets approvals. Review page polls `reels/{draft}/status` every 20 s and reloads when done.
+- **Render job** (GitHub Actions, public repo so free): `video/pipeline/fetch.py` pulls the script + images + voice sample from `/api/social/render/{draft}` (token-guarded, `VerifySocialRenderToken`); `voice.py` clones the voice with Chatterbox 0.1.7 on CPU (12 s of trimmed speech as reference, it reads 10 s), speaks each scene, retries implausibly long output, times words proportionally, normalises to -16 LUFS; Remotion 4.0.533 renders `Reel` (1080x1920, 30 fps, H.264 CRF 23) and the `Cover` still; the video goes back in 1.5 MB chunks (`/chunk`, offset-checked so retries are safe) because shared hosting caps uploads, then `/complete` stores it on the public disk, updates scene timings and sends the review email. `/failed` and the 45-minute `social:reels-timeout` (every 10 min) cover failures.
+- Public repo hygiene: site URL pinned in the workflow (token only ever sent to adilsher.pro), no secrets or script printed, no workflow artifacts.
+- Brand templates: `video/src` (Background, BrandChip, ProgressBar, word-highlight Captions, Headline with accent numbers, Portrait ring, framed 16:9 ImageCard over a blurred backdrop, CodeCard). Handle from `social.reels.handle` (adilsher.pro).
+- Verified locally end to end with a stand-in voice (HF/PyTorch downloads are blocked in the build container): fetch, 31 s render in ~1.5 min (4.9 MB), chunked upload identical byte for byte, draft ready, email sent. First real render on GitHub also downloads the model (~5-8 min extra, then cached).
+- Tests: `tests/Feature/SocialReelRenderTest` (14). Full suite 155 passing, same 6 pre-existing failures.
+
 ## Data model (sketch)
 
 - `social_drafts`: blog_post_id, kind (reel | carousel | post), status, script (json scenes), captions (json per platform), media paths (mp4, cover, slides), render run id, error, timestamps.
@@ -161,7 +171,7 @@ Admin: pick article for social
 | Phase | Delivers | Status |
 |---|---|---|
 | 0. Groundwork | Drafts + targets tables, Social Studio list, review page shell, email alert, AI script + caption generator | DONE |
-| 1. Render pipeline | `video/` Remotion project with brand kit, GitHub Actions render workflow, voice clone engine, upload back, review page video player, re-render | TODO |
+| 1. Render pipeline | `video/` Remotion project with brand kit, GitHub Actions render workflow, voice clone engine, upload back, review page video player, re-render | BUILT |
 | 2. Publish | Instagram Reels driver, YouTube Shorts driver, scheduling, apply for YouTube audit | TODO |
 | 3. Carousels + LinkedIn | Carousel templates (PNG + PDF), Instagram carousel, LinkedIn Posts API (personal), first comment, LinkedIn video | TODO |
 | 4. Picking + measuring | Social score, weekly shortlist, engagement sync, report | TODO |
@@ -170,10 +180,10 @@ Admin: pick article for social
 ## What the user needs to provide
 
 - [x] Voice engine choice: B, Chatterbox.
-- [ ] One 1-2 minute voice recording (uploaded in admin once Phase 1 lands).
+- [ ] One 1-2 minute voice recording, uploaded in Admin > Reels > Studio settings.
 - [ ] Instagram Business/Creator account linked to a Meta app (I will give exact steps when Phase 2 starts).
 - [ ] YouTube channel + Google Cloud project OAuth (steps at Phase 2).
-- [ ] A GitHub fine-grained token for the site to trigger renders (steps at Phase 1).
+- [ ] A GitHub fine-grained token (Actions + Secrets read/write on this repo), pasted in Studio settings.
 
 ## Sources
 

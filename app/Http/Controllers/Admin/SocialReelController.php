@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\BlogPost;
 use App\Models\SocialDraft;
 use App\Models\SocialDraftTarget;
+use App\Models\SocialStudioSettings;
+use App\Services\Social\GithubRenderClient;
 use App\Services\Social\ReelDraftService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -61,7 +63,11 @@ class SocialReelController extends Controller
     {
         $draft->load(['blogPost.category', 'targets']);
 
-        return view('admin.social.reels.show', compact('draft'));
+        return view('admin.social.reels.show', [
+            'draft'       => $draft,
+            'studioReady' => SocialStudioSettings::instance()->readyToRender(),
+            'runsUrl'     => app(GithubRenderClient::class)->runsUrl(),
+        ]);
     }
 
     public function update(Request $request, SocialDraft $draft)
@@ -95,6 +101,39 @@ class SocialReelController extends Controller
         ]);
 
         return back()->with('success', 'Reel saved.');
+    }
+
+    /** Start a render on GitHub Actions. The job reports back to the render API. */
+    public function render(SocialDraft $draft, GithubRenderClient $github)
+    {
+        if (! SocialStudioSettings::instance()->readyToRender()) {
+            return redirect()->route('admin.social.reels.settings')
+                ->with('error', 'Upload your voice recording and connect GitHub before rendering.');
+        }
+
+        if ($draft->status === SocialDraft::STATUS_RENDERING) {
+            return back()->with('error', 'This reel is already rendering.');
+        }
+
+        if (empty($draft->scenes())) {
+            return back()->with('error', 'The script has no scenes to render.');
+        }
+
+        try {
+            $github->dispatchRender($draft->id);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $this->reels->markRenderRequested($draft);
+
+        return back()->with('success', 'Rendering started. It takes about 10 to 15 minutes; you will get an email when it is ready.');
+    }
+
+    /** Lightweight status for the review page to poll while a render runs. */
+    public function status(SocialDraft $draft)
+    {
+        return response()->json(['status' => $draft->status, 'rendered_at' => optional($draft->rendered_at)->toIso8601String()]);
     }
 
     public function regenerate(SocialDraft $draft)

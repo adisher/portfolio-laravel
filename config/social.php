@@ -24,6 +24,20 @@ return [
         'words_per_second' => 2.5,
         'min_words'        => 60,
         'max_words'        => 105,
+
+        // Shown on every reel (top chip and end card).
+        'handle' => env('SOCIAL_REEL_HANDLE', 'adilsher.pro'),
+
+        // A render that has not reported back after this long is marked failed.
+        'render_timeout_minutes' => 45,
+    ],
+
+    // GitHub Actions render pipeline (.github/workflows/render-reel.yml).
+    'render' => [
+        'repo'        => env('SOCIAL_RENDER_REPO', 'adisher/portfolio-laravel'),
+        'workflow'    => 'render-reel.yml',
+        'ref'         => 'main',
+        'secret_name' => 'SOCIAL_RENDER_TOKEN',
     ],
 
 ];

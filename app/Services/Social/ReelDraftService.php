@@ -99,6 +99,9 @@ class ReelDraftService
             'render_requested_at' => now(),
             'error'               => null,
         ]);
+
+        // A new video needs a fresh review before anything is posted.
+        $this->resetTargets($draft);
     }
 
     /** Called by the render upload endpoint. Sends the review email. */

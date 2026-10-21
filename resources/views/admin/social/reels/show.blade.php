@@ -82,11 +82,25 @@
                 <div class="mt-4 p-3 rounded bg-red-50 dark:bg-red-900 text-xs text-red-700 dark:text-red-200 font-mono break-words">{{ $draft->error }}</div>
             @endif
 
-            <button type="button" disabled class="btn-primary w-full mt-4 text-sm py-2 opacity-50 cursor-not-allowed"
-                title="Video rendering with your cloned voice is being built next">
-                Render video (coming next)
-            </button>
-            <p class="text-xs text-gray-400 mt-2 text-center">Rendering with your branding and cloned voice is the next build step.</p>
+            @if($draft->status === 'rendering')
+                <div x-data="renderWatch(@js(route('admin.social.reels.status', $draft)))">
+                    <button type="button" disabled class="btn-primary w-full mt-4 text-sm py-2 opacity-50 cursor-not-allowed">Rendering...</button>
+                    <p class="text-xs text-gray-400 mt-2 text-center">
+                        Started {{ $draft->render_requested_at?->diffForHumans() }}. Takes about 10 to 15 minutes; this page refreshes when it's done.
+                        <a href="{{ $runsUrl }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Watch on GitHub</a>
+                    </p>
+                </div>
+            @elseif(! $studioReady)
+                <a href="{{ route('admin.social.reels.settings') }}" class="btn-primary w-full mt-4 text-sm py-2">Set up voice and GitHub to render</a>
+                <p class="text-xs text-gray-400 mt-2 text-center">One-time setup: upload your voice recording and connect GitHub.</p>
+            @else
+                <form method="POST" action="{{ route('admin.social.reels.render', $draft) }}"
+                    @if($draft->isRendered()) onsubmit="return confirm('Render this reel again? The current video will be replaced and approvals reset.')" @endif>
+                    @csrf
+                    <button type="submit" class="btn-primary w-full mt-4 text-sm py-2">{{ $draft->isRendered() ? 'Render again' : 'Render video' }}</button>
+                </form>
+                <p class="text-xs text-gray-400 mt-2 text-center">Uses your cloned voice and brand templates. Save script changes first.</p>
+            @endif
         </div>
 
         <div class="admin-card p-6">
@@ -280,6 +294,23 @@
 
 @push('scripts')
 <script>
+// While a render runs, check its status every 20 s and reload once it changes.
+function renderWatch(url) {
+    return {
+        init() {
+            const timer = setInterval(async () => {
+                try {
+                    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+                    if (res.ok && (await res.json()).status !== 'rendering') {
+                        clearInterval(timer);
+                        window.location.reload();
+                    }
+                } catch (e) { /* try again on the next tick */ }
+            }, 20000);
+        },
+    };
+}
+
 function reelEditor(initial) {
     let key = 0;
     const blank = () => ({ _key: ++key, type: 'point', on_screen_text: '', voice_line: '', visual: 'text', visual_note: '' });
