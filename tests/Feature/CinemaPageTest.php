@@ -83,6 +83,7 @@ class CinemaPageTest extends TestCase
             ->assertOk()
             ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
             ->assertSee('<meta name="robots" content="noindex, nofollow">', false)
+            ->assertSee('<meta name="googlebot" content="noindex, nofollow">', false)
             ->assertDontSee('"ItemList"', false);
     }
 

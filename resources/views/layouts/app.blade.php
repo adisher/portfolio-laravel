@@ -31,7 +31,7 @@
     <!-- SEO Meta Tags -->
     <link rel="canonical" href="{{ $canonicalUrl }}">
     <meta name="robots" content="@yield('robots', 'index, follow')">
-    <meta name="googlebot" content="index, follow">
+    <meta name="googlebot" content="@yield('robots', 'index, follow')">
 
     <!-- Sitemap reference -->
     <link rel="sitemap" type="application/xml" href="{{ url('/sitemap.xml') }}">
