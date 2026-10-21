@@ -75,6 +75,17 @@ class CinemaPageTest extends TestCase
         $this->assertNotContains('No Poster', array_column($shown, 'title'));
     }
 
+    public function test_page_is_kept_out_of_search_engines(): void
+    {
+        Http::fake(['localcinema.xyz/*' => Http::response($this->feed([]))]);
+
+        $this->get(route('cinema.index'))
+            ->assertOk()
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
+            ->assertSee('<meta name="robots" content="noindex, nofollow">', false)
+            ->assertDontSee('"ItemList"', false);
+    }
+
     public function test_tv_tab_requests_tv_and_unknown_types_fall_back_to_movies(): void
     {
         Http::fake(['localcinema.xyz/*' => Http::response($this->feed([]))]);

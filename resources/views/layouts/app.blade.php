@@ -318,9 +318,6 @@
                         @feature('nav.sports')
                         <li><a href="{{ route('sports.index') }}" class="text-soft hover:text-teal transition-colors">Live Sports</a></li>
                         @endfeature
-                        @feature('nav.cinema')
-                        <li><a href="{{ route('cinema.index') }}" class="text-soft hover:text-teal transition-colors">Cinema</a></li>
-                        @endfeature
                         @feature('nav.contact')
                         <li><a href="{{ route('contact') }}" class="text-soft hover:text-teal transition-colors">Contact</a></li>
                         @endfeature

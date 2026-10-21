@@ -122,16 +122,6 @@ class SitemapController extends Controller
                 }
             });
 
-        // Cinema page (content comes from the Local Cinema feed)
-        if (FeatureFlag::enabled('page.cinema')) {
-            $sitemap->add(
-                Url::create(route('cinema.index'))
-                    ->setLastModificationDate(now())
-                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
-                    ->setPriority(0.7)
-            );
-        }
-
         // Add sports pages, only when the sports section is enabled
         if (FeatureFlag::enabled('page.sports')) {
             $sitemap->add(
@@ -298,16 +288,6 @@ class SitemapController extends Controller
                     );
                 }
             });
-
-        // Cinema page (content comes from the Local Cinema feed)
-        if (FeatureFlag::enabled('page.cinema')) {
-            $sitemap->add(
-                Url::create(route('cinema.index'))
-                    ->setLastModificationDate(now())
-                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
-                    ->setPriority(0.7)
-            );
-        }
 
         // Add sports pages, only when the sports section is enabled
         if (FeatureFlag::enabled('page.sports')) {

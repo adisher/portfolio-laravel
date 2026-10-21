@@ -25,6 +25,9 @@ class CinemaController extends Controller
         $items = $this->feed->items($type);
         $types = LocalCinemaFeedService::TYPES;
 
-        return view('frontend.cinema.index', compact('items', 'type', 'types'));
+        // Not portfolio content, so keep it out of search engines (meta tag in the view too)
+        return response()
+            ->view('frontend.cinema.index', compact('items', 'type', 'types'))
+            ->header('X-Robots-Tag', 'noindex, nofollow');
     }
 }

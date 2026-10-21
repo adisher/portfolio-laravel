@@ -2,28 +2,8 @@
 
 @section('title', 'Cinema - Latest ' . $types[$type])
 @section('description', 'Browse the latest ' . strtolower($types[$type]) . ' added to Local Cinema, with posters, synopses and watch links.')
-
-@push('schema')
-<x-schema.breadcrumb :items="[
-    ['name' => 'Home', 'url' => route('home')],
-    ['name' => 'Cinema'],
-]" />
-@if(count($items))
-<script type="application/ld+json">
-{!! json_encode([
-    '@context' => 'https://schema.org',
-    '@type' => 'ItemList',
-    'name' => 'Latest ' . $types[$type],
-    'itemListElement' => collect($items)->values()->map(fn ($item, $i) => [
-        '@type' => 'ListItem',
-        'position' => $i + 1,
-        'url' => $item['url'],
-        'name' => $item['title'],
-    ])->all(),
-], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) !!}
-</script>
-@endif
-@endpush
+{{-- Kept out of search results on purpose: third-party listings, not portfolio content --}}
+@section('robots', 'noindex, nofollow')
 
 @section('content')
 
