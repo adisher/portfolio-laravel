@@ -30,8 +30,8 @@ class LocalCinemaFeedService
             $type = 'movies';
         }
 
-        $freshKey = "local_cinema:{$type}";
-        $staleKey = "local_cinema:{$type}:last_good";
+        $freshKey = "local_cinema:v2:{$type}";
+        $staleKey = "local_cinema:v2:{$type}:last_good";
 
         $cached = Cache::get($freshKey);
         if (is_array($cached)) {
@@ -58,7 +58,7 @@ class LocalCinemaFeedService
     public function clearCache(): void
     {
         foreach (array_keys(self::TYPES) as $type) {
-            Cache::forget("local_cinema:{$type}");
+            Cache::forget("local_cinema:v2:{$type}");
         }
     }
 
@@ -72,7 +72,8 @@ class LocalCinemaFeedService
             $response = Http::timeout(config('services.local_cinema.timeout', 8))
                 ->acceptJson()
                 ->get(config('services.local_cinema.feed_url'), [
-                    'limit' => config('services.local_cinema.limit', 12),
+                    // Over-fetch: many recent entries have no poster and get skipped below
+                    'limit' => config('services.local_cinema.fetch_limit', 60),
                     'type' => $type,
                 ]);
 
@@ -84,7 +85,8 @@ class LocalCinemaFeedService
 
             return collect($response->json('items'))
                 ->map(fn ($item) => is_array($item) ? $this->normalize($item) : null)
-                ->filter()
+                ->filter(fn ($item) => $item && $item['image'])
+                ->take(config('services.local_cinema.limit', 12))
                 ->values()
                 ->all();
         } catch (Throwable $e) {

@@ -41,10 +41,10 @@ class CinemaPageTest extends TestCase
                 'tags' => ['Movie'],
             ],
             [
-                'url' => 'https://localcinema.xyz/watch/change-623866',
-                'title' => 'Change (2014)',
-                'content_text' => 'Watch Change (2014) online on Local Cinema.',
-                'image' => null,
+                'url' => 'https://localcinema.xyz/watch/halchal-1102932',
+                'title' => 'Halchal (1985)',
+                'content_text' => 'Watch Halchal (1985) online on Local Cinema.',
+                'image' => 'https://m.media-amazon.com/images/M/halchal.jpg',
             ],
         ]))]);
 
@@ -54,10 +54,25 @@ class CinemaPageTest extends TestCase
             ->assertSee('Saint &amp; the Sea', false)
             ->assertSee('2026')
             ->assertSee('https://image.tmdb.org/t/p/w780/poster.jpg', false)
-            ->assertSee('https://localcinema.xyz/watch/change-623866', false)
-            ->assertDontSee('Watch Change (2014) online on Local Cinema.');
+            ->assertSee('https://localcinema.xyz/watch/halchal-1102932', false)
+            ->assertDontSee('Watch Halchal (1985) online on Local Cinema.');
 
-        Http::assertSent(fn ($request) => $request['type'] === 'movies' && $request['limit'] == 12);
+        Http::assertSent(fn ($request) => $request['type'] === 'movies' && $request['limit'] == 60);
+    }
+
+    public function test_items_without_a_poster_are_skipped_and_list_is_capped(): void
+    {
+        $items = [['url' => 'https://localcinema.xyz/watch/no-poster-1', 'title' => 'No Poster (2027)', 'image' => null]];
+        foreach (range(1, 15) as $i) {
+            $items[] = ['url' => "https://localcinema.xyz/watch/film-{$i}", 'title' => "Film {$i} (2026)", 'image' => "https://image.tmdb.org/t/p/w500/{$i}.jpg"];
+        }
+        Http::fake(['localcinema.xyz/*' => Http::response($this->feed($items))]);
+
+        $shown = app(LocalCinemaFeedService::class)->items('movies');
+
+        $this->assertCount(12, $shown);
+        $this->assertSame('Film 1', $shown[0]['title']);
+        $this->assertNotContains('No Poster', array_column($shown, 'title'));
     }
 
     public function test_tv_tab_requests_tv_and_unknown_types_fall_back_to_movies(): void
@@ -75,12 +90,14 @@ class CinemaPageTest extends TestCase
     {
         Http::fake(['localcinema.xyz/*' => Http::response($this->feed([
             ['url' => 'javascript:alert(1)', 'title' => 'Evil (2020)'],
-            ['url' => 'https://localcinema.xyz/watch/ok-1', 'title' => 'Fine (2020)', 'image' => 'javascript:alert(2)'],
+            ['url' => 'https://localcinema.xyz/watch/ok-1', 'title' => 'Fine (2020)', 'image' => 'https://image.tmdb.org/t/p/w500/fine.jpg'],
+            ['url' => 'https://localcinema.xyz/watch/bad-img', 'title' => 'BadImage (2020)', 'image' => 'javascript:alert(2)'],
         ]))]);
 
         $this->get(route('cinema.index'))
             ->assertOk()
             ->assertDontSee('Evil')
+            ->assertDontSee('BadImage')
             ->assertDontSee('javascript:', false)
             ->assertSee('Fine');
     }
@@ -88,7 +105,7 @@ class CinemaPageTest extends TestCase
     public function test_remote_failure_serves_last_good_copy(): void
     {
         Http::fake(['localcinema.xyz/*' => Http::sequence()
-            ->push($this->feed([['url' => 'https://localcinema.xyz/watch/raja-1', 'title' => 'Raja (1990)']]))
+            ->push($this->feed([['url' => 'https://localcinema.xyz/watch/raja-1', 'title' => 'Raja (1990)', 'image' => 'https://image.tmdb.org/t/p/w500/raja.jpg']]))
             ->push('Server Error', 500),
         ]);
 
