@@ -100,7 +100,7 @@
         </div>
 
         <p class="mt-10 text-center text-sm text-soft-dark dark:text-soft">
-            Listings and links provided by <a href="https://localcinema.live/" target="_blank" rel="noopener noreferrer" class="text-teal hover:underline">Local Cinema</a>.
+            Listings and links provided by <a href="https://localcinema.xyz/" target="_blank" rel="noopener noreferrer" class="text-teal hover:underline">Local Cinema</a>.
         </p>
         @else
         <div class="card p-10 text-center max-w-xl mx-auto">

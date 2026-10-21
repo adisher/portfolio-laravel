@@ -60,10 +60,11 @@ return [
 
     // Local Cinema JSON Feed powering the /cinema page
     'local_cinema' => [
-        'feed_url'  => env('LOCAL_CINEMA_FEED_URL', 'https://localcinema.live/feed.json'),
-        'limit'     => (int) env('LOCAL_CINEMA_FEED_LIMIT', 12),
-        'cache_ttl' => (int) env('LOCAL_CINEMA_CACHE_TTL', 1800), // seconds
-        'timeout'   => (int) env('LOCAL_CINEMA_TIMEOUT', 8),
+        // `?:` so a blank `KEY=` line in .env still falls back to the default
+        'feed_url'  => env('LOCAL_CINEMA_FEED_URL') ?: 'https://localcinema.xyz/feed.json',
+        'limit'     => (int) (env('LOCAL_CINEMA_FEED_LIMIT') ?: 12),
+        'cache_ttl' => (int) (env('LOCAL_CINEMA_CACHE_TTL') ?: 1800), // seconds
+        'timeout'   => (int) (env('LOCAL_CINEMA_TIMEOUT') ?: 8),
     ],
 
 ];

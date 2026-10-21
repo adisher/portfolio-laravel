@@ -30,10 +30,10 @@ class CinemaPageTest extends TestCase
 
     public function test_it_lists_movies_from_the_feed(): void
     {
-        Http::fake(['localcinema.live/*' => Http::response($this->feed([
+        Http::fake(['localcinema.xyz/*' => Http::response($this->feed([
             [
-                'id' => 'https://localcinema.live/watch/saint-the-sea-1773172',
-                'url' => 'https://localcinema.live/watch/saint-the-sea-1773172',
+                'id' => 'https://localcinema.xyz/watch/saint-the-sea-1773172',
+                'url' => 'https://localcinema.xyz/watch/saint-the-sea-1773172',
                 'title' => 'Saint &amp; the Sea (2026)',
                 'content_text' => 'As a storm approaches their coastal village...',
                 'content_html' => '<p><img src="https://image.tmdb.org/t/p/w780/poster.jpg" alt="" /></p>',
@@ -41,7 +41,7 @@ class CinemaPageTest extends TestCase
                 'tags' => ['Movie'],
             ],
             [
-                'url' => 'https://localcinema.live/watch/change-623866',
+                'url' => 'https://localcinema.xyz/watch/change-623866',
                 'title' => 'Change (2014)',
                 'content_text' => 'Watch Change (2014) online on Local Cinema.',
                 'image' => null,
@@ -54,7 +54,7 @@ class CinemaPageTest extends TestCase
             ->assertSee('Saint &amp; the Sea', false)
             ->assertSee('2026')
             ->assertSee('https://image.tmdb.org/t/p/w780/poster.jpg', false)
-            ->assertSee('https://localcinema.live/watch/change-623866', false)
+            ->assertSee('https://localcinema.xyz/watch/change-623866', false)
             ->assertDontSee('Watch Change (2014) online on Local Cinema.');
 
         Http::assertSent(fn ($request) => $request['type'] === 'movies' && $request['limit'] == 12);
@@ -62,7 +62,7 @@ class CinemaPageTest extends TestCase
 
     public function test_tv_tab_requests_tv_and_unknown_types_fall_back_to_movies(): void
     {
-        Http::fake(['localcinema.live/*' => Http::response($this->feed([]))]);
+        Http::fake(['localcinema.xyz/*' => Http::response($this->feed([]))]);
 
         $this->get(route('cinema.index', ['type' => 'tv']))->assertOk();
         $this->get(route('cinema.index', ['type' => 'nope']))->assertOk();
@@ -73,9 +73,9 @@ class CinemaPageTest extends TestCase
 
     public function test_items_with_unsafe_urls_are_dropped(): void
     {
-        Http::fake(['localcinema.live/*' => Http::response($this->feed([
+        Http::fake(['localcinema.xyz/*' => Http::response($this->feed([
             ['url' => 'javascript:alert(1)', 'title' => 'Evil (2020)'],
-            ['url' => 'https://localcinema.live/watch/ok-1', 'title' => 'Fine (2020)', 'image' => 'javascript:alert(2)'],
+            ['url' => 'https://localcinema.xyz/watch/ok-1', 'title' => 'Fine (2020)', 'image' => 'javascript:alert(2)'],
         ]))]);
 
         $this->get(route('cinema.index'))
@@ -87,8 +87,8 @@ class CinemaPageTest extends TestCase
 
     public function test_remote_failure_serves_last_good_copy(): void
     {
-        Http::fake(['localcinema.live/*' => Http::sequence()
-            ->push($this->feed([['url' => 'https://localcinema.live/watch/raja-1', 'title' => 'Raja (1990)']]))
+        Http::fake(['localcinema.xyz/*' => Http::sequence()
+            ->push($this->feed([['url' => 'https://localcinema.xyz/watch/raja-1', 'title' => 'Raja (1990)']]))
             ->push('Server Error', 500),
         ]);
 
@@ -101,7 +101,7 @@ class CinemaPageTest extends TestCase
 
     public function test_remote_failure_with_no_cache_shows_empty_state(): void
     {
-        Http::fake(['localcinema.live/*' => Http::response('nope', 503)]);
+        Http::fake(['localcinema.xyz/*' => Http::response('nope', 503)]);
 
         $this->get(route('cinema.index'))
             ->assertOk()
