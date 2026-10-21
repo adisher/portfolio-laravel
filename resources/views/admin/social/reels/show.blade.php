@@ -177,10 +177,10 @@
                 <div class="text-sm" :class="inRange() ? 'text-gray-500 dark:text-gray-400' : 'text-amber-600 dark:text-amber-400'">
                     <span x-text="totalSeconds()"></span> s ·
                     <span x-text="totalWords()"></span> spoken words
-                    <span x-show="!inRange()"> (aim for {{ config('social.reels.min_seconds') }}-{{ config('social.reels.max_seconds') }} s, 65-110 words)</span>
+                    <span x-show="!inRange()"> (aim for {{ config('social.reels.min_seconds') }}-{{ config('social.reels.max_seconds') }} s, {{ config('social.reels.min_words') }}-{{ config('social.reels.max_words') }} words)</span>
                 </div>
             </div>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">The big text on screen, the line spoken in your voice, and what fills the frame. Changing the script means the video has to be rendered again.</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">The big text on screen, the line spoken in your voice, and what fills the frame. Each scene lasts as long as its spoken line takes. Changing the script means the video has to be rendered again.</p>
 
             <div class="space-y-4">
                 <template x-for="(scene, i) in scenes" :key="scene._key">
@@ -199,11 +199,9 @@
                                     <option value="{{ $value }}">{{ $label }}</option>
                                 @endforeach
                             </select>
-                            <label class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
-                                <input type="number" step="0.5" min="1" max="15" :name="`scenes[${i}][duration_seconds]`" x-model.number="scene.duration_seconds"
-                                    class="w-20 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
-                                s
-                            </label>
+                            <span class="text-sm text-gray-500 dark:text-gray-400" title="Worked out from the spoken words">
+                                about <span x-text="sceneSeconds(scene)"></span> s
+                            </span>
                             <div class="ml-auto flex items-center gap-2 text-sm">
                                 <button type="button" class="text-gray-500 hover:text-gray-700" @click="move(i, -1)" :disabled="i === 0" title="Move up">↑</button>
                                 <button type="button" class="text-gray-500 hover:text-gray-700" @click="move(i, 1)" :disabled="i === scenes.length - 1" title="Move down">↓</button>
@@ -284,7 +282,9 @@
 <script>
 function reelEditor(initial) {
     let key = 0;
-    const blank = () => ({ _key: ++key, type: 'point', on_screen_text: '', voice_line: '', duration_seconds: 4, visual: 'text', visual_note: '' });
+    const blank = () => ({ _key: ++key, type: 'point', on_screen_text: '', voice_line: '', visual: 'text', visual_note: '' });
+    const pace = {{ (float) config('social.reels.words_per_second', 2.5) }};
+    const words = text => (text || '').trim().split(/\s+/).filter(Boolean).length;
 
     return {
         scenes: (initial.length ? initial : [blank()]).map(s => ({ ...s, _key: ++key })),
@@ -295,11 +295,17 @@ function reelEditor(initial) {
             if (j < 0 || j >= this.scenes.length) return;
             [this.scenes[i], this.scenes[j]] = [this.scenes[j], this.scenes[i]];
         },
-        totalSeconds() { return Math.round(this.scenes.reduce((t, s) => t + (parseFloat(s.duration_seconds) || 0), 0)); },
-        totalWords() { return this.scenes.reduce((t, s) => t + (s.voice_line || '').trim().split(/\s+/).filter(Boolean).length, 0); },
+        // Mirrors SocialDraft::estimateSeconds(): words at the voice's pace plus a breath.
+        sceneSeconds(s) {
+            const floor = s.visual === 'code' ? 4 : 2;
+            return Math.round(Math.min(15, Math.max(floor, words(s.voice_line) / pace + 0.4)) * 10) / 10;
+        },
+        totalSeconds() { return Math.round(this.scenes.reduce((t, s) => t + this.sceneSeconds(s), 0)); },
+        totalWords() { return this.scenes.reduce((t, s) => t + words(s.voice_line), 0); },
         inRange() {
             const s = this.totalSeconds(), w = this.totalWords();
-            return s >= {{ (int) config('social.reels.min_seconds') }} && s <= {{ (int) config('social.reels.max_seconds') }} && w >= 65 && w <= 110;
+            return s >= {{ (int) config('social.reels.min_seconds') }} && s <= {{ (int) config('social.reels.max_seconds') }}
+                && w >= {{ (int) config('social.reels.min_words') }} && w <= {{ (int) config('social.reels.max_words') }};
         },
     };
 }

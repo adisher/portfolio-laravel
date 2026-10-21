@@ -71,7 +71,6 @@ class SocialReelController extends Controller
             'scenes.*.type'               => 'required|in:hook,context,point,end',
             'scenes.*.on_screen_text'     => 'nullable|string|max:120',
             'scenes.*.voice_line'         => 'nullable|string|max:500',
-            'scenes.*.duration_seconds'   => 'required|numeric|min:1|max:15',
             'scenes.*.visual'             => 'required|in:featured_image,portrait,screenshot,text,code',
             'scenes.*.visual_note'        => 'nullable|string|max:800',
             'instagram_caption'           => 'nullable|string|max:2200',

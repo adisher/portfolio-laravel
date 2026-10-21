@@ -29,7 +29,7 @@ class ReelDraftService
      */
     public function createForPost(BlogPost $post): ?SocialDraft
     {
-        $generated = $this->ai->generateReelScript($post);
+        $generated = $this->generate($post);
         if (! $generated) {
             return null;
         }
@@ -52,7 +52,7 @@ class ReelDraftService
     /** Replace the script and captions with a fresh AI version. Clears any render. */
     public function regenerate(SocialDraft $draft): bool
     {
-        $generated = $this->ai->generateReelScript($draft->blogPost);
+        $generated = $this->generate($draft->blogPost);
         if (! $generated) {
             return false;
         }
@@ -75,7 +75,9 @@ class ReelDraftService
     public function saveEdits(SocialDraft $draft, array $scenes, array $captions): void
     {
         $scenes = $this->normaliseScenes($scenes);
-        $scriptChanged = $scenes !== $draft->scenes();
+        // Timing is derived, so compare only what the owner can edit.
+        $comparable = fn (array $list) => array_map(fn ($s) => array_diff_key($s, ['duration_seconds' => 1]), $list);
+        $scriptChanged = $comparable($scenes) !== $comparable($draft->scenes());
 
         $draft->update([
             'script'   => ['scenes' => $scenes],
@@ -124,6 +126,34 @@ class ReelDraftService
         $this->alert(new ReelRenderFailed($draft->fresh('blogPost')));
     }
 
+    /**
+     * Ask the AI for a script; if the voiceover runs long, ask once more with
+     * the exact word count so it trims. A long script means a reel well over
+     * the target length, which is the most common miss.
+     */
+    private function generate(BlogPost $post): ?array
+    {
+        $generated = $this->ai->generateReelScript($post);
+        if (! $generated) {
+            return null;
+        }
+
+        $max   = (int) config('social.reels.max_words', 105);
+        $words = SocialDraft::countWords(collect($generated['scenes'] ?? [])->pluck('voice_line')->implode(' '));
+
+        if ($words > $max) {
+            $shorter = $this->ai->generateReelScript(
+                $post,
+                "Your previous script had {$words} spoken words, which runs too long. Rewrite it with at most {$max} spoken words in total. Cut points rather than cramming them."
+            );
+            if ($shorter) {
+                $generated = $shorter;
+            }
+        }
+
+        return $generated;
+    }
+
     /** Approve one platform for publishing at a time (now if null). */
     public function approveTarget(SocialDraftTarget $target, ?\DateTimeInterface $when = null): void
     {
@@ -148,14 +178,19 @@ class ReelDraftService
 
         return collect($scenes)
             ->filter(fn ($s) => is_array($s) && trim((string) ($s['on_screen_text'] ?? '')) . trim((string) ($s['voice_line'] ?? '')) !== '')
-            ->map(fn ($s) => [
-                'type'             => in_array($s['type'] ?? null, $types, true) ? $s['type'] : 'point',
-                'on_screen_text'   => $this->clean($s['on_screen_text'] ?? '', 80),
-                'voice_line'       => $this->clean($s['voice_line'] ?? '', 400),
-                'duration_seconds' => round(min(12, max(1.5, (float) ($s['duration_seconds'] ?? 4))), 1),
-                'visual'           => in_array($s['visual'] ?? null, $visuals, true) ? $s['visual'] : 'text',
-                'visual_note'      => $this->clean($s['visual_note'] ?? '', 600, keepNewlines: true),
-            ])
+            ->map(function ($s) use ($types, $visuals) {
+                $scene = [
+                    'type'           => in_array($s['type'] ?? null, $types, true) ? $s['type'] : 'point',
+                    'on_screen_text' => $this->clean($s['on_screen_text'] ?? '', 80),
+                    'voice_line'     => $this->clean($s['voice_line'] ?? '', 400),
+                    'visual'         => in_array($s['visual'] ?? null, $visuals, true) ? $s['visual'] : 'text',
+                    'visual_note'    => $this->clean($s['visual_note'] ?? '', 600, keepNewlines: true),
+                ];
+                // Timing follows the spoken words, never a guessed number.
+                $scene['duration_seconds'] = SocialDraft::estimateSeconds($scene);
+
+                return $scene;
+            })
             ->values()
             ->all();
     }

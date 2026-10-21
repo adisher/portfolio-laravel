@@ -73,7 +73,32 @@ class SocialDraft extends Model
     /** Planned length from the script, used until a render reports the real one. */
     public function plannedSeconds(): int
     {
-        return (int) round(collect($this->scenes())->sum(fn ($s) => (float) ($s['duration_seconds'] ?? 0)));
+        return (int) round(collect($this->scenes())->sum(fn ($s) => static::estimateSeconds($s)));
+    }
+
+    /** Spoken words across all scenes. */
+    public function wordCount(): int
+    {
+        return static::countWords($this->voiceover());
+    }
+
+    public static function countWords(?string $text): int
+    {
+        return count(preg_split('/\s+/', trim((string) $text), -1, PREG_SPLIT_NO_EMPTY));
+    }
+
+    /**
+     * How long a scene runs: its spoken words at the configured pace plus a
+     * short breath, with a floor so on-screen text (and code) can be read.
+     * Mirrored in the review page's JavaScript; keep the two in step.
+     */
+    public static function estimateSeconds(array $scene): float
+    {
+        $words = static::countWords($scene['voice_line'] ?? '');
+        $pace  = (float) config('social.reels.words_per_second', 2.5);
+        $floor = ($scene['visual'] ?? null) === 'code' ? 4.0 : 2.0;
+
+        return round(min(15, max($floor, $words / $pace + 0.4)), 1);
     }
 
     public function caption(string $platform, string $field, $default = null)

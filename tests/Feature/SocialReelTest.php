@@ -111,6 +111,44 @@ class SocialReelTest extends TestCase
             && $request['output_config']['format']['type'] === 'json_schema');
     }
 
+    public function test_scene_timing_follows_the_spoken_words(): void
+    {
+        $this->fakeClaude();
+        $draft = app(ReelDraftService::class)->createForPost($this->article());
+
+        $scenes = $draft->scenes();
+        // 13 words at 2.5 words/s + 0.4 s breath = 5.6 s; the AI's own "3" is ignored.
+        $this->assertSame(5.6, $scenes[0]['duration_seconds']);
+        // Code scenes get at least 4 s so the snippet can be read.
+        $this->assertGreaterThanOrEqual(4.0, $scenes[2]['duration_seconds']);
+        $this->assertSame((int) round(collect($scenes)->sum('duration_seconds')), $draft->plannedSeconds());
+    }
+
+    public function test_a_long_script_is_sent_back_once_to_be_shortened(): void
+    {
+        $long  = ['type' => 'point', 'on_screen_text' => 'Too much', 'voice_line' => str_repeat('word ', 40), 'visual' => 'text', 'visual_note' => ''];
+        $short = ['type' => 'point', 'on_screen_text' => 'Just right', 'voice_line' => 'A short line that fits the budget.', 'visual' => 'text', 'visual_note' => ''];
+        $captions = [
+            'instagram' => ['caption' => 'c', 'hashtags' => ['a']],
+            'youtube'   => ['title' => 't', 'description' => 'd', 'tags' => ['x']],
+        ];
+        $reply = fn (array $scenes) => Http::response([
+            'content' => [['type' => 'text', 'text' => json_encode(['scenes' => $scenes] + $captions)]],
+            'usage'   => ['input_tokens' => 100, 'output_tokens' => 100],
+        ]);
+
+        Http::fake(['api.anthropic.com/*' => Http::sequence()
+            ->pushResponse($reply([$long, $long, $long]))   // 120 words, over the 105 limit
+            ->pushResponse($reply([$short])),
+        ]);
+
+        $draft = app(ReelDraftService::class)->createForPost($this->article());
+
+        $this->assertSame('Just right', $draft->scenes()[0]['on_screen_text']);
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request) => str_contains($request['messages'][0]['content'], 'had 120 spoken words'));
+    }
+
     public function test_a_failed_ai_call_creates_nothing(): void
     {
         $this->fakeClaude(status: 529);

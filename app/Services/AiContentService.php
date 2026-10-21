@@ -853,7 +853,7 @@ PROMPT;
      * Uses structured outputs (output_config.format json_schema) so the reply
      * is always schema-valid JSON; lengths and counts are checked by the caller.
      */
-    public function generateReelScript(BlogPost $post): ?array
+    public function generateReelScript(BlogPost $post, ?string $feedback = null): ?array
     {
         if (!$this->isEnabled()) {
             Log::warning('Reel script generation skipped: AI disabled or budget exhausted');
@@ -863,7 +863,7 @@ PROMPT;
         $model = config('social.reels.ai_model', $this->model);
 
         try {
-            $response = $this->callApi($this->buildReelScriptPrompt($post), 4000, $model, [
+            $response = $this->callApi($this->buildReelScriptPrompt($post, $feedback), 4000, $model, [
                 'output_config' => [
                     'format' => ['type' => 'json_schema', 'schema' => $this->reelScriptSchema()],
                 ],
@@ -906,11 +906,10 @@ PROMPT;
                             'type'             => ['type' => 'string', 'enum' => ['hook', 'context', 'point', 'end']],
                             'on_screen_text'   => $string,
                             'voice_line'       => $string,
-                            'duration_seconds' => ['type' => 'number'],
                             'visual'           => ['type' => 'string', 'enum' => ['featured_image', 'portrait', 'screenshot', 'text', 'code']],
                             'visual_note'      => $string,
                         ],
-                        'required' => ['type', 'on_screen_text', 'voice_line', 'duration_seconds', 'visual', 'visual_note'],
+                        'required' => ['type', 'on_screen_text', 'voice_line', 'visual', 'visual_note'],
                         'additionalProperties' => false,
                     ],
                 ],
@@ -939,7 +938,7 @@ PROMPT;
         ];
     }
 
-    protected function buildReelScriptPrompt(BlogPost $post): string
+    protected function buildReelScriptPrompt(BlogPost $post, ?string $feedback = null): string
     {
         $post->loadMissing('category');
 
@@ -948,6 +947,9 @@ PROMPT;
         $body   = mb_substr($body, 0, 12000);
         $min    = config('social.reels.min_seconds', 25);
         $max    = config('social.reels.max_seconds', 45);
+        $minW   = config('social.reels.min_words', 60);
+        $maxW   = config('social.reels.max_words', 105);
+        $retry  = $feedback ? "\n\nREVISION NEEDED\n{$feedback}" : '';
 
         $source = $post->original_author ?: 'the original outlet';
         $kind = $isNews
@@ -966,8 +968,9 @@ Summary: {$post->excerpt}
 Body: {$body}
 
 THE REEL
-- Total length {$min}-{$max} seconds. Speech runs about 2.5 words per second, so keep the whole voiceover between 65 and 110 words and set each scene's duration_seconds to fit its voice_line.
-- Scenes, in order: exactly one "hook" (0-2 s idea that stops the scroll: a surprising claim, a number, or a question; never "In this video"), one "context" (the problem or news in one sentence), 3 to 5 "point" scenes (one idea each), and exactly one "end" scene.
+- Total length {$min}-{$max} seconds. Speech runs about 2.5 words per second and scene timing is calculated from the words, so the whole voiceover must be between {$minW} and {$maxW} words. Count them. This is a hard limit.
+- Scenes, in order: exactly one "hook" (an idea that stops the scroll: a surprising claim, a number, or a question; never "In this video"), one "context" (the problem or news in one sentence), 3 or 4 "point" scenes (one idea each), and exactly one "end" scene.
+- Word budget per voice_line: hook max 12, context max 16, each point max 18, end max 12. Short sentences. Spell numbers the way they are spoken.
 - on_screen_text: what appears in big type. Max 8 words, no hashtags, no emojis. It may differ from the voice_line.
 - The "end" scene voice_line points people to the full article ("Full breakdown is in the link in my bio" or similar) and on_screen_text names it.
 - visual: what fills the frame behind the text. featured_image (the article's header image), portrait (Adil's photo, use for hook or end only), screenshot (a product screen, only for Adil's own products), text (brand background only), code (a short snippet; put the snippet in visual_note, max 6 lines). visual_note says what should be shown.
@@ -983,7 +986,7 @@ CAPTIONS
 STYLE RULES (strict)
 - Never use em dashes or en dashes anywhere. Use commas, periods or colons.
 - No clickbait words like "insane", "crazy", "game-changer", "you won't believe".
-- Sound like a developer talking to developers.
+- Sound like a developer talking to developers.{$retry}
 PROMPT;
     }
 
