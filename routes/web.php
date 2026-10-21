@@ -185,6 +185,11 @@ Route::prefix('sports')->name('sports.')->middleware('feature:page.sports')->gro
     Route::get('/{sportSlug}/{matchSlug}', fn($s, $m) => redirect()->route('sports.match', $m, 301));
 });
 
+// Cinema, latest movies & TV pulled from the Local Cinema feed
+Route::get('/cinema', [\App\Http\Controllers\Frontend\CinemaController::class, 'index'])
+    ->middleware('feature:page.cinema')
+    ->name('cinema.index');
+
 // Frontend Contact Routes
 Route::get('/contact', [ContactController::class, 'index'])->middleware('feature:page.contact')->name('contact');
 // throttle: cap contact submissions per IP (humans never submit 5x/min) as a

@@ -136,6 +136,12 @@
                             Sports
                         </a>
                         @endfeature
+                        @feature('nav.cinema')
+                        <a href="{{ route('cinema.index') }}"
+                            class="nav-link {{ request()->routeIs('cinema.*') ? 'active' : '' }}">
+                            Cinema
+                        </a>
+                        @endfeature
                         <a href="{{ route('about') }}"
                             class="nav-link {{ request()->routeIs('about.*') ? 'active' : '' }}">
                             About Me
@@ -233,6 +239,12 @@
                     Sports
                 </a>
                 @endfeature
+                @feature('nav.cinema')
+                <a href="{{ route('cinema.index') }}"
+                    class="mobile-nav-link {{ request()->routeIs('cinema.*') ? 'active' : '' }}">
+                    Cinema
+                </a>
+                @endfeature
                 <a href="{{ route('about') }}"
                     class="mobile-nav-link {{ request()->routeIs('about.*') ? 'active' : '' }}">
                     About Me
@@ -305,6 +317,9 @@
                         @endfeature
                         @feature('nav.sports')
                         <li><a href="{{ route('sports.index') }}" class="text-soft hover:text-teal transition-colors">Live Sports</a></li>
+                        @endfeature
+                        @feature('nav.cinema')
+                        <li><a href="{{ route('cinema.index') }}" class="text-soft hover:text-teal transition-colors">Cinema</a></li>
                         @endfeature
                         @feature('nav.contact')
                         <li><a href="{{ route('contact') }}" class="text-soft hover:text-teal transition-colors">Contact</a></li>
