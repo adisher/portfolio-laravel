@@ -1,0 +1,176 @@
+# Social Distribution Plan
+
+Running doc. Updated as we work. Status legend: DONE / DOING / TODO / BLOCKED / DECIDED.
+
+Last updated: 2026-10-21
+Status: PLAN APPROVED IN PRINCIPLE, implementation not started.
+
+---
+
+## Goal
+
+Turn each well-performing blog post into native content for each platform, in the
+format that platform rewards, with consistent branding. Every piece is reviewed and
+approved by hand in the admin before it goes out.
+
+## Decisions (2026-10-21)
+
+- DECIDED **First platforms: Instagram and YouTube (Shorts).** Reels first.
+- DECIDED **LinkedIn** (personal profile now, company page later) follows after Instagram + YouTube: PDF carousels, native video, link in first comment, one-click manual publish.
+- DECIDED **No X.** Paid API (about $0.015 per post, about $0.20 with a link since April 2026) is not worth it.
+- DECIDED **n8n queue API is left as is.** It was a test; the new pipeline does not use it.
+- DECIDED **Manual approval of every post** in the admin. Auto-publish can be switched on later per platform.
+- DECIDED **Email alert on every new reel** that finishes rendering, linking to its review page.
+- DECIDED **Voice: record once, clone, use only that voice.** See "Voice" for the engine decision.
+- DECIDED **Branding matters.** One brand kit drives every slide and frame.
+- DECIDED **Video rendering on GitHub Actions** (repo is public, so Actions minutes are free).
+- DECIDED **Photos: use the existing site photos** from the Media library, main portrait `storage/media/home-header-2.webp`.
+
+## Where we are today (analysis 2026-10-20)
+
+- In-site publisher (Admin > Social): Facebook Page + LinkedIn drivers, one caption template per account, link-share only (platform builds the card from OG tags), each article posts once per account, manual "Post now" board.
+- `social:publish` (auto) exists but is NOT scheduled. LinkedIn driver is manual-only and uses the legacy `/v2/ugcPosts` endpoint.
+- "Well performing" = `blog_posts.views >= social_accounts.min_human_views`. Weak signal at ~100-150 human visits/month.
+- Measurement: `utm_source=<platform>` on links; no engagement pulled back. Last check: 12 Facebook + 2 LinkedIn visits / 30 days.
+- n8n claim-queue API (`posted_at`, `posted_via`) runs independently of the in-site publisher.
+- Hosting: Hostinger shared hosting, `database` queue, cron scheduler. Intervention Image installed. No video encoder or headless browser expected, hence rendering off-host.
+
+## Platform / format map
+
+| Platform | Main format | Second format | Article link |
+|---|---|---|---|
+| Instagram | Reel (9:16) | Carousel 4:5 (phase 3) | Link in bio |
+| YouTube Shorts | Reel (same file) | | Description |
+| LinkedIn personal | PDF carousel | Native video (4:5), text + image for news | First comment |
+| LinkedIn company page | Same assets, different angle, 1-2 days later | | First comment |
+| Facebook Page (later) | Reel cross-post | Carousel images | In post |
+
+Per article type:
+
+| Type | Package |
+|---|---|
+| Product article (own work) | Reel built on product screenshots + carousel |
+| Guide / evergreen | Reel + carousel |
+| News | Short "news in 30 seconds" reel; LinkedIn text + image; no carousel |
+
+## Brand kit
+
+One set of Remotion templates renders reels, carousel PNGs and the LinkedIn PDF.
+
+- Colours: midnight `#0D1B2A`, ocean `#1B3A4B`, teal accent, sunset highlight, soft greys for text (same tokens as `tailwind.config.js`).
+- Font: Satoshi.
+- Fixed elements: portrait (`home-header-2.webp`), name, handle, logo mark, closing card, progress bar.
+- Assets per piece: featured image, product screenshot library (`docs/screenshot-library.md`), code snippets, simple stat cards.
+
+## Reel design
+
+- 1080x1920, 25-45 s, MP4 (H.264 + AAC). 4:5 variant later for LinkedIn feed.
+- Captions burned in, word-by-word highlight synced to the voice.
+- Storyboard template:
+
+| Time | Scene | On screen |
+|---|---|---|
+| 0-2 s | Hook | One bold line, fast type-on |
+| 2-5 s | Context | Problem or news in one sentence over featured image / screenshot |
+| 5-35 s | 3-5 key points | One point per scene: big text, screenshot with zoom/pan, code or stat card |
+| last 4 s | End card | Portrait, name, handle, "Full article: link in bio", logo |
+
+- AI writes the script as scenes (`type`, `text`, `voice_line`, `duration`, `asset`). Every scene is editable in the admin before render.
+
+## Voice
+
+Requirement: record once, clone, always use that voice.
+
+Finding: the **ElevenLabs free plan does not include voice cloning** and is non-commercial (attribution required). Instant Voice Cloning starts at Starter (about $5-6/month), which also adds a commercial licence.
+
+Options:
+
+| Option | Cost | Quality | Notes |
+|---|---|---|---|
+| A. ElevenLabs Starter + Instant Voice Clone | ~$5-6/mo | Best, fast | Upload the recording once in ElevenLabs, store the voice ID in admin. Render job calls the API. |
+| B. Chatterbox (Resemble AI, MIT licence, open source) | Free | Good | Clones from a ~10 s reference clip. Runs on the GitHub Actions runner (CPU), adds a few minutes per render. Output carries an inaudible watermark. |
+
+Recommendation: **B (free) as default**, A as an upgrade if B's quality is not good enough. Either way the voice is set once and reused.
+
+Recording: one clean 1-2 minute take (quiet room, phone is fine), uploaded once in Admin > Social > Voice. Kept in **private** storage on the site, never in the repo.
+
+## Pipeline
+
+```
+Admin: pick article for social
+  -> Laravel: AI writes reel script (scenes) + Instagram caption + YouTube title/description/tags
+  -> Admin "Social Studio": edit scenes, click Render
+  -> Laravel: GitHub API repository_dispatch {draft_id}
+  -> GitHub Actions (this repo, video/ folder):
+       fetch draft JSON + photos + voice sample from site API (token)
+       generate voiceover with the cloned voice, align captions
+       Remotion render -> reel.mp4 + cover.jpg
+       upload to site (authenticated endpoint)
+  -> Laravel: draft status "ready for review", email alert
+  -> Admin review page: watch, edit, re-render, approve + schedule per platform
+  -> Scheduler: publish to Instagram / YouTube at the chosen time
+  -> Nightly: pull views / likes / comments back
+```
+
+## Review page and alerts
+
+- **Email on every new reel**: subject "New reel ready: {title}", cover image, hook line, duration, platforms, button "Review reel" linking to the admin review page. Recipient configurable, default same address as the quality gate alerts. Also an email when a render fails, with the error.
+- **Review page (Admin > Social > Reels > {draft})**:
+  - Video player (9:16 preview), cover frame picker.
+  - Scene list with text and voice line per scene; edit any scene and "Re-render".
+  - Full voiceover transcript.
+  - Instagram tab: caption, hashtags, cover, schedule time.
+  - YouTube tab: title, description (with UTM article link), tags, privacy, schedule time.
+  - Actions per platform: Approve + schedule / Publish now / Reject. Status timeline (drafted, rendered, approved, scheduled, posted, failed) with links to the live post.
+  - Download MP4 button (manual fallback for any platform).
+- **Reels list**: all drafts with status filters and "needs review" count, also shown on the admin dashboard.
+
+## Publishing
+
+- **Instagram**: Instagram Graph API, `media_type=REELS` from a public video URL on the site, then `media_publish`. Needs an Instagram Business or Creator account and a Meta app. Posting to your own account works with the app in development mode, no App Review needed.
+- **YouTube Shorts**: YouTube Data API `videos.insert` (Google client already in `composer.json`), vertical and under 60 s so it lands in Shorts, `#Shorts` in title/description.
+  - BLOCKER TO PLAN AROUND: uploads from an **unverified Google API project are forced to private** until the project passes Google's audit. Plan: apply for the audit at the start of Phase 2. Until approved, uploads go up private and you switch them to public in YouTube Studio (or upload by hand with the Download button).
+
+## Security notes (public repo)
+
+- Never commit the voice recording, tokens or draft data. The render job fetches them from the site with a token stored as an Actions secret.
+- Actions logs on a public repo are public: never print tokens, URLs with tokens, or script content beyond IDs.
+- Never upload renders or audio as workflow artifacts (anyone can download artifacts on a public repo). Results go straight back to the site.
+- Render workflow only triggers on `repository_dispatch` / `workflow_dispatch`, never on pull requests from forks.
+- Site upload endpoint: token-guarded, accepts only files for an existing draft in "rendering" state.
+
+## Data model (sketch)
+
+- `social_drafts`: blog_post_id, kind (reel | carousel | post), status, script (json scenes), captions (json per platform), media paths (mp4, cover, slides), render run id, error, timestamps.
+- `social_draft_targets`: draft_id, social_account_id, approved_at, scheduled_for, status, external_id, external_url, error. One row per platform.
+- `social_posts` (existing): add draft link, format, engagement columns, last_synced_at.
+- `social_voice`: stored as settings (engine, voice id or sample path).
+
+## Phases
+
+| Phase | Delivers | Status |
+|---|---|---|
+| 0. Groundwork | Drafts + targets tables, Social Studio list, review page shell, email alert, AI script + caption generator | TODO |
+| 1. Render pipeline | `video/` Remotion project with brand kit, GitHub Actions render workflow, voice clone engine, upload back, review page video player, re-render | TODO |
+| 2. Publish | Instagram Reels driver, YouTube Shorts driver, scheduling, apply for YouTube audit | TODO |
+| 3. Carousels + LinkedIn | Carousel templates (PNG + PDF), Instagram carousel, LinkedIn Posts API (personal), first comment, LinkedIn video | TODO |
+| 4. Picking + measuring | Social score, weekly shortlist, engagement sync, report | TODO |
+| 5. More reach | LinkedIn company page (after Community Management API approval), Facebook Reels, TikTok | TODO |
+
+## What the user needs to provide
+
+- [ ] Voice engine choice (A ElevenLabs Starter or B Chatterbox free).
+- [ ] One 1-2 minute voice recording (uploaded in admin once Phase 1 lands).
+- [ ] Instagram Business/Creator account linked to a Meta app (I will give exact steps when Phase 2 starts).
+- [ ] YouTube channel + Google Cloud project OAuth (steps at Phase 2).
+- [ ] A GitHub fine-grained token for the site to trigger renders (steps at Phase 1).
+
+## Sources
+
+- Buffer, best content format 2026: https://buffer.com/resources/data-best-content-format-social-media/
+- Meta, Instagram content publishing: https://developers.facebook.com/documentation/instagram-platform/content-publishing
+- Google, videos.insert (private-until-audit note): https://developers.google.com/youtube/v3/docs/videos/insert
+- Remotion pricing: https://www.remotion.dev/docs/pricing
+- ElevenLabs pricing overview 2026: https://bigvu.tv/blog/elevenlabs-pricing-2026-plans-credits-commercial-rights-api-costs/
+- Chatterbox (MIT): https://huggingface.co/ResembleAI/chatterbox
+- X API pay-per-use: https://opentweet.io/how-to/x-api-pay-per-use-explained
