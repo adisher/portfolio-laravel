@@ -3,7 +3,7 @@
 Running doc. Updated as we work. Status legend: DONE / DOING / TODO / BLOCKED / DECIDED.
 
 Last updated: 2026-10-21
-Status: PLAN APPROVED IN PRINCIPLE, implementation not started.
+Status: Phase 0 DONE (2026-10-21). Next: Phase 1 render pipeline.
 
 ---
 
@@ -21,7 +21,7 @@ approved by hand in the admin before it goes out.
 - DECIDED **n8n queue API is left as is.** It was a test; the new pipeline does not use it.
 - DECIDED **Manual approval of every post** in the admin. Auto-publish can be switched on later per platform.
 - DECIDED **Email alert on every new reel** that finishes rendering, linking to its review page.
-- DECIDED **Voice: record once, clone, use only that voice.** See "Voice" for the engine decision.
+- DECIDED **Voice: record once, clone, use only that voice.** Engine: **B, Chatterbox (free, MIT)**, decided 2026-10-21.
 - DECIDED **Branding matters.** One brand kit drives every slide and frame.
 - DECIDED **Video rendering on GitHub Actions** (repo is public, so Actions minutes are free).
 - DECIDED **Photos: use the existing site photos** from the Media library, main portrait `storage/media/home-header-2.webp`.
@@ -139,6 +139,16 @@ Admin: pick article for social
 - Render workflow only triggers on `repository_dispatch` / `workflow_dispatch`, never on pull requests from forks.
 - Site upload endpoint: token-guarded, accepts only files for an existing draft in "rendering" state.
 
+## Phase 0 as built (2026-10-21)
+
+- Tables `social_drafts` + `social_draft_targets` (migration `2026_10_21_120000_create_social_drafts_tables`). Models `SocialDraft`, `SocialDraftTarget`; `BlogPost::socialDrafts()`.
+- `AiContentService::generateReelScript()`: structured outputs (`output_config.format` json_schema) on `config('social.reels.ai_model')` (defaults to the original-article model, Sonnet 4.6). Logged to the AI budget as `social_reel_script`.
+- `App\Services\Social\ReelDraftService`: create, regenerate, saveEdits (script change resets approvals and status), markRenderRequested, markRendered (emails `ReelReadyForReview`), markRenderFailed (emails `ReelRenderFailed`), approve/reject per target. House style enforced (no em/en dashes).
+- `SocialUrl::for()` takes an optional format, added as `utm_content` (YouTube description link uses `utm_content=reel`).
+- Admin: Reels nav item with needs-review badge; `/admin/social/reels` (start a reel from top articles, filters) and the review page (player, scene editor with live length/word count, Instagram/YouTube caption tabs, per-platform approve with schedule time, history). Approval is blocked until a render exists.
+- Alerts go to `config('social.reels.alert_email')` (env `SOCIAL_ALERT_EMAIL`, default adilsher973@gmail.com).
+- Tests: `tests/Feature/SocialReelTest` (7). Full suite: 139 passing, same 6 pre-existing ProfileTest/ExampleTest failures.
+
 ## Data model (sketch)
 
 - `social_drafts`: blog_post_id, kind (reel | carousel | post), status, script (json scenes), captions (json per platform), media paths (mp4, cover, slides), render run id, error, timestamps.
@@ -150,7 +160,7 @@ Admin: pick article for social
 
 | Phase | Delivers | Status |
 |---|---|---|
-| 0. Groundwork | Drafts + targets tables, Social Studio list, review page shell, email alert, AI script + caption generator | TODO |
+| 0. Groundwork | Drafts + targets tables, Social Studio list, review page shell, email alert, AI script + caption generator | DONE |
 | 1. Render pipeline | `video/` Remotion project with brand kit, GitHub Actions render workflow, voice clone engine, upload back, review page video player, re-render | TODO |
 | 2. Publish | Instagram Reels driver, YouTube Shorts driver, scheduling, apply for YouTube audit | TODO |
 | 3. Carousels + LinkedIn | Carousel templates (PNG + PDF), Instagram carousel, LinkedIn Posts API (personal), first comment, LinkedIn video | TODO |
@@ -159,7 +169,7 @@ Admin: pick article for social
 
 ## What the user needs to provide
 
-- [ ] Voice engine choice (A ElevenLabs Starter or B Chatterbox free).
+- [x] Voice engine choice: B, Chatterbox.
 - [ ] One 1-2 minute voice recording (uploaded in admin once Phase 1 lands).
 - [ ] Instagram Business/Creator account linked to a Meta app (I will give exact steps when Phase 2 starts).
 - [ ] YouTube channel + Google Cloud project OAuth (steps at Phase 2).

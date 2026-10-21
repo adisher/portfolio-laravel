@@ -299,6 +299,18 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::get('/publish', [\App\Http\Controllers\Admin\SocialAccountController::class, 'publishBoard'])->name('publish');
         Route::post('/publish/now', [\App\Http\Controllers\Admin\SocialAccountController::class, 'postNow'])->name('post-now');
         Route::post('/publish/preview', [\App\Http\Controllers\Admin\SocialAccountController::class, 'preview'])->name('preview');
+
+        // Social Studio: reel drafts (docs/social-distribution-plan.md)
+        Route::prefix('reels')->name('reels.')->controller(\App\Http\Controllers\Admin\SocialReelController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::get('/{draft}', 'show')->name('show');
+            Route::put('/{draft}', 'update')->name('update');
+            Route::post('/{draft}/regenerate', 'regenerate')->name('regenerate');
+            Route::patch('/{draft}/targets/{target}/approve', 'approveTarget')->name('targets.approve');
+            Route::patch('/{draft}/targets/{target}/reject', 'rejectTarget')->name('targets.reject');
+            Route::delete('/{draft}', 'destroy')->name('destroy');
+        });
         Route::get('/create', [\App\Http\Controllers\Admin\SocialAccountController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\Admin\SocialAccountController::class, 'store'])->name('store');
         Route::get('/{social}/edit', [\App\Http\Controllers\Admin\SocialAccountController::class, 'edit'])->name('edit');

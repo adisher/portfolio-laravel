@@ -176,8 +176,21 @@
                     Collected Articles
                 </a>
 
+                @php $reelsToReview = \App\Models\SocialDraft::where('kind', 'reel')->needsReview()->count(); @endphp
+                <a href="{{ route('admin.social.reels.index') }}"
+                    class="admin-nav-link {{ request()->routeIs('admin.social.reels.*') ? 'active' : '' }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    Reels
+                    @if($reelsToReview > 0)
+                        <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-1">{{ $reelsToReview }}</span>
+                    @endif
+                </a>
+
                 <a href="{{ route('admin.social.index') }}"
-                    class="admin-nav-link {{ request()->routeIs('admin.social.*') ? 'active' : '' }}">
+                    class="admin-nav-link {{ request()->routeIs('admin.social.*') && ! request()->routeIs('admin.social.reels.*') ? 'active' : '' }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
