@@ -56,8 +56,10 @@ class FeatureFlagSeeder extends Seeder
              'sort_order' => 510],
         ];
 
+        // Only add flags that don't exist yet. Existing rows are never touched,
+        // so re-running the seeder can't undo choices made in Admin > Visibility.
         foreach ($flags as $flag) {
-            FeatureFlag::updateOrCreate(
+            FeatureFlag::firstOrCreate(
                 ['key' => $flag['key']],
                 array_merge(['is_enabled' => true], $flag)
             );
