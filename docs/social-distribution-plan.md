@@ -168,6 +168,14 @@ Owner feedback: little variation in the voice, one word pronounced differently i
 - Prompt: credit a news source in passing at most, never send viewers to it; end card points to the full article on the owner's site (link in bio). `ReelDraftService::scriptProblems()` rejects a script that names the source next to a read/visit/check nudge and retries once with feedback (combined with the word-limit retry).
 - Tests: 159 passing, same 6 pre-existing failures.
 
+## Second voice pass (2026-10-22)
+
+Owner tried Expressive (exaggeration 0.85, cfg 0.3): excited non-word sounds, rushed delivery, jumpy captions.
+- Presets rebalanced: Calm 0.4/0.5/0.6, Natural 0.55/0.45/0.65 (default), Expressive 0.7/0.35/0.65 (exaggeration/cfg/temperature). Chatterbox rushes and adds sounds above ~0.7.
+- Take score = word match minus penalties for loud audio no word explains (>0.25 s), Whisper non-speech tags ("[laughs]"), and pace above 2.95 words/s. Stops at 0.88.
+- Kept take is trimmed to its first/last word, and if still rushed slowed towards 2.7 words/s with ffmpeg atempo (never below 85% speed).
+- Captions only use Whisper timing when the take matched >= 0.75 and times move forward; otherwise even spacing.
+
 ## Data model (sketch)
 
 - `social_drafts`: blog_post_id, kind (reel | carousel | post), status, script (json scenes), captions (json per platform), media paths (mp4, cover, slides), render run id, error, timestamps.

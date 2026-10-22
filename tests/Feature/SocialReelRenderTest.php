@@ -317,8 +317,8 @@ class SocialReelRenderTest extends TestCase
 
         $this->getJson("/api/social/render/{$draft->id}", ['Authorization' => "Bearer {$token}"])
             ->assertOk()
-            ->assertJsonPath('voice.exaggeration', 0.85)
-            ->assertJsonPath('voice.cfg_weight', 0.3)
+            ->assertJsonPath('voice.exaggeration', 0.7)
+            ->assertJsonPath('voice.cfg_weight', 0.35)
             ->assertJsonPath('voice.seed', $draft->id)
             ->assertJsonPath('voice.pronunciations', [['Laravel', 'Lara vel'], ['kubectl', 'cube control']]);
     }

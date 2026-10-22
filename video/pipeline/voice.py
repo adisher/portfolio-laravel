@@ -31,8 +31,12 @@ PACE = 2.5            # words per second, same as config/social.php
 BREATH = 0.35         # pause after each scene's line
 LEAD = 0.15           # pause before each scene's line
 TAKES = 3             # attempts per scene
-GOOD_ENOUGH = 0.9     # Whisper match ratio that stops further takes
-DEFAULT_VOICE = {"exaggeration": 0.65, "cfg_weight": 0.4, "temperature": 0.7, "pronunciations": [], "seed": 1}
+GOOD_ENOUGH = 0.88    # take score that stops further takes
+TRUST_TIMING = 0.75   # below this match, captions use even timing instead of Whisper's
+TARGET_PACE = 2.7     # words per second a rushed take is slowed towards
+MAX_PACE = 2.95       # faster than this counts as rushed
+MAX_SLOWDOWN = 0.85   # never slow a take below 85% speed (it starts to sound stretched)
+DEFAULT_VOICE = {"exaggeration": 0.55, "cfg_weight": 0.45, "temperature": 0.65, "pronunciations": [], "seed": 1}
 
 
 # ── Text ────────────────────────────────────────────────────────────────────
@@ -87,17 +91,26 @@ def match_ratio(spoken: list[str], heard: list[str]) -> float:
     return difflib.SequenceMatcher(None, a, b, autojunk=False).ratio()
 
 
-def time_words(mapping, spoken: list[str], heard: list[tuple[str, float, float]], speech_seconds: float) -> list[dict]:
+def time_words(mapping, spoken: list[str], heard: list[tuple[str, float, float]], speech_seconds: float, match: float = 1.0) -> list[dict]:
     """Time each original word for the captions. Spoken words are matched to
     Whisper's words in order; an original word spans the times of the spoken
-    words it became. Words Whisper missed share the gaps around them."""
+    words it became. Words Whisper missed share the gaps around them.
+
+    Whisper's times are only trusted when the take matched the script well,
+    and only while they move forward; otherwise words are spread evenly over
+    the speech, which looks calm rather than jumpy."""
     a = [norm(w) for w in spoken]
     b = [norm(w) for w, _, _ in heard]
     spoken_times: list[tuple[float, float] | None] = [None] * len(spoken)
-    for block in difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks():
-        for k in range(block.size):
-            _, s, e = heard[block.b + k]
-            spoken_times[block.a + k] = (s, e)
+    if match >= TRUST_TIMING:
+        last_end = 0.0
+        for block in difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks():
+            for k in range(block.size):
+                _, s, e = heard[block.b + k]
+                if s + 0.02 < last_end or e <= s:
+                    continue  # out of order or empty: let the gap filler time it
+                spoken_times[block.a + k] = (s, max(e, s + 0.08))
+                last_end = e
 
     out = []
     for orig, start, end in mapping:
@@ -207,13 +220,75 @@ def transcribe(asr, audio: np.ndarray) -> list[tuple[str, float, float]]:
     return [(w.word.strip(), float(w.start), float(w.end)) for seg in segments for w in (seg.words or [])]
 
 
+NON_SPEECH = re.compile(r"^[\[(*].*[\])*]$")  # Whisper's "[laughs]", "(excited)", "*sighs*"
+
+
+def split_non_speech(heard: list[tuple[str, float, float]]):
+    """Separate real words from Whisper's descriptions of non-speech sounds."""
+    words = [h for h in heard if not NON_SPEECH.match(h[0]) and norm(h[0])]
+    return words, len(heard) - len(words)
+
+
+def take_quality(audio: np.ndarray, words: list[tuple[str, float, float]], n_spoken: int) -> dict:
+    """Pace (words per second between first and last word) and seconds of
+    loud audio that no word accounts for: gasps, laughs, "excited" noises."""
+    import librosa
+
+    if not words:
+        return {"pace": 0.0, "noise": len(audio) / SR, "start": 0.0, "end": len(audio) / SR}
+    start, end = words[0][1], words[-1][2]
+    pace = n_spoken / max(0.5, end - start)
+
+    hop = 256
+    rms = librosa.feature.rms(y=audio, frame_length=1024, hop_length=hop)[0]
+    times = np.arange(len(rms)) * hop / SR
+    loud = rms > 0.3 * np.percentile(rms, 90)
+    covered = np.zeros_like(loud)
+    for _, s, e in words:
+        covered |= (times >= s - 0.12) & (times <= e + 0.12)
+    noise = float(np.sum(loud & ~covered)) * hop / SR
+    return {"pace": pace, "noise": noise, "start": start, "end": end}
+
+
+def take_score(match: float, quality: dict, sounds: int) -> float:
+    """Word match, minus penalties for non-word sounds and for rushing."""
+    score = match
+    score -= 0.4 * max(0.0, quality["noise"] - 0.25)       # more than a breath of non-word sound
+    score -= 0.15 * sounds                                  # Whisper heard a laugh/gasp/etc.
+    score -= 0.2 * max(0.0, quality["pace"] - MAX_PACE)     # rushed
+    return score
+
+
+def trim_to_words(audio: np.ndarray, words, quality: dict):
+    """Cut sounds before the first word and after the last one."""
+    start = max(0, int((quality["start"] - 0.08) * SR))
+    end = min(len(audio), int((quality["end"] + 0.15) * SR))
+    shift = start / SR
+    return audio[start:end], [(w, s - shift, e - shift) for w, s, e in words]
+
+
+def slow_down(audio: np.ndarray, words, pace: float):
+    """Gently slow a rushed take towards TARGET_PACE with ffmpeg's atempo
+    (pitch preserved), never below MAX_SLOWDOWN speed."""
+    if pace <= MAX_PACE:
+        return audio, words
+    tempo = max(MAX_SLOWDOWN, TARGET_PACE / pace)
+    src, dst = RENDER / "take_in.wav", RENDER / "take_slow.wav"
+    sf.write(src, audio, SR)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), "-filter:a", f"atempo={tempo:.3f}", str(dst)], check=True)
+    slowed, _ = sf.read(dst, dtype="float32")
+    print(f"  slowed from {pace:.1f} to {pace * tempo:.1f} words/s")
+    return slowed, [(w, s / tempo, e / tempo) for w, s, e in words]
+
+
 def speak(model, asr, text: str, voice: dict, seed: int):
-    """Up to TAKES attempts at one line; keep the one Whisper hears best.
-    Returns (audio, heard words, match ratio)."""
+    """Up to TAKES attempts at one line; keep the cleanest. Each take is judged
+    on what Whisper hears (right words, no extra sounds, natural pace).
+    Returns (audio, heard words, match ratio of the kept take)."""
     import librosa
     import torch
 
-    limit = len(words_of(text)) / 1.3 + 3.0
+    spoken = words_of(text)
     best = None
     for take in range(TAKES):
         torch.manual_seed(seed + take)
@@ -225,16 +300,22 @@ def speak(model, asr, text: str, voice: dict, seed: int):
         )
         audio = wav.squeeze(0).cpu().numpy().astype(np.float32)
         audio, _ = librosa.effects.trim(audio, top_db=35)
-        heard = transcribe(asr, audio)
-        score = match_ratio(words_of(text), [w for w, _, _ in heard])
-        if len(audio) / SR > limit:
-            score -= 0.5  # a run-on or mumble: only keep it if nothing better comes
-        print(f"  take {take + 1}: {len(audio) / SR:.1f} s, match {score:.2f}")
-        if best is None or score > best[2]:
-            best = (audio, heard, score)
+        words, sounds = split_non_speech(transcribe(asr, audio))
+        match = match_ratio(spoken, [w for w, _, _ in words])
+        quality = take_quality(audio, words, len(spoken))
+        score = take_score(match, quality, sounds)
+        print(f"  take {take + 1}: {len(audio) / SR:.1f} s, match {match:.2f}, pace {quality['pace']:.1f} w/s, "
+              f"extra sound {quality['noise']:.1f} s{f', {sounds} non-word sounds' if sounds else ''}, score {score:.2f}")
+        if best is None or score > best["score"]:
+            best = {"audio": audio, "words": words, "match": match, "quality": quality, "score": score}
         if score >= GOOD_ENOUGH:
             break
-    return best
+
+    audio, words = best["audio"], best["words"]
+    if words and best["match"] >= TRUST_TIMING:
+        audio, words = trim_to_words(audio, words, best["quality"])
+        audio, words = slow_down(audio, words, best["quality"]["pace"])
+    return audio, words, best["match"]
 
 
 def normalise(audio: np.ndarray) -> np.ndarray:
@@ -288,7 +369,7 @@ def main() -> None:
         scenes.append({
             **scene,
             "duration_seconds": round(length, 3),
-            "words": time_words(mapping, spoken, heard, speech_seconds) if text else [],
+            "words": time_words(mapping, spoken, heard, speech_seconds, matches[-1] if (text and not dummy) else 1.0) if text else [],
         })
 
     voice_audio = np.concatenate(pieces)
