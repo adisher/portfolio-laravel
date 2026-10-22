@@ -52,6 +52,21 @@ class SocialStudioController extends Controller
         return back()->with('success', 'Voice recording saved. Every reel will use it from now on.');
     }
 
+    public function updateVoiceOptions(Request $request)
+    {
+        $validated = $request->validate([
+            'voice_style'    => 'required|in:' . implode(',', array_keys(SocialStudioSettings::VOICE_STYLES)),
+            'pronunciations' => 'nullable|string|max:5000',
+        ]);
+
+        SocialStudioSettings::instance()->forceFill([
+            'voice_style'    => $validated['voice_style'],
+            'pronunciations' => trim((string) ($validated['pronunciations'] ?? '')),
+        ])->save();
+
+        return back()->with('success', 'Voice style and pronunciations saved. They apply to the next render.');
+    }
+
     public function voicePreview()
     {
         $path = SocialStudioSettings::instance()->voice_sample_path;

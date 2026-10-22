@@ -43,7 +43,8 @@
             <ul class="list-disc pl-6 space-y-1">
                 <li>1 to 2 minutes, in a quiet room. Your phone's voice recorder is fine.</li>
                 <li>Hold the phone about a hand's width from your mouth.</li>
-                <li>Talk the way you want your reels to sound: read a few paragraphs of one of your articles, naturally.</li>
+                <li>Talk the way you want your reels to sound: read a few paragraphs of one of your articles with real energy, as if explaining it to a friend on camera. A flat read gives a flat voice.</li>
+                <li>The liveliest 10 seconds of the recording is what gets cloned.</li>
                 <li>No music or background noise. Start talking within a second or two.</li>
             </ul>
         </div>
@@ -94,5 +95,40 @@
             <p class="text-xs text-gray-400">The token is stored encrypted. The site checks it, then saves its own render key as a secret in your repository so the render job can send videos back.</p>
         </form>
     </div>
+
+    {{-- Voice style + pronunciations --}}
+    <form method="POST" action="{{ route('admin.social.reels.settings.voice-options') }}" class="admin-card p-6 lg:col-span-2">
+        @csrf
+        @method('PUT')
+        <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-1">3. How your voice speaks</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Applies to the next render. Each scene is spoken up to three times and the clearest take is kept.</p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+                <p class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Style</p>
+                <div class="space-y-2">
+                    @foreach(\App\Models\SocialStudioSettings::VOICE_STYLES as $key => $style)
+                        <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer">
+                            <input type="radio" name="voice_style" value="{{ $key }}" class="mt-1" @checked(($settings->voice_style ?? 'natural') === $key)>
+                            <span>
+                                <span class="block font-medium text-gray-900 dark:text-white">{{ $style['label'] }}</span>
+                                <span class="block text-sm text-gray-500 dark:text-gray-400">{{ $style['help'] }}</span>
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+            <div>
+                <label for="pronunciations" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pronunciations</label>
+                <textarea id="pronunciations" name="pronunciations" rows="8"
+                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white font-mono text-sm">{{ $settings->pronunciationText() }}</textarea>
+                <p class="text-xs text-gray-400 mt-1">One per line: <span class="font-mono">word = how to say it</span>. Use this for any word the voice gets wrong or says differently in different places, for example <span class="font-mono">Laravel = Lara vel</span>. Only the voice changes; captions keep the real spelling.</p>
+            </div>
+        </div>
+
+        <div class="flex justify-end mt-4">
+            <button type="submit" class="btn-primary text-sm py-2 px-4">Save voice settings</button>
+        </div>
+    </form>
 </div>
 @endsection

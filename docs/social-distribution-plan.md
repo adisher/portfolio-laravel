@@ -159,6 +159,15 @@ Admin: pick article for social
 - Verified locally end to end with a stand-in voice (HF/PyTorch downloads are blocked in the build container): fetch, 31 s render in ~1.5 min (4.9 MB), chunked upload identical byte for byte, draft ready, email sent. First real render on GitHub also downloads the model (~5-8 min extra, then cached).
 - Tests: `tests/Feature/SocialReelRenderTest` (14). Full suite 155 passing, same 6 pre-existing failures.
 
+## Voice and script fixes after the first real render (2026-10-22)
+
+Owner feedback: little variation in the voice, one word pronounced differently in two scenes, and the end card sent viewers to the original source (dev.to).
+- Voice reference is now the liveliest 12 s of the recording (highest voiced pitch movement, 1 s steps), not a fixed slice. Recording tips ask for an energetic read.
+- Studio settings > How your voice speaks: Calm / Natural (default) / Expressive presets (Chatterbox exaggeration 0.45/0.65/0.85, cfg 0.5/0.4/0.3, temperature 0.65/0.7/0.75; first render used 0.5/0.5/0.7) and a pronunciation list (`word = how to say it`, default includes `adilsher.pro = Adil Sher dot pro`). Pronunciations change only the audio; captions keep the real spelling.
+- Each scene is spoken up to 3 times with fixed seeds (draft id based, so re-renders are repeatable); faster-whisper base.en listens back and the take with the best word match (numbers ignored) is kept, stopping at 0.9. Caption timing now comes from Whisper word timestamps mapped back to the original words.
+- Prompt: credit a news source in passing at most, never send viewers to it; end card points to the full article on the owner's site (link in bio). `ReelDraftService::scriptProblems()` rejects a script that names the source next to a read/visit/check nudge and retries once with feedback (combined with the word-limit retry).
+- Tests: 159 passing, same 6 pre-existing failures.
+
 ## Data model (sketch)
 
 - `social_drafts`: blog_post_id, kind (reel | carousel | post), status, script (json scenes), captions (json per platform), media paths (mp4, cover, slides), render run id, error, timestamps.

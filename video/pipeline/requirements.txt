@@ -1,4 +1,6 @@
 # torch/torchaudio 2.6.0 are installed first from the CPU index (see render-reel.yml).
+# Resolved together for Python 3.11 (transformers 5.2.0, tokenizers 0.22, numpy 1.26).
 chatterbox-tts==0.1.7
+faster-whisper==1.2.1
 soundfile
 pyloudnorm

@@ -58,11 +58,11 @@ jobs:
           cache: pip
           cache-dependency-path: video/pipeline/requirements.txt
 
-      - name: Cache voice model
+      - name: Cache voice and speech-check models
         uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
-          key: chatterbox-0.1.7
+          key: chatterbox-0.1.7-whisper-base.en
 
       - name: Install voice model
         run: |

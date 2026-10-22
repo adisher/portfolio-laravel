@@ -149,6 +149,31 @@ class SocialReelTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request['messages'][0]['content'], 'had 120 spoken words'));
     }
 
+    public function test_a_script_that_sends_viewers_to_the_source_is_rewritten(): void
+    {
+        $post = $this->article();
+        $post->update(['source_type' => 'curated', 'original_url' => 'https://dev.to/someone/agents', 'original_author' => 'Dev.to']);
+
+        $scene = fn (string $type, string $line) => ['type' => $type, 'on_screen_text' => 'x', 'voice_line' => $line, 'visual' => 'text', 'visual_note' => ''];
+        $captions = ['instagram' => ['caption' => 'c', 'hashtags' => []], 'youtube' => ['title' => 't', 'description' => 'd', 'tags' => []]];
+        $reply = fn (array $scenes) => Http::response([
+            'content' => [['type' => 'text', 'text' => json_encode(['scenes' => $scenes] + $captions)]],
+            'usage'   => ['input_tokens' => 10, 'output_tokens' => 10],
+        ]);
+
+        Http::fake(['api.anthropic.com/*' => Http::sequence()
+            ->pushResponse($reply([$scene('hook', 'As Dev.to reported, agents got pricier.'), $scene('end', 'Read the full story over at Dev.to.')]))
+            ->pushResponse($reply([$scene('hook', 'As Dev.to reported, agents got pricier.'), $scene('end', 'Full breakdown is on my site, link in my bio.')])),
+        ]);
+
+        $draft = app(ReelDraftService::class)->createForPost($post);
+
+        // A passing credit is fine; sending viewers to the source is not.
+        $this->assertSame('Full breakdown is on my site, link in my bio.', $draft->scenes()[1]['voice_line']);
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request) => str_contains($request['messages'][0]['content'], 'Never send viewers to the source'));
+    }
+
     public function test_a_failed_ai_call_creates_nothing(): void
     {
         $this->fakeClaude(status: 529);

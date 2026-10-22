@@ -305,6 +305,32 @@ class SocialReelRenderTest extends TestCase
         $this->assertFalse(SocialStudioSettings::instance()->hasGithub());
     }
 
+    public function test_voice_style_and_pronunciations_reach_the_render_job(): void
+    {
+        $token = $this->studio();
+        $draft = $this->draft();
+
+        $this->actingAs($this->admin)->put(route('admin.social.reels.settings.voice-options'), [
+            'voice_style'    => 'expressive',
+            'pronunciations' => "Laravel = Lara vel\nnot a rule\nkubectl: cube control",
+        ])->assertSessionHas('success');
+
+        $this->getJson("/api/social/render/{$draft->id}", ['Authorization' => "Bearer {$token}"])
+            ->assertOk()
+            ->assertJsonPath('voice.exaggeration', 0.85)
+            ->assertJsonPath('voice.cfg_weight', 0.3)
+            ->assertJsonPath('voice.seed', $draft->id)
+            ->assertJsonPath('voice.pronunciations', [['Laravel', 'Lara vel'], ['kubectl', 'cube control']]);
+    }
+
+    public function test_default_pronunciations_cover_the_site_name(): void
+    {
+        $list = SocialStudioSettings::instance()->pronunciationList();
+
+        $this->assertContains(['adilsher.pro', 'Adil Sher dot pro'], $list);
+        $this->assertSame('natural', SocialStudioSettings::instance()->fresh()->voice_style);
+    }
+
     public function test_settings_page_renders(): void
     {
         $this->actingAs($this->admin)->get(route('admin.social.reels.settings'))

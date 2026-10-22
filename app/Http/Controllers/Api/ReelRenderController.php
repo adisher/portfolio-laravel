@@ -34,6 +34,10 @@ class ReelRenderController extends Controller
                 'role'   => config('person.job_title'),
                 'handle' => config('social.reels.handle'),
             ],
+            'voice' => SocialStudioSettings::instance()->voiceParams() + [
+                'pronunciations' => SocialStudioSettings::instance()->pronunciationList(),
+                'seed'           => $draft->id,
+            ],
             'assets' => [
                 'featured_image' => $this->absolute($post->featured_image && ! Str::endsWith($post->featured_image, '.svg')
                     ? (Str::startsWith($post->featured_image, ['http://', 'https://']) ? $post->featured_image : Storage::url($post->featured_image))

@@ -306,6 +306,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
             Route::post('/voice', 'uploadVoice')->name('.voice');
             Route::get('/voice', 'voicePreview')->name('.voice-preview');
             Route::post('/github', 'connectGithub')->name('.github');
+            Route::put('/voice-options', 'updateVoiceOptions')->name('.voice-options');
         });
         Route::prefix('reels')->name('reels.')->controller(\App\Http\Controllers\Admin\SocialReelController::class)->group(function () {
             Route::get('/', 'index')->name('index');

@@ -2,15 +2,20 @@
 
 Usage: python voice.py [--dummy]
 
-Reads video/public/render/draft.json (from fetch.py). Clones the voice from
-the uploaded sample with Chatterbox (MIT, runs on CPU), speaks each scene's
-voice_line, times every word, and writes:
-  public/render/voice.wav    the full voiceover, loudness-normalised
-  public/render/props.json   input props for the Remotion composition
-  public/render/meta.json    total and per-scene seconds, sent back to the site
---dummy skips the model and writes silence of the estimated length, so the
+Reads video/public/render/draft.json (from fetch.py) and:
+  1. picks the liveliest 12 s of the voice recording as the clone reference
+     (Chatterbox reads 10 s, and copies the energy of what it is given);
+  2. rewrites each line with the owner's pronunciation list, so tricky words
+     are always said the same way;
+  3. speaks each scene up to 3 times with Chatterbox (MIT, CPU) and keeps the
+     clearest take, judged by Whisper (faster-whisper) listening back;
+  4. times every caption word from Whisper's word timestamps, mapped back to
+     the real spelling (falls back to an estimate if a word can't be matched);
+  5. writes public/render/voice.wav, props.json and meta.json.
+--dummy skips both models and writes silence of the estimated length, so the
 rest of the pipeline can be tested anywhere.
 """
+import difflib
 import json
 import pathlib
 import re
@@ -25,11 +30,106 @@ SR = 24000            # Chatterbox's output rate
 PACE = 2.5            # words per second, same as config/social.php
 BREATH = 0.35         # pause after each scene's line
 LEAD = 0.15           # pause before each scene's line
+TAKES = 3             # attempts per scene
+GOOD_ENOUGH = 0.9     # Whisper match ratio that stops further takes
+DEFAULT_VOICE = {"exaggeration": 0.65, "cfg_weight": 0.4, "temperature": 0.7, "pronunciations": [], "seed": 1}
 
+
+# ── Text ────────────────────────────────────────────────────────────────────
 
 def words_of(text: str) -> list[str]:
     return [w for w in re.split(r"\s+", (text or "").strip()) if w]
 
+
+def norm(word: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", word.lower())
+
+
+def pronounce(text: str, pairs: list) -> tuple[str, list[tuple[str, int, int]]]:
+    """Apply "word = how to say it" pairs to one line.
+
+    Returns the text to speak and, for each original word, the range of spoken
+    words it became, so captions can show the real spelling with real timing.
+    Matching is per word, ignores case and surrounding punctuation.
+    """
+    lookup = {norm(k): v for k, v in pairs if norm(k)}
+    spoken: list[str] = []
+    mapping = []
+    for word in words_of(text):
+        m = re.match(r"^(\W*)(.*?)(\W*)$", word)
+        lead, core, trail = m.groups() if m else ("", word, "")
+        replacement = lookup.get(norm(core))
+        parts = words_of(f"{lead}{replacement}{trail}") if replacement else [word]
+        mapping.append((word, len(spoken), len(spoken) + len(parts)))
+        spoken.extend(parts)
+    return " ".join(spoken), mapping
+
+
+NUMBER_WORDS = set(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
+    "seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred thousand "
+    "million billion trillion percent point and".split()
+)
+
+
+def is_number(word: str) -> bool:
+    return any(c.isdigit() for c in word) or word in NUMBER_WORDS
+
+
+def match_ratio(spoken: list[str], heard: list[str]) -> float:
+    """How closely Whisper's transcript matches what was meant to be said.
+    Numbers are ignored on both sides: "three thousand" is often transcribed
+    "3,000", which is not a mistake."""
+    a = [w for w in map(norm, spoken) if w and not is_number(w)]
+    b = [w for w in map(norm, heard) if w and not is_number(w)]
+    if not a:
+        return 1.0
+    return difflib.SequenceMatcher(None, a, b, autojunk=False).ratio()
+
+
+def time_words(mapping, spoken: list[str], heard: list[tuple[str, float, float]], speech_seconds: float) -> list[dict]:
+    """Time each original word for the captions. Spoken words are matched to
+    Whisper's words in order; an original word spans the times of the spoken
+    words it became. Words Whisper missed share the gaps around them."""
+    a = [norm(w) for w in spoken]
+    b = [norm(w) for w, _, _ in heard]
+    spoken_times: list[tuple[float, float] | None] = [None] * len(spoken)
+    for block in difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks():
+        for k in range(block.size):
+            _, s, e = heard[block.b + k]
+            spoken_times[block.a + k] = (s, e)
+
+    out = []
+    for orig, start, end in mapping:
+        known = [t for t in spoken_times[start:end] if t]
+        out.append({"text": orig, "start": known[0][0] if known else None, "end": known[-1][1] if known else None})
+
+    # Fill words Whisper did not match: share the gap between the previous
+    # word's end and the next timed word's start, weighted by word length.
+    i = 0
+    while i < len(out):
+        if out[i]["start"] is not None:
+            i += 1
+            continue
+        j = i
+        while j < len(out) and out[j]["start"] is None:
+            j += 1
+        gap_start = out[i - 1]["end"] if i > 0 else 0.0
+        gap_end = out[j]["start"] if j < len(out) else speech_seconds
+        if gap_end <= gap_start:
+            gap_end = gap_start + 0.25 * (j - i)
+        weights = [len(norm(out[k]["text"])) + 2 for k in range(i, j)]
+        t = gap_start
+        for k, w in zip(range(i, j), weights):
+            d = (gap_end - gap_start) * w / sum(weights)
+            out[k]["start"], out[k]["end"] = t, t + d
+            t += d
+        i = j
+
+    return [{"text": w["text"], "start": round(w["start"] + LEAD, 3), "end": round(w["end"] + LEAD, 3)} for w in out]
+
+
+# ── Audio ───────────────────────────────────────────────────────────────────
 
 def floor_for(scene: dict) -> float:
     return 4.0 if scene.get("visual") == "code" else 2.0
@@ -42,10 +142,32 @@ def to_wav(src: pathlib.Path, dst: pathlib.Path) -> None:
     )
 
 
+def liveliest_window(speech: np.ndarray, seconds: float = 12.0) -> int:
+    """Start sample of the most animated stretch of speech: the window whose
+    voiced pitch moves the most, among windows that are mostly voiced."""
+    import librosa
+
+    win = int(seconds * SR)
+    if len(speech) <= win:
+        return 0
+    hop = 512
+    f0 = librosa.yin(speech, fmin=65, fmax=400, sr=SR, frame_length=2048, hop_length=hop)
+    rms = librosa.feature.rms(y=speech, frame_length=2048, hop_length=hop)[0][: len(f0)]
+    voiced = rms > np.percentile(rms, 35)
+    frames_per_win = win // hop
+    best, best_score = 0, -1.0
+    for start in range(0, len(f0) - frames_per_win, max(1, SR // hop)):  # 1 s steps
+        v = voiced[start:start + frames_per_win]
+        if v.mean() < 0.5:
+            continue
+        pitch = np.log(f0[start:start + frames_per_win][v])
+        score = float(np.std(pitch)) * float(v.mean())
+        if score > best_score:
+            best, best_score = start, score
+    return best * hop
+
+
 def reference_clip(sample: pathlib.Path) -> pathlib.Path:
-    """Chatterbox only reads the first 10 s of the reference, so give it 12 s of
-    actual speech: silence trimmed, starting a second in (past any breath or
-    tap at the start of the recording)."""
     import librosa
 
     # A distinct name: the upload itself may already be voice_sample.wav, and
@@ -55,54 +177,64 @@ def reference_clip(sample: pathlib.Path) -> pathlib.Path:
     audio, _ = librosa.load(full, sr=SR)
     intervals = librosa.effects.split(audio, top_db=30)
     speech = np.concatenate([audio[s:e] for s, e in intervals]) if len(intervals) else audio
-    start = SR if len(speech) > SR * 13 else 0
+    start = liveliest_window(speech)
     clip = speech[start:start + SR * 12]
     out = RENDER / "reference.wav"
     sf.write(out, clip, SR)
-    print(f"Reference clip: {len(clip) / SR:.1f} s of speech")
+    print(f"Reference clip: {len(clip) / SR:.1f} s of speech, from {start / SR:.0f} s into the recording")
     return out
 
 
-def load_model(reference: pathlib.Path):
-    import torch
+def load_tts(reference: pathlib.Path, voice: dict):
     from chatterbox.tts import ChatterboxTTS
 
-    torch.set_num_threads(max(1, (torch.get_num_threads() or 2)))
     model = ChatterboxTTS.from_pretrained(device="cpu")
-    model.prepare_conditionals(str(reference), exaggeration=0.5)
+    model.prepare_conditionals(str(reference), exaggeration=voice["exaggeration"])
     return model
 
 
-def speak(model, text: str) -> np.ndarray:
-    """One scene's line. Retries once if the output is implausibly long, which
-    is how a TTS loop or mumble shows up."""
+def load_asr():
+    from faster_whisper import WhisperModel
+
+    return WhisperModel("base.en", device="cpu", compute_type="int8")
+
+
+def transcribe(asr, audio: np.ndarray) -> list[tuple[str, float, float]]:
     import librosa
 
+    audio16 = librosa.resample(audio, orig_sr=SR, target_sr=16000).astype(np.float32)
+    segments, _ = asr.transcribe(audio16, language="en", word_timestamps=True, beam_size=1, condition_on_previous_text=False)
+    return [(w.word.strip(), float(w.start), float(w.end)) for seg in segments for w in (seg.words or [])]
+
+
+def speak(model, asr, text: str, voice: dict, seed: int):
+    """Up to TAKES attempts at one line; keep the one Whisper hears best.
+    Returns (audio, heard words, match ratio)."""
+    import librosa
+    import torch
+
     limit = len(words_of(text)) / 1.3 + 3.0
-    for temperature in (0.7, 0.5):
-        wav = model.generate(text, exaggeration=0.5, cfg_weight=0.5, temperature=temperature)
+    best = None
+    for take in range(TAKES):
+        torch.manual_seed(seed + take)
+        wav = model.generate(
+            text,
+            exaggeration=voice["exaggeration"],
+            cfg_weight=voice["cfg_weight"],
+            temperature=voice["temperature"],
+        )
         audio = wav.squeeze(0).cpu().numpy().astype(np.float32)
         audio, _ = librosa.effects.trim(audio, top_db=35)
-        if len(audio) / SR <= limit:
-            return audio
-        print(f"  speech ran {len(audio) / SR:.1f} s for {len(words_of(text))} words, retrying")
-    return audio
-
-
-def time_words(text: str, speech_seconds: float) -> list[dict]:
-    """Spread the line's words across its speech, weighted by word length.
-    Chatterbox gives no timestamps; this is close enough for highlighting."""
-    ws = words_of(text)
-    if not ws:
-        return []
-    weights = [len(re.sub(r"\W", "", w)) + 2 for w in ws]
-    total = sum(weights)
-    t, out = LEAD, []
-    for w, weight in zip(ws, weights):
-        d = speech_seconds * weight / total
-        out.append({"text": w, "start": round(t, 3), "end": round(t + d, 3)})
-        t += d
-    return out
+        heard = transcribe(asr, audio)
+        score = match_ratio(words_of(text), [w for w, _, _ in heard])
+        if len(audio) / SR > limit:
+            score -= 0.5  # a run-on or mumble: only keep it if nothing better comes
+        print(f"  take {take + 1}: {len(audio) / SR:.1f} s, match {score:.2f}")
+        if best is None or score > best[2]:
+            best = (audio, heard, score)
+        if score >= GOOD_ENOUGH:
+            break
+    return best
 
 
 def normalise(audio: np.ndarray) -> np.ndarray:
@@ -122,19 +254,28 @@ def main() -> None:
     dummy = "--dummy" in sys.argv
     draft = json.loads((RENDER / "draft.json").read_text())
     files = draft["files"]
+    voice = {**DEFAULT_VOICE, **(draft.get("voice") or {})}
 
-    model = None
+    model = asr = None
     if not dummy:
-        model = load_model(reference_clip(RENDER / files["voice_sample"]))
+        model = load_tts(reference_clip(RENDER / files["voice_sample"]), voice)
+        asr = load_asr()
+        print(f"Voice: exaggeration {voice['exaggeration']}, cfg {voice['cfg_weight']}, temperature {voice['temperature']}, "
+              f"{len(voice['pronunciations'])} pronunciations")
 
-    pieces, scenes, seconds = [], [], []
+    pieces, scenes, seconds, matches = [], [], [], []
     for i, scene in enumerate(draft["scenes"], start=1):
         text = scene.get("voice_line", "").strip()
+        spoken_text, mapping = pronounce(text, voice["pronunciations"])
+        spoken = words_of(spoken_text)
+
         if dummy or not text:
-            speech = np.zeros(int(SR * len(words_of(text)) / PACE), dtype=np.float32)
+            speech = np.zeros(int(SR * len(spoken) / PACE), dtype=np.float32)
+            heard = []
         else:
-            print(f"Scene {i}/{len(draft['scenes'])}: {len(words_of(text))} words")
-            speech = speak(model, text)
+            print(f"Scene {i}/{len(draft['scenes'])}: {len(spoken)} words")
+            speech, heard, score = speak(model, asr, spoken_text, voice, seed=int(voice["seed"]) * 100 + i * 10)
+            matches.append(score)
 
         speech_seconds = len(speech) / SR
         length = max(floor_for(scene), LEAD + speech_seconds + BREATH)
@@ -144,10 +285,14 @@ def main() -> None:
 
         pieces.append(clip)
         seconds.append(round(length, 2))
-        scenes.append({**scene, "duration_seconds": round(length, 3), "words": time_words(text, speech_seconds)})
+        scenes.append({
+            **scene,
+            "duration_seconds": round(length, 3),
+            "words": time_words(mapping, spoken, heard, speech_seconds) if text else [],
+        })
 
-    voice = normalise(np.concatenate(pieces)) if not dummy else np.concatenate(pieces)
-    sf.write(RENDER / "voice.wav", voice, SR)
+    voice_audio = np.concatenate(pieces)
+    sf.write(RENDER / "voice.wav", voice_audio if dummy else normalise(voice_audio), SR)
 
     props = {
         "title": draft["title"],
@@ -159,7 +304,9 @@ def main() -> None:
     }
     (RENDER / "props.json").write_text(json.dumps(props, indent=2))
     (RENDER / "meta.json").write_text(json.dumps({"duration_seconds": round(sum(seconds) + 0.5, 2), "scene_seconds": seconds}))
-    print(f"Voiceover: {sum(seconds):.1f} s across {len(seconds)} scenes")
+    low = [f"{i + 1}" for i, m in enumerate(matches) if m < GOOD_ENOUGH]
+    print(f"Voiceover: {sum(seconds):.1f} s across {len(seconds)} scenes"
+          + (f"; scenes {', '.join(low)} never matched cleanly" if low else ""))
 
 
 if __name__ == "__main__":

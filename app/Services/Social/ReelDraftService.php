@@ -143,20 +143,65 @@ class ReelDraftService
             return null;
         }
 
-        $max   = (int) config('social.reels.max_words', 105);
-        $words = SocialDraft::countWords(collect($generated['scenes'] ?? [])->pluck('voice_line')->implode(' '));
+        $problems = $this->scriptProblems($generated, $post);
 
-        if ($words > $max) {
-            $shorter = $this->ai->generateReelScript(
-                $post,
-                "Your previous script had {$words} spoken words, which runs too long. Rewrite it with at most {$max} spoken words in total. Cut points rather than cramming them."
-            );
-            if ($shorter) {
-                $generated = $shorter;
+        if ($problems) {
+            $retry = $this->ai->generateReelScript($post, implode(' ', $problems));
+            if ($retry) {
+                $generated = $retry;
             }
         }
 
         return $generated;
+    }
+
+    /**
+     * What is wrong with an AI script, phrased as instructions for the retry:
+     * too long, or sending viewers anywhere but the owner's own article.
+     *
+     * @return string[]
+     */
+    public function scriptProblems(array $generated, BlogPost $post): array
+    {
+        $scenes   = collect($generated['scenes'] ?? []);
+        $problems = [];
+
+        $max   = (int) config('social.reels.max_words', 105);
+        $words = SocialDraft::countWords($scenes->pluck('voice_line')->implode(' '));
+        if ($words > $max) {
+            $problems[] = "Your previous script had {$words} spoken words, which runs too long. Rewrite it with at most {$max} spoken words in total. Cut points rather than cramming them.";
+        }
+
+        if ($this->promotesSource($scenes->all(), $post)) {
+            $problems[] = 'Your previous script told viewers to go to the original source. Never send viewers to the source or any other website; credit it in passing at most, and end by pointing to the full article on my site (link in bio).';
+        }
+
+        return $problems;
+    }
+
+    /** Does any scene tell viewers to go and read the original source? */
+    private function promotesSource(array $scenes, BlogPost $post): bool
+    {
+        $names = array_filter([
+            $post->original_url ? preg_replace('/^www\./', '', (string) parse_url($post->original_url, PHP_URL_HOST)) : null,
+            $post->original_author,
+        ]);
+        if (! $names) {
+            return false;
+        }
+
+        $nudge = '/\b(read|reading|check|visit|head|go to|over at|find|see|full (story|article|breakdown|post))\b/i';
+
+        foreach ($scenes as $scene) {
+            $text = strtolower(($scene['voice_line'] ?? '') . ' ' . ($scene['on_screen_text'] ?? ''));
+            foreach ($names as $name) {
+                if (str_contains($text, strtolower($name)) && preg_match($nudge, $text)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /** Approve one platform for publishing at a time (now if null). */

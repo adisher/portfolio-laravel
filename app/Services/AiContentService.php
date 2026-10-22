@@ -953,7 +953,7 @@ PROMPT;
 
         $source = $post->original_author ?: 'the original outlet';
         $kind = $isNews
-            ? "This is a NEWS article (a rewrite of reporting by {$source}). Make a fast \"news in 30 seconds\" reel. Attribute the original source by name in one voice line."
+            ? "This is a NEWS article (a rewrite of reporting by {$source}). Make a fast \"news in 30 seconds\" reel. Credit the source once in passing (for example \"as {$source} reported\"), but never tell viewers to read, visit or check it: the only place you send them is Adil's own article."
             : 'This is Adil\'s own article (his product, project or guide). Make a reel that teaches or shows the one idea that makes it worth reading.';
 
         return <<<PROMPT
@@ -972,7 +972,7 @@ THE REEL
 - Scenes, in order: exactly one "hook" (an idea that stops the scroll: a surprising claim, a number, or a question; never "In this video"), one "context" (the problem or news in one sentence), 3 or 4 "point" scenes (one idea each), and exactly one "end" scene.
 - Word budget per voice_line: hook max 12, context max 16, each point max 18, end max 12. Short sentences. Spell numbers the way they are spoken.
 - on_screen_text: what appears in big type. Max 8 words, no hashtags, no emojis. It may differ from the voice_line.
-- The "end" scene voice_line points people to the full article ("Full breakdown is in the link in my bio" or similar) and on_screen_text names it.
+- The "end" scene voice_line sends people to the full article on Adil's own site, for example "Full breakdown is on my site, link in my bio." Never send viewers to the original source or any other website. Its on_screen_text names it, for example "Full article: link in bio".
 - visual: what fills the frame behind the text. featured_image (the article's header image), portrait (Adil's photo, use for hook or end only), screenshot (a product screen, only for Adil's own products), text (brand background only), code (a short snippet; put the snippet in visual_note, max 6 lines). visual_note says what should be shown.
 - Only state facts that are in the article. No invented numbers, quotes or claims.
 
