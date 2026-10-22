@@ -185,6 +185,34 @@ Feedback: more accent, last words of sentences cut, a "mic on/off" sound between
 - Domains (`word.to/io/com/dev/pro/ai/...`) are spoken as "word dot tld" automatically; the owner's pronunciation list still wins.
 - `TQDM_DISABLE=1` in the render workflow hides the per-token progress bars; per-take summary lines remain.
 
+## Reset after four voice rounds (2026-10-22): one problem per step
+
+Rounds 1-3 changed several things at once without hearing the output, so fixes and regressions mixed. From here, each step has one goal and a "done when" the owner confirms on a real render.
+
+**Step 1 DONE: evidence.** The render now sends `report.json` (per scene: script, spoken text after pronunciations, what Whisper heard, each word flagged ok or not, match, takes tried, take kept, slowdown; plus voice settings and reference window). Stored in `social_drafts.render_report`, shown as **Voice check** on the review page. Done when: the owner can see which words were misheard without guessing.
+
+**Step 2 DONE: captions.** Root cause found: in a gap between two words `Captions.tsx` fell back to the scene's last word, so the caption jumped to the final line and back (replayed: 9 backward jumps in one 12-word sentence; first render had no gaps, so no jumps). `captionTiming.ts` now keeps the last spoken word current. Done when: captions only ever move forward.
+
+**Step 3 TODO: pronunciation.** From the Voice check evidence; add a "suggest fixes" button that pre-fills the pronunciation list from flagged words. Done when: no flagged words on a re-render.
+
+**Step 4 TODO: voice energy.** One small nudge to Natural only (owner: "just slightly more energy"). Done when: owner signs off.
+
+## Roadmap: where the reel needs to go (owner's direction, 2026-10-22)
+
+Today: one featured image, text scenes, cloned voice, captions. The owner wants motion visuals on every scene and themselves on screen, lip-synced, in different avatars, poses and outfits that match the brand. Gap analysis, in build order:
+
+| Stage | What | Main question / dependency |
+|---|---|---|
+| A. Voice + captions solid | Steps 1-4 above | In progress |
+| B. Scene visual plan | The AI script picks a visual per scene from a menu: b-roll clip, animated diagram, code animation, product screen recording, stat counter, avatar shot | Prompt + schema change, editable in the review page |
+| C. Motion b-roll | Stock video per scene (Pexels API, key already configured for blog images), cropped to 9:16, Ken Burns fallback | Licence terms are fine for social; relevance of search results needs a check step |
+| D. Animated graphics | Remotion components: kinetic text, bar/line charts from numbers in the script, code typing, before/after splits, logo reveals | Pure code, no cost; biggest visual upgrade per hour spent |
+| E. Avatar library | A consistent "you" in several outfits/poses in brand colours (midnight, ocean, teal), generated from a set of your photos, approved once and reused | Needs an image model that keeps identity (paid service, or a trained likeness model); you approve every look |
+| F. Lip-synced talking avatar | Your avatar speaking the cloned voiceover for hook/end (and optional mid-scenes) | Not feasible on GitHub's CPU runners in reasonable time; needs a GPU or a paid lip-sync API. Cost per reel to be decided |
+| G. Edit polish | Transitions, sound design (whooshes, subtle music bed under the voice), zooms on key words, safe-zone layout per platform | Remotion, no cost |
+
+Decisions needed before E/F: monthly budget for avatar images and lip-sync, and whether a third-party service may hold your likeness.
+
 ## Data model (sketch)
 
 - `social_drafts`: blog_post_id, kind (reel | carousel | post), status, script (json scenes), captions (json per platform), media paths (mp4, cover, slides), render run id, error, timestamps.

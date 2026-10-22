@@ -109,6 +109,7 @@ class ReelRenderController extends Controller
             'duration_seconds' => 'required|numeric|min:1|max:600',
             'scene_seconds'    => 'nullable|array',
             'scene_seconds.*'  => 'numeric|min:0|max:120',
+            'report'           => 'nullable|string|max:200000',
         ]);
 
         $dir   = "social/reels/{$draft->id}";
@@ -140,6 +141,10 @@ class ReelRenderController extends Controller
             }
             $draft->update(['script' => ['scenes' => $scenes]]);
         }
+
+        // What the speech check heard per scene, for the review page.
+        $report = json_decode((string) ($validated['report'] ?? ''), true);
+        $draft->update(['render_report' => is_array($report) ? $report : null]);
 
         $this->reels->markRendered($draft, $video, $cover, (int) round($validated['duration_seconds']));
         Storage::disk('public')->delete($old);

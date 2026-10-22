@@ -123,6 +123,7 @@ jobs:
 
           post --max-time 300 "${auth[@]}" \
             -F "cover=@out/cover.jpg;type=image/jpeg" \
+            -F "report=<public/render/report.json" \
             -F "duration_seconds=$duration" "${args[@]}" \
             "$SITE_URL/api/social/render/$DRAFT_ID/complete"
           echo "Uploaded"

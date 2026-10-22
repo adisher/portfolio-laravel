@@ -26,7 +26,7 @@ class SocialDraft extends Model
     protected $fillable = [
         'blog_post_id', 'kind', 'status', 'script', 'captions',
         'video_path', 'cover_path', 'duration_seconds', 'error',
-        'render_requested_at', 'rendered_at',
+        'render_requested_at', 'rendered_at', 'render_report',
     ];
 
     protected $casts = [
@@ -34,6 +34,7 @@ class SocialDraft extends Model
         'captions'            => 'array',
         'duration_seconds'    => 'integer',
         'render_requested_at' => 'datetime',
+        'render_report'       => 'array',
         'rendered_at'         => 'datetime',
     ];
 

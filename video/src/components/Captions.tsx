@@ -1,6 +1,7 @@
 import { useCurrentFrame, useVideoConfig } from 'remotion';
 import { colors, font, SAFE_X } from '../brand';
 import type { Word } from '../types';
+import { currentWordIndex } from './captionTiming';
 
 const CHUNK = 5;
 
@@ -16,9 +17,8 @@ export const Captions: React.FC<{ words: Word[] }> = ({ words }) => {
 
   if (!words.length) return null;
 
-  let current = words.findIndex((w) => t >= w.start && t < w.end);
-  if (current === -1) current = t < words[0].start ? 0 : words.length - 1;
   if (t < words[0].start - 0.15) return null;
+  const current = Math.max(0, currentWordIndex(words, t));
 
   const from = Math.floor(current / CHUNK) * CHUNK;
   const chunk = words.slice(from, from + CHUNK);

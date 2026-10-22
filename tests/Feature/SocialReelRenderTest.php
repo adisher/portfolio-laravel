@@ -155,6 +155,40 @@ class SocialReelRenderTest extends TestCase
         Mail::assertSent(ReelReadyForReview::class, fn ($mail) => $mail->hasTo('owner@example.com'));
     }
 
+    public function test_the_voice_report_is_stored_and_shown_for_review(): void
+    {
+        $token = $this->studio();
+        $draft = $this->draft();
+
+        $report = [
+            'voice' => ['exaggeration' => 0.5, 'cfg_weight' => 0.5, 'temperature' => 0.7],
+            'reference' => ['window_start' => 34.0, 'total_seconds' => 60.0],
+            'scenes' => [[
+                'scene' => 1, 'script' => 'According to dev.to, agents got pricier.', 'spoken' => 'According to dev dot to, agents got pricier.',
+                'heard' => 'According to deev to agents got pricier', 'match' => 0.8, 'kept_take' => 2, 'slowed_to' => null,
+                'takes' => [['take' => 1], ['take' => 2]],
+                'words' => [['text' => 'According', 'ok' => true], ['text' => 'to', 'ok' => true], ['text' => 'dev.to,', 'ok' => false],
+                    ['text' => 'agents', 'ok' => true], ['text' => 'got', 'ok' => true], ['text' => 'pricier.', 'ok' => true]],
+            ]],
+        ];
+
+        $this->post("/api/social/render/{$draft->id}/complete", [
+            'video'            => UploadedFile::fake()->createWithContent('reel.mp4', file_get_contents(base_path('tests/fixtures/tiny.mp4'))),
+            'cover'            => UploadedFile::fake()->image('cover.jpg'),
+            'duration_seconds' => 9,
+            'report'           => json_encode($report),
+        ], ['Authorization' => "Bearer {$token}", 'Accept' => 'application/json'])->assertOk();
+
+        $this->assertSame('deev', explode(' ', $draft->fresh()->render_report['scenes'][0]['heard'])[2]);
+
+        $this->actingAs($this->admin)->get(route('admin.social.reels.show', $draft))
+            ->assertOk()
+            ->assertSee('Voice check')
+            ->assertSee('1 word not heard as written')
+            ->assertSee('According to deev to agents got pricier')
+            ->assertSee('Spoken as: According to dev dot to, agents got pricier.');
+    }
+
     public function test_out_of_order_chunks_are_refused(): void
     {
         $token = $this->studio();

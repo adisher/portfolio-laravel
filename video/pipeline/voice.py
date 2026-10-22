@@ -26,6 +26,7 @@ import numpy as np
 import soundfile as sf
 
 RENDER = pathlib.Path(__file__).resolve().parent.parent / "public" / "render"
+REFERENCE_INFO: dict = {}  # filled by reference_clip(), sent back in the report
 SR = 24000            # Chatterbox's output rate
 PACE = 2.5            # words per second, same as config/social.php
 BREATH = 0.35         # pause after each scene's line
@@ -99,6 +100,24 @@ def match_ratio(spoken: list[str], heard: list[str]) -> float:
     if not a:
         return 1.0
     return difflib.SequenceMatcher(None, a, b, autojunk=False).ratio()
+
+
+def word_flags(mapping, spoken: list[str], heard: list[str]) -> list[dict]:
+    """For the review page: each original word of the line, marked ok or not
+    depending on whether Whisper heard it. Numbers always count as ok (Whisper
+    writes "three thousand" as "3,000")."""
+    a = [norm(w) for w in spoken]
+    b = [norm(w) for w in heard]
+    matched = [False] * len(spoken)
+    for block in difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks():
+        for k in range(block.size):
+            matched[block.a + k] = True
+    flags = []
+    for orig, start, end in mapping:
+        toks = range(start, end)
+        ok = all(matched[k] or not a[k] or is_number(a[k]) for k in toks)
+        flags.append({"text": orig, "ok": ok})
+    return flags
 
 
 def time_words(mapping, spoken: list[str], heard: list[tuple[str, float, float]], speech_seconds: float, match: float = 1.0) -> list[dict]:
@@ -216,6 +235,7 @@ def reference_clip(sample: pathlib.Path) -> pathlib.Path:
     sf.write(out, clip, SR)
     print(f"Reference: 12 s delivery window from {start / SR:.0f} s into the recording, "
           f"{len(clip) / SR:.0f} s in total for the voice print")
+    REFERENCE_INFO.update({"window_start": round(start / SR, 1), "total_seconds": round(len(clip) / SR, 1)})
     return out
 
 
@@ -335,6 +355,7 @@ def speak(model, asr, text: str, voice: dict, seed: int):
 
     spoken = words_of(text)
     best = None
+    takes = []
     for take in range(TAKES):
         torch.manual_seed(seed + take)
         wav = model.generate(
@@ -351,16 +372,24 @@ def speak(model, asr, text: str, voice: dict, seed: int):
         score = take_score(match, quality, sounds)
         print(f"  take {take + 1}: {len(audio) / SR:.1f} s, match {match:.2f}, pace {quality['pace']:.1f} w/s, "
               f"extra sound {quality['noise']:.1f} s{f', {sounds} non-word sounds' if sounds else ''}, score {score:.2f}")
+        takes.append({"take": take + 1, "seconds": round(len(audio) / SR, 2), "match": round(match, 3),
+                      "pace": round(quality["pace"], 2), "extra_sound": round(quality["noise"], 2),
+                      "non_word_sounds": sounds, "score": round(score, 3)})
         if best is None or score > best["score"]:
-            best = {"audio": audio, "words": words, "match": match, "quality": quality, "score": score}
+            best = {"audio": audio, "words": words, "match": match, "quality": quality, "score": score, "take": take + 1}
         if score >= GOOD_ENOUGH:
             break
 
     audio, words = best["audio"], best["words"]
+    slowed = None
     if words and best["match"] >= TRUST_TIMING:
         audio, words = trim_to_words(audio, words, best["quality"])
+        before = len(audio)
         audio, words = slow_down(audio, words, best["quality"]["pace"])
-    return audio, words, best["match"]
+        if len(audio) != before:
+            slowed = round(before / len(audio), 3)
+    info = {"takes": takes, "kept_take": best["take"], "slowed_to": slowed}
+    return audio, words, best["match"], info
 
 
 def normalise(audio: np.ndarray) -> np.ndarray:
@@ -389,7 +418,7 @@ def main() -> None:
         print(f"Voice: exaggeration {voice['exaggeration']}, cfg {voice['cfg_weight']}, temperature {voice['temperature']}, "
               f"{len(voice['pronunciations'])} pronunciations")
 
-    pieces, scenes, seconds, matches = [], [], [], []
+    pieces, scenes, seconds, matches, report = [], [], [], [], []
     for i, scene in enumerate(draft["scenes"], start=1):
         text = scene.get("voice_line", "").strip()
         spoken_text, mapping = pronounce(text, voice["pronunciations"])
@@ -398,10 +427,23 @@ def main() -> None:
         if dummy or not text:
             speech = np.zeros(int(SR * len(spoken) / PACE), dtype=np.float32)
             heard = []
+            info = None
         else:
             print(f"Scene {i}/{len(draft['scenes'])}: {len(spoken)} words")
-            speech, heard, score = speak(model, asr, spoken_text, voice, seed=int(voice["seed"]) * 100 + i * 10)
+            speech, heard, score, info = speak(model, asr, spoken_text, voice, seed=int(voice["seed"]) * 100 + i * 10)
             matches.append(score)
+
+        if text and info is not None:
+            heard_words = [w for w, _, _ in heard]
+            report.append({
+                "scene": i,
+                "script": text,
+                "spoken": spoken_text,
+                "heard": " ".join(heard_words),
+                "words": word_flags(mapping, spoken, heard_words),
+                "match": round(matches[-1], 3),
+                **info,
+            })
 
         speech_seconds = len(speech) / SR
         length = max(floor_for(scene), LEAD + speech_seconds + BREATH)
@@ -436,6 +478,12 @@ def main() -> None:
     }
     (RENDER / "props.json").write_text(json.dumps(props, indent=2))
     (RENDER / "meta.json").write_text(json.dumps({"duration_seconds": round(sum(seconds) + 0.5, 2), "scene_seconds": seconds}))
+    # What the speech check heard, per scene, shown on the review page.
+    (RENDER / "report.json").write_text(json.dumps({
+        "voice": {k: voice[k] for k in ("exaggeration", "cfg_weight", "temperature")},
+        "reference": REFERENCE_INFO,
+        "scenes": report,
+    }))
     low = [f"{i + 1}" for i, m in enumerate(matches) if m < GOOD_ENOUGH]
     print(f"Voiceover: {sum(seconds):.1f} s across {len(seconds)} scenes"
           + (f"; scenes {', '.join(low)} never matched cleanly" if low else ""))

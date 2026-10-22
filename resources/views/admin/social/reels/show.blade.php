@@ -295,6 +295,63 @@
         </div>
     </form>
 </div>
+
+{{-- Voice check: what the speech check heard in the last render --}}
+@php $report = $draft->render_report; @endphp
+@if($report && ! empty($report['scenes']))
+    @php
+        $flagged = collect($report['scenes'])->sum(fn ($s) => collect($s['words'] ?? [])->where('ok', false)->count());
+    @endphp
+    <div class="admin-card p-6 mt-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white">Voice check</h2>
+            <span class="text-xs px-2 py-1 rounded-full {{ $flagged ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800' }}">
+                {{ $flagged ? $flagged . ' ' . \Illuminate\Support\Str::plural('word', $flagged) . ' not heard as written' : 'Every word heard as written' }}
+            </span>
+        </div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            After rendering, a speech recogniser listened to each line. Words it heard differently are marked red: usually a mispronunciation.
+            To fix one, add it to the pronunciation list in <a href="{{ route('admin.social.reels.settings') }}" class="text-blue-600 hover:underline">Studio settings</a> and render again.
+            The recogniser can miss a slightly odd pronunciation, so trust your ears too.
+        </p>
+
+        <div class="space-y-4">
+            @foreach($report['scenes'] as $line)
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <span class="text-xs font-bold text-gray-400">Scene {{ $line['scene'] }}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                            match {{ round(($line['match'] ?? 0) * 100) }}%
+                            · take {{ $line['kept_take'] ?? '?' }} of {{ count($line['takes'] ?? []) }}
+                            @if(! empty($line['slowed_to'])) · slowed to {{ round($line['slowed_to'] * 100) }}% speed @endif
+                        </span>
+                    </div>
+                    <p class="text-gray-900 dark:text-white mb-1">
+                        @foreach($line['words'] ?? [] as $word)
+                            @if($word['ok'])
+                                <span>{{ $word['text'] }}</span>
+                            @else
+                                <span class="bg-red-100 text-red-800 rounded px-1" title="Heard differently">{{ $word['text'] }}</span>
+                            @endif
+                        @endforeach
+                    </p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400"><span class="font-medium">Heard:</span> {{ $line['heard'] ?: '(nothing recognised)' }}</p>
+                    @if(($line['spoken'] ?? '') !== ($line['script'] ?? ''))
+                        <p class="text-xs text-gray-400 mt-1">Spoken as: {{ $line['spoken'] }}</p>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+
+        @if(! empty($report['reference']))
+            <p class="text-xs text-gray-400 mt-4">
+                Voice: exaggeration {{ $report['voice']['exaggeration'] ?? '?' }}, cfg {{ $report['voice']['cfg_weight'] ?? '?' }},
+                temperature {{ $report['voice']['temperature'] ?? '?' }} · reference from {{ $report['reference']['window_start'] ?? '?' }} s
+                into your recording, {{ $report['reference']['total_seconds'] ?? '?' }} s used for the voice print.
+            </p>
+        @endif
+    </div>
+@endif
 @endsection
 
 @push('scripts')
