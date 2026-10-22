@@ -979,7 +979,7 @@ Body: {$body}
 THE REEL
 - Total length {$min}-{$max} seconds. Speech runs about 2.5 words per second and scene timing is calculated from the words, so the whole voiceover must be between {$minW} and {$maxW} words. Count them. This is a hard limit.
 - Scenes, in order: exactly one "hook" (an idea that stops the scroll: a surprising claim, a number, or a question; never "In this video"), one "context" (the problem or news in one sentence), 3 or 4 "point" scenes (one idea each), and exactly one "end" scene.
-- Word budget per voice_line: hook max 12, context max 16, each point max 18, end max 12. Short sentences. Spell numbers the way they are spoken.
+- Word budget per voice_line: hook max 12, context max 16, each point max 18, end max 12. Short sentences. The voice_line is also shown word by word as captions, so write every word the normal written way: "GPT-5.6", "dev.to", "3,000", "40%", "AI". Never spell anything out in a voice_line (no "G P T", "dev dot to", "five point six"); how it is said goes in pronunciations.
 - on_screen_text: what appears in big type. Max 8 words, no hashtags, no emojis. It may differ from the voice_line.
 - The "end" scene voice_line sends people to the full article on Adil's own site, for example "Full breakdown is on my site, link in my bio." Never send viewers to the original source or any other website. Its on_screen_text names it, for example "Full article: link in bio".
 - visual: what fills the frame behind the text. featured_image (the article's header image), portrait (Adil's photo, use for hook or end only), screenshot (a product screen, only for Adil's own products), text (brand background only), code (a short snippet; put the snippet in visual_note, max 6 lines). visual_note says what should be shown.
@@ -993,7 +993,7 @@ WRITE FOR THE EAR (this is narration for a reel, not text being read out)
 - Use commas where a speaker would pause. No ellipses, no parentheses, no slashes.
 
 PRONUNCIATIONS
-- List every word in the voice lines that a text-to-speech voice could misread, with how to say it: brand and product names, acronyms (spell letters with spaces: "GPT" says "G P T"), versions and model names ("GPT-5.6-Cyber" says "G P T five point six Cyber"), domains ("dev.to" says "dev dot to"), code and tech terms ("cache" says "cash", "SQL" says "sequel", "nginx" says "engine x"), and unusual names. The "word" must appear exactly as written in a voice_line. Use an empty list if there are none.
+- List every word in the voice lines that a text-to-speech voice could misread, with how to say it (this is only for the voice; captions show the word as written): brand and product names, acronyms (spell letters with spaces: "GPT" says "G P T"), versions and model names ("GPT-5.6-Cyber" says "G P T five point six Cyber"), domains ("dev.to" says "dev dot to"; a dot between letters is "dot", between digits it is "point"), code and tech terms ("cache" says "cash", "SQL" says "sequel", "nginx" says "engine x"), and unusual names. The "word" must appear exactly as written in a voice_line. Use an empty list if there are none.
 
 CAPTIONS
 - instagram.caption: 2-4 short paragraphs, hook in the first line, ends with "Full article: link in bio." No hashtags inside the caption.

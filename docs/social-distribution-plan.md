@@ -202,6 +202,12 @@ Rounds 1-3 changed several things at once without hearing the output, so fixes a
 
 **Step 4 built (2026-10-22): voice energy.** Natural body lifted 0.5 to 0.55 exaggeration. Hook and end lines get their own lift (Natural 0.7 / cfg 0.45) so they sound like an intro and an outro. Calm and Expressive moved the same way. The optional second "energetic" reference recording is held back: only if the lift is not enough. Done when: the owner signs off on the hook and outro energy.
 
+**Step 3/4 follow-up (2026-10-22), from the owner's render.** Pronunciation and energy mostly fine; four issues left:
+- Captions showed spoken forms ("G P T", "dev dot to", "five point six"): the prompt told the AI to spell numbers as spoken, so it wrote them into the line. Voice lines are now written the normal way and only pronunciations say how; numbers are spoken automatically ("5.6" is "five point six", "3,000" is "three thousand", "40%" is "forty percent", "2026" is "twenty twenty-six"). A dot between letters is "dot", between digits "point". Older spelled-out lines are folded back for captions.
+- Hesitation before "This week": Whisper leaves fillers out of its text, so the check could not see it. It is now primed with a filler prompt so an "uh" is written down, costs the take, and is cut.
+- Slightly robotic at times: temperature raised to Chatterbox's default 0.8 (more natural intonation), slowdown capped at 5%, and a light voice EQ softens the metallic top end. Part of the robotic edge is in the recording itself (likely noise suppression); a re-recording with it off is the next lever if needed.
+- Done when: captions show written forms, no filler before any line, and the owner hears no robotic stretches.
+
 ## Roadmap: where the reel needs to go (owner's direction, 2026-10-22)
 
 Today: one featured image, text scenes, cloned voice, captions. The owner wants motion visuals on every scene and themselves on screen, lip-synced, in different avatars, poses and outfits that match the brand. Gap analysis, in build order:

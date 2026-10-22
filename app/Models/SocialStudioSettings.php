@@ -30,11 +30,14 @@ class SocialStudioSettings extends Model
         // touch for energy. Above ~0.75 exaggeration Chatterbox rushes and adds
         // non-word sounds (tried 0.85). Lower cfg_weight slows delivery,
         // offsetting exaggeration's speed-up.
+        // Temperature 0.8 is Chatterbox's own default; lower flattens the
+        // intonation and sounds robotic. Takes are checked word by word, so
+        // the extra variation cannot slip in wrong words.
         // `lift` is used for the hook and end lines only, so the opening and
         // the sign-off sound like an intro and an outro, not more narration.
-        'calm'       => ['label' => 'Calm', 'help' => 'Even and steady, like a narration.', 'exaggeration' => 0.42, 'cfg_weight' => 0.55, 'temperature' => 0.65, 'lift' => ['exaggeration' => 0.55, 'cfg_weight' => 0.5]],
-        'natural'    => ['label' => 'Natural', 'help' => 'Conversational, closest to your own voice.', 'exaggeration' => 0.55, 'cfg_weight' => 0.5, 'temperature' => 0.7, 'lift' => ['exaggeration' => 0.7, 'cfg_weight' => 0.45]],
-        'expressive' => ['label' => 'Expressive', 'help' => 'A little more energy and emphasis.', 'exaggeration' => 0.62, 'cfg_weight' => 0.45, 'temperature' => 0.7, 'lift' => ['exaggeration' => 0.75, 'cfg_weight' => 0.4]],
+        'calm'       => ['label' => 'Calm', 'help' => 'Even and steady, like a narration.', 'exaggeration' => 0.42, 'cfg_weight' => 0.55, 'temperature' => 0.75, 'lift' => ['exaggeration' => 0.55, 'cfg_weight' => 0.5]],
+        'natural'    => ['label' => 'Natural', 'help' => 'Conversational, closest to your own voice.', 'exaggeration' => 0.55, 'cfg_weight' => 0.5, 'temperature' => 0.8, 'lift' => ['exaggeration' => 0.7, 'cfg_weight' => 0.45]],
+        'expressive' => ['label' => 'Expressive', 'help' => 'A little more energy and emphasis.', 'exaggeration' => 0.62, 'cfg_weight' => 0.45, 'temperature' => 0.8, 'lift' => ['exaggeration' => 0.75, 'cfg_weight' => 0.4]],
     ];
 
     /** Words the voice should always say a particular way. Editable in the admin. */

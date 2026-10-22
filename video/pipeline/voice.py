@@ -39,12 +39,12 @@ TRUST_TIMING = 0.75   # below this match, captions use even timing instead of Wh
 # (2.95 was too strict and slowed almost every take, which sounded accented.)
 TARGET_PACE = 3.5     # words per second a rushed take is slowed towards
 MAX_PACE = 3.9        # faster than this counts as rushed
-MAX_SLOWDOWN = 0.92   # never slow a take below 92% speed (more starts to sound stretched)
+MAX_SLOWDOWN = 0.95   # never slow a take below 92% speed (more starts to sound stretched)
 FADE_IN = 0.015       # seconds; avoids clicks where a line starts
 FADE_OUT = 0.08       # seconds; lets the last word decay instead of stopping dead
 ROOM_TONE = 0.0008    # ~-62 dBFS noise bed so pauses never drop to dead digital silence
 DOMAIN = re.compile(r"^([a-z0-9-]+)\.(to|io|com|dev|pro|ai|app|net|org|co|sh|so|gg|me|tv)$", re.I)
-DEFAULT_VOICE = {"exaggeration": 0.5, "cfg_weight": 0.5, "temperature": 0.7, "pronunciations": [], "seed": 1}
+DEFAULT_VOICE = {"exaggeration": 0.55, "cfg_weight": 0.5, "temperature": 0.8, "pronunciations": [], "seed": 1}
 
 
 # ── Text ────────────────────────────────────────────────────────────────────
@@ -55,6 +55,53 @@ def words_of(text: str) -> list[str]:
 
 def norm(word: str) -> str:
     return re.sub(r"[^a-z0-9]", "", word.lower())
+
+
+ONES = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
+TENS = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
+
+
+def int_words(n: int) -> str:
+    if n < 20:
+        return ONES[n]
+    if n < 100:
+        return TENS[n // 10] + ("" if n % 10 == 0 else "-" + ONES[n % 10])
+    if n < 1000:
+        return ONES[n // 100] + " hundred" + ("" if n % 100 == 0 else " " + int_words(n % 100))
+    for size, name in ((10**12, "trillion"), (10**9, "billion"), (10**6, "million"), (1000, "thousand")):
+        if n >= size:
+            return int_words(n // size) + " " + name + ("" if n % size == 0 else " " + int_words(n % size))
+    return str(n)
+
+
+def number_words(token: str) -> str:
+    """How a written number is said: "5.6" -> "five point six", "3,000" ->
+    "three thousand", "40%" -> "forty percent", "2026" -> "twenty twenty-six".
+    A dot between digits is always "point"; between letters it is "dot"."""
+    percent = token.endswith("%")
+    digits = token.rstrip("%")
+    whole, _, frac = digits.partition(".")
+    plain = whole.replace(",", "")
+    if not plain.isdigit() or (frac and not frac.isdigit()):
+        return token
+    n = int(plain)
+    if not frac and not percent and "," not in whole and len(plain) == 4 and 1100 <= n <= 2099 and n % 1000 >= 10:
+        said = int_words(n // 100) + " " + (int_words(n % 100) if n % 100 >= 10 else "oh " + ONES[n % 100])
+    else:
+        said = int_words(n)
+    if frac:
+        said += " point " + " ".join(ONES[int(c)] for c in frac)
+    return said + (" percent" if percent else "")
+
+
+def speak_numbers(core: str) -> str | None:
+    """Say every number inside a word, and split it from letters around it:
+    "GPT-5.6" -> "GPT five point six". None when there is no number."""
+    if not re.search(r"\d", core):
+        return None
+    said = re.sub(r"\d[\d,]*(?:\.\d+)?%?", lambda m: " " + number_words(m.group(0).rstrip(",")) + " ", core)
+    said = re.sub(r"(?<=\s)-|-(?=\s)", " ", said)
+    return " ".join(said.split())
 
 
 def pronounce(text: str, pairs: list) -> tuple[str, list[tuple[str, int, int]]]:
@@ -89,6 +136,10 @@ def pronounce(text: str, pairs: list) -> tuple[str, list[tuple[str, int, int]]]:
                 if d := DOMAIN.match(core):
                     # "dev.to" is otherwise read as one odd word ("deev-to").
                     replacement = f"{d.group(1)} dot {d.group(2)}"
+                else:
+                    if trail.startswith("%"):  # "40%," : the sign is part of the number
+                        core, trail = core + "%", trail[1:]
+                    replacement = speak_numbers(core)
             if replacement or size == 1:
                 parts = words_of(f"{lead}{replacement}{trail}") if replacement else [group[0]]
                 start = len(spoken)
@@ -212,6 +263,44 @@ def word_flags(mapping, spoken: list[str], heard: list[str]) -> list[dict]:
     depending on whether Whisper heard it as meant."""
     ok = compare(spoken, heard)["spoken_ok"]
     return [{"text": orig, "ok": all(ok[k] for k in range(start, end))} for orig, start, end in mapping]
+
+
+def caption_words(words: list[dict]) -> list[dict]:
+    """Show written forms in captions even when a line was written the way it
+    is said: "G P T" -> "GPT", "dev dot to" -> "dev.to", "five point six" ->
+    "5.6". Merged words keep the timing of the words they replace."""
+    digit = {w: str(i) for i, w in enumerate(ONES[:10])}
+    bare = lambda w: re.sub(r"[^\w]", "", w["text"])
+    out: list[dict] = []
+    i = 0
+    while i < len(words):
+        w = words[i]
+        # Spelled letters: two or more single capitals in a row.
+        j = i
+        while j < len(words) and re.fullmatch(r"[A-Z]", bare(words[j])) and (j == i or not re.search(r"[.,!?;:]$", words[j - 1]["text"])):
+            j += 1
+        if j - i >= 2:
+            out.append({"text": "".join(bare(x) for x in words[i:j]) + re.sub(r"^.*?([^\w]*)$", r"\1", words[j - 1]["text"]),
+                        "start": words[i]["start"], "end": words[j - 1]["end"]})
+            i = j
+            continue
+        # "dev dot to" (only with a known ending) and "five point six".
+        if i + 2 < len(words):
+            mid = bare(words[i + 1]).lower()
+            left, right = bare(w), bare(words[i + 2])
+            tail = re.sub(r"^.*?([^\w]*)$", r"\1", words[i + 2]["text"])
+            joined = None
+            if mid == "dot" and left and DOMAIN.match(f"{left}.{right}"):
+                joined = f"{left}.{right}"
+            elif mid == "point" and left.lower() in digit and right.lower() in digit:
+                joined = f"{digit[left.lower()]}.{digit[right.lower()]}"
+            if joined:
+                out.append({"text": joined + tail, "start": w["start"], "end": words[i + 2]["end"]})
+                i += 3
+                continue
+        out.append(w)
+        i += 1
+    return out
 
 
 def time_words(mapping, spoken: list[str], heard: list[tuple[str, float, float]], speech_seconds: float, match: float = 1.0) -> list[dict]:
@@ -349,7 +438,11 @@ def transcribe(asr, audio: np.ndarray) -> list[tuple[str, float, float]]:
     import librosa
 
     audio16 = librosa.resample(audio, orig_sr=SR, target_sr=16000).astype(np.float32)
-    segments, _ = asr.transcribe(audio16, language="en", word_timestamps=True, beam_size=1, condition_on_previous_text=False)
+    # Whisper normally leaves hesitations out of its text. A prompt that
+    # contains fillers makes it write them down, so an "uh" before a line is
+    # caught and cut instead of passing as a clean take.
+    segments, _ = asr.transcribe(audio16, language="en", word_timestamps=True, beam_size=1, condition_on_previous_text=False,
+                                 initial_prompt="Umm, uh, let me think, hmm. Uh, okay, so, ah.")
     return [(w.word.strip(), float(w.start), float(w.end)) for seg in segments for w in (seg.words or [])]
 
 
@@ -415,7 +508,8 @@ def trim_to_words(audio: np.ndarray, words, quality: dict):
     if quality.get("cut_after") is not None:
         end = min(end, int(max(last + 0.1, quality["cut_after"] - 0.04) * SR))
     if quality.get("cut_before") is not None:
-        start = max(start, int(max(0.0, first - 0.12) * SR))
+        # Right after the filler, but never into the first real word.
+        start = max(start, int(max(0.0, min(first - 0.02, max(quality["cut_before"] + 0.02, first - 0.12))) * SR))
     shift = start / SR
     return audio[start:end], [(w, s - shift, e - shift) for w, s, e in words]
 
@@ -481,7 +575,7 @@ def speak(model, asr, text: str, voice: dict, seed: int, energy: dict | None = N
             after = [h[1] for h in heard_all[last_i + 1:]]
             before = heard_all[:first_i]
             quality["cut_after"] = min(after) if after else None
-            quality["cut_before"] = bool(before) or None
+            quality["cut_before"] = before[-1][2] if before else None  # where the filler ends
         score = take_score(cmp, quality, sounds)
         print(f"  take {take + 1}: {len(audio) / SR:.1f} s, {cmp['mismatches']} wrong/extra words, match {match:.2f}, pace {quality['pace']:.1f} w/s, "
               f"extra sound {quality['noise']:.1f} s{f', {sounds} non-word sounds' if sounds else ''}, score {score:.2f}")
@@ -503,6 +597,48 @@ def speak(model, asr, text: str, voice: dict, seed: int, energy: dict | None = N
             slowed = round(before / len(audio), 3)
     info = {"takes": takes, "kept_take": best["take"], "slowed_to": slowed}
     return audio, words, best["match"], info
+
+
+def biquad(kind: str, f: float, gain_db: float = 0.0, q: float = 0.707) -> np.ndarray:
+    """One RBJ-cookbook filter section as a scipy "sos" row."""
+    a_ = 10 ** (gain_db / 40)
+    w = 2 * np.pi * f / SR
+    cw, alpha = np.cos(w), np.sin(w) / (2 * q)
+    if kind == "peak":
+        b = [1 + alpha * a_, -2 * cw, 1 - alpha * a_]
+        a = [1 + alpha / a_, -2 * cw, 1 - alpha / a_]
+    elif kind == "highshelf":
+        sq = 2 * np.sqrt(a_) * alpha
+        b = [a_ * ((a_ + 1) + (a_ - 1) * cw + sq), -2 * a_ * ((a_ - 1) + (a_ + 1) * cw), a_ * ((a_ + 1) + (a_ - 1) * cw - sq)]
+        a = [(a_ + 1) - (a_ - 1) * cw + sq, 2 * ((a_ - 1) - (a_ + 1) * cw), (a_ + 1) - (a_ - 1) * cw - sq]
+    elif kind == "highpass":
+        b = [(1 + cw) / 2, -(1 + cw), (1 + cw) / 2]
+        a = [1 + alpha, -2 * cw, 1 - alpha]
+    else:  # lowpass
+        b = [(1 - cw) / 2, 1 - cw, (1 - cw) / 2]
+        a = [1 + alpha, -2 * cw, 1 - alpha]
+    return np.array(b + a) / a[0]
+
+
+def polish(audio: np.ndarray) -> np.ndarray:
+    """A light voice EQ: cut rumble, add a little warmth, ease the harsh
+    presence band and soften the metallic top end the voice model adds,
+    which is most of what makes a cloned voice sound robotic."""
+    try:
+        from scipy.signal import sosfiltfilt
+
+        sos = np.stack([
+            biquad("highpass", 70),
+            biquad("peak", 180, 0.75, 0.9),
+            biquad("peak", 3200, -0.75, 1.0),
+            biquad("highshelf", 7500, -1.5),
+            biquad("lowpass", 11000),
+        ])
+        # Run forward and back: no phase smear, and each gain counts twice.
+        return sosfiltfilt(sos, audio).astype(np.float32)
+    except Exception as exc:  # a nicety, never a failure
+        print(f"Skipped voice EQ: {exc}")
+        return audio
 
 
 def normalise(audio: np.ndarray) -> np.ndarray:
@@ -571,12 +707,12 @@ def main() -> None:
         scenes.append({
             **scene,
             "duration_seconds": round(length, 3),
-            "words": time_words(mapping, spoken, heard, speech_seconds, matches[-1] if (text and not dummy) else 1.0) if text else [],
+            "words": caption_words(time_words(mapping, spoken, heard, speech_seconds, matches[-1] if (text and not dummy) else 1.0)) if text else [],
         })
 
     voice_audio = np.concatenate(pieces)
     if not dummy:
-        voice_audio = normalise(voice_audio)
+        voice_audio = normalise(polish(voice_audio))
         # A faint, constant noise floor: pauses sound like a quiet room rather
         # than the signal cutting out between lines.
         rng = np.random.default_rng(7)
