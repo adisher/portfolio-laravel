@@ -124,6 +124,13 @@ Schedule::command('social:token-reminders')
     ->onOneServer()
     ->runInBackground();
 
+// Fail reel renders that never reported back (the job died or was cancelled),
+// so a reel is never stuck on "Rendering". Emails the owner when it fires.
+Schedule::command('social:reels-timeout')
+    ->everyTenMinutes()
+    ->onOneServer()
+    ->runInBackground();
+
 /*
 |--------------------------------------------------------------------------
 | Demo Scheduling Automation

@@ -314,6 +314,36 @@
     </div>
 </section>
 
+{{-- Book a Call (Google Calendar appointment schedule) --}}
+@if($bookingEmbedUrl)
+<section id="book-a-call" class="section-padding bg-white dark:bg-midnight-dark" style="scroll-margin-top: 5rem;">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10">
+            <span class="badge badge-teal mb-4 animate-up">Book a Call</span>
+            <h2 class="animate-up text-3xl lg:text-4xl font-bold text-midnight dark:text-soft-light mb-4">
+                Prefer to <span class="text-gradient">Talk</span>?
+            </h2>
+            <p class="animate-up text-lg text-soft-dark dark:text-soft max-w-2xl mx-auto">
+                Pick a 30 minute slot that works for you. You'll get a Google Meet link by email right after booking.
+            </p>
+        </div>
+        {{-- Google's embed is light-only, transparent and cross-origin, so it
+            can't be themed from here. Keep it on white in light mode, and in
+            dark mode invert it (hue-rotate keeps blues and the avatar close to
+            their real colours). Styles are plain CSS below because production
+            serves the committed public/build bundle. --}}
+        <div class="booking-frame-wrap animate-up rounded-2xl overflow-hidden">
+            <iframe src="{{ $bookingEmbedUrl }}" title="Book a 30 minute call with Adil Sher"
+                class="booking-frame w-full block" loading="lazy"></iframe>
+        </div>
+        <p class="mt-4 text-center text-sm text-soft-dark dark:text-soft">
+            Trouble seeing the calendar?
+            <a href="{{ $bookingUrl }}" target="_blank" rel="noopener" class="text-teal hover:underline">Open the booking page in a new tab</a>.
+        </p>
+    </div>
+</section>
+@endif
+
 {{-- CTA Section --}}
 <section class="bg-gradient-to-br from-midnight via-ocean to-midnight-dark text-soft-light section-padding relative overflow-hidden">
     {{-- Background Elements --}}
@@ -329,12 +359,14 @@
             Let's discuss your requirements and see how I can help bring your vision to life.
         </p>
         <div class="animate-up flex flex-col sm:flex-row justify-center gap-4">
-            <a href="#" class="btn-primary">
+            @if($bookingUrl)
+            <a href="{{ $bookingEmbedUrl ? '#book-a-call' : $bookingUrl }}" @unless($bookingEmbedUrl) target="_blank" rel="noopener" @endunless class="btn-primary">
                 Schedule a Call
                 <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
             </a>
+            @endif
             <a href="{{ route('portfolio.index') }}" class="btn-secondary border-soft/30 text-soft-light hover:border-teal hover:text-teal">
                 View My Work
                 <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -345,6 +377,15 @@
     </div>
 </section>
 @endsection
+
+@push('styles')
+<style>
+    .booking-frame-wrap { background-color: #ffffff; box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    .booking-frame { border: 0; height: 760px; background-color: #ffffff; color-scheme: light; }
+    .dark .booking-frame-wrap { background-color: #1f1f1f; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08); }
+    .dark .booking-frame { filter: invert(0.88) hue-rotate(180deg); }
+</style>
+@endpush
 
 @push('scripts')
 <script>

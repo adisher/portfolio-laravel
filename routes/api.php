@@ -29,3 +29,15 @@ Route::prefix('sports')->group(function () {
     Route::get('/match/{id}/detail', [SportsApiController::class, 'matchDetail']);
     Route::get('/match/{id}/events', [SportsApiController::class, 'matchEvents']);
 });
+
+// Reel render pipeline: called by the GitHub Actions render job
+// (.github/workflows/render-reel.yml). Token-guarded; 'voice-sample' is
+// declared before '{draft}' so it is not swallowed as an id.
+Route::prefix('social/render')->middleware('social.render.token')->name('api.social.render.')
+    ->controller(\App\Http\Controllers\Api\ReelRenderController::class)->group(function () {
+        Route::get('/voice-sample', 'voiceSample')->name('voice-sample');
+        Route::get('/{draft}', 'show')->whereNumber('draft')->name('show');
+        Route::post('/{draft}/chunk', 'chunk')->whereNumber('draft')->name('chunk');
+        Route::post('/{draft}/complete', 'complete')->whereNumber('draft')->name('complete');
+        Route::post('/{draft}/failed', 'failed')->whereNumber('draft')->name('failed');
+    });

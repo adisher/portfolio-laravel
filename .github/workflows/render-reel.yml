@@ -1,0 +1,141 @@
+name: Render reel
+
+# Started by the site (Admin > Reels > Render video) through the GitHub API.
+# Fetches the reel script, speaks it in the owner's cloned voice (Chatterbox,
+# CPU), renders the branded video with Remotion and uploads it back to the
+# site, which emails the owner for review. See docs/social-distribution-plan.md.
+#
+# This repository is public, so: no secrets or script text are printed, and
+# nothing is uploaded as a workflow artifact (artifacts would be downloadable
+# by anyone). Results go straight back to the site.
+
+on:
+  workflow_dispatch:
+    inputs:
+      draft_id:
+        description: Reel draft id
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-reel
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      # Pinned here, not taken from the input, so the token is only ever sent to
+      # the real site. Must be the www host: the bare domain answers with a 301
+      # (public/.htaccess), and a redirected POST never reaches the site.
+      SITE_URL: https://www.adilsher.pro
+      RENDER_TOKEN: ${{ secrets.SOCIAL_RENDER_TOKEN }}
+      DRAFT_ID: ${{ inputs.draft_id }}
+      HF_HUB_DISABLE_PROGRESS_BARS: '1'
+      # Hide the voice model's per-token progress bar; each take still logs a summary line.
+      TQDM_DISABLE: '1'
+
+    steps:
+      - name: Check input
+        run: |
+          [[ "$DRAFT_ID" =~ ^[0-9]+$ ]] || { echo "draft_id must be a number"; exit 1; }
+          [ -n "$RENDER_TOKEN" ] || { echo "SOCIAL_RENDER_TOKEN secret is missing; reconnect GitHub in the admin"; exit 1; }
+
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            video
+            public/fonts/satoshi
+
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: video/pipeline/requirements.txt
+
+      - name: Cache voice and speech-check models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: chatterbox-0.1.7-whisper-base.en
+
+      - name: Install voice model
+        run: |
+          pip install --quiet torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet -r video/pipeline/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: video/package-lock.json
+
+      - name: Install renderer
+        working-directory: video
+        run: |
+          npm ci --no-audit --no-fund
+          mkdir -p public/fonts && cp -r ../public/fonts/satoshi public/fonts/
+
+      - name: Fetch reel
+        run: python video/pipeline/fetch.py "$DRAFT_ID"
+
+      - name: Speak script in cloned voice
+        run: python video/pipeline/voice.py
+
+      - name: Render video and cover
+        working-directory: video
+        run: |
+          npx remotion render src/index.ts Reel out/reel.mp4 --props=public/render/props.json --log=warn
+          npx remotion still src/index.ts Cover out/cover.jpg --props=public/render/props.json --image-format=jpeg --log=warn
+          ls -lh out
+
+      - name: Upload to site
+        working-directory: video
+        run: |
+          args=()
+          while read -r s; do args+=(-F "scene_seconds[]=$s"); done < <(python -c "import json;[print(s) for s in json.load(open('public/render/meta.json'))['scene_seconds']]")
+          duration=$(python -c "import json;print(json.load(open('public/render/meta.json'))['duration_seconds'])")
+          auth=(-H "Authorization: Bearer $RENDER_TOKEN" -H "Accept: application/json")
+
+          # Only a 2xx counts. curl --fail lets redirects through as success.
+          post() {
+            code=$(curl -sS -o resp.txt -w '%{http_code}' --retry 3 --retry-delay 10 "$@") || return 1
+            [[ "$code" == 2* ]] || { echo "Site answered HTTP $code: $(head -c 300 resp.txt)"; return 1; }
+          }
+
+          # Shared hosting caps upload size, so send the video in 1.5 MB pieces.
+          mkdir -p out/parts && split -b 1500k -d -a 3 out/reel.mp4 out/parts/part-
+          i=0; offset=0
+          for part in out/parts/part-*; do
+            post --max-time 120 "${auth[@]}" \
+              -F "index=$i" -F "offset=$offset" -F "chunk=@$part;type=application/octet-stream" \
+              "$SITE_URL/api/social/render/$DRAFT_ID/chunk"
+            i=$((i + 1)); offset=$((offset + $(stat -c %s "$part")))
+          done
+          echo "Sent video in $i parts"
+
+          post --max-time 300 "${auth[@]}" \
+            -F "cover=@out/cover.jpg;type=image/jpeg" \
+            -F "report=<public/render/report.json" \
+            -F "duration_seconds=$duration" "${args[@]}" \
+            "$SITE_URL/api/social/render/$DRAFT_ID/complete"
+          echo "Uploaded"
+
+      - name: Report failure to site
+        if: failure()
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          code=$(curl -sS -o resp.txt -w '%{http_code}' --retry 3 --retry-delay 10 \
+            -H "Authorization: Bearer $RENDER_TOKEN" -H "Accept: application/json" \
+            --data-urlencode "error=The render job failed. Open the run to see which step: $RUN_URL" \
+            "$SITE_URL/api/social/render/$DRAFT_ID/failed") || code=000
+          # Shown in the log so a missed report is visible; the site's timeout catches it either way.
+          echo "Site answered HTTP $code"
+          [[ "$code" == 2* ]] || echo "::warning::The site did not accept the failure report (HTTP $code)"

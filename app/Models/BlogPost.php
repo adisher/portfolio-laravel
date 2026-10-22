@@ -76,6 +76,11 @@ class BlogPost extends Model implements Feedable
         return $this->hasMany(SocialPost::class);
     }
 
+    public function socialDrafts()
+    {
+        return $this->hasMany(SocialDraft::class);
+    }
+
     public function scopePublished($query)
     {
         return $query->where('status', 'published')->where('published_at', '<=', now());

@@ -6,6 +6,7 @@ use App\Mail\ContactFormAutoReply;
 use App\Mail\ContactFormSubmitted;
 use App\Models\Contact;
 use App\Models\Setting;
+use App\Support\BookingLink;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
@@ -27,7 +28,10 @@ class ContactController extends Controller
             'social_instagram' => Setting::get('social_instagram'),
         ];
 
-        return view('frontend.contact', compact('contactSettings'));
+        $bookingUrl = BookingLink::url();
+        $bookingEmbedUrl = BookingLink::embedUrl();
+
+        return view('frontend.contact', compact('contactSettings', 'bookingUrl', 'bookingEmbedUrl'));
     }
 
     public function store(Request $request)

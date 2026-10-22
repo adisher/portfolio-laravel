@@ -12,12 +12,15 @@ use App\Models\BlogPost;
  */
 class SocialUrl
 {
-    public static function for(BlogPost $post, string $platform): string
+    public static function for(BlogPost $post, string $platform, ?string $format = null): string
     {
-        return route('blog.show', $post->slug) . '?' . http_build_query([
+        return route('blog.show', $post->slug) . '?' . http_build_query(array_filter([
             'utm_source'   => $platform,
             'utm_medium'   => 'social',
             'utm_campaign' => 'blog-share',
-        ]);
+            // Which content format drove the visit (reel, carousel, ...), so
+            // formats can be compared on real visits.
+            'utm_content'  => $format,
+        ]));
     }
 }

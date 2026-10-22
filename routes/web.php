@@ -185,6 +185,11 @@ Route::prefix('sports')->name('sports.')->middleware('feature:page.sports')->gro
     Route::get('/{sportSlug}/{matchSlug}', fn($s, $m) => redirect()->route('sports.match', $m, 301));
 });
 
+// Cinema, latest movies & TV pulled from the Local Cinema feed
+Route::get('/cinema', [\App\Http\Controllers\Frontend\CinemaController::class, 'index'])
+    ->middleware('feature:page.cinema')
+    ->name('cinema.index');
+
 // Frontend Contact Routes
 Route::get('/contact', [ContactController::class, 'index'])->middleware('feature:page.contact')->name('contact');
 // throttle: cap contact submissions per IP (humans never submit 5x/min) as a
@@ -294,6 +299,28 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::get('/publish', [\App\Http\Controllers\Admin\SocialAccountController::class, 'publishBoard'])->name('publish');
         Route::post('/publish/now', [\App\Http\Controllers\Admin\SocialAccountController::class, 'postNow'])->name('post-now');
         Route::post('/publish/preview', [\App\Http\Controllers\Admin\SocialAccountController::class, 'preview'])->name('preview');
+
+        // Social Studio: reel drafts (docs/social-distribution-plan.md)
+        Route::prefix('reels/settings')->name('reels.settings')->controller(\App\Http\Controllers\Admin\SocialStudioController::class)->group(function () {
+            Route::get('/', 'edit')->name('');
+            Route::post('/voice', 'uploadVoice')->name('.voice');
+            Route::get('/voice', 'voicePreview')->name('.voice-preview');
+            Route::post('/github', 'connectGithub')->name('.github');
+            Route::put('/voice-options', 'updateVoiceOptions')->name('.voice-options');
+        });
+        Route::prefix('reels')->name('reels.')->controller(\App\Http\Controllers\Admin\SocialReelController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::get('/{draft}', 'show')->whereNumber('draft')->name('show');
+            Route::get('/{draft}/status', 'status')->whereNumber('draft')->name('status');
+            Route::put('/{draft}', 'update')->whereNumber('draft')->name('update');
+            Route::post('/{draft}/regenerate', 'regenerate')->whereNumber('draft')->name('regenerate');
+            Route::post('/{draft}/render', 'render')->whereNumber('draft')->name('render');
+            Route::post('/{draft}/stop-render', 'stopRender')->whereNumber('draft')->name('stop-render');
+            Route::patch('/{draft}/targets/{target}/approve', 'approveTarget')->whereNumber('draft')->name('targets.approve');
+            Route::patch('/{draft}/targets/{target}/reject', 'rejectTarget')->whereNumber('draft')->name('targets.reject');
+            Route::delete('/{draft}', 'destroy')->whereNumber('draft')->name('destroy');
+        });
         Route::get('/create', [\App\Http\Controllers\Admin\SocialAccountController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\Admin\SocialAccountController::class, 'store'])->name('store');
         Route::get('/{social}/edit', [\App\Http\Controllers\Admin\SocialAccountController::class, 'edit'])->name('edit');

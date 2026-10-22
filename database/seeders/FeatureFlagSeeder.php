@@ -16,6 +16,7 @@ class FeatureFlagSeeder extends Seeder
             ['key' => 'page.sports',      'group' => 'page', 'label' => 'Sports',       'description' => 'The /sports live-scores page.',                        'sort_order' => 40],
             ['key' => 'page.about',       'group' => 'page', 'label' => 'About',        'description' => 'The /about page.',                                     'sort_order' => 50],
             ['key' => 'page.products',    'group' => 'page', 'label' => 'Products',     'description' => 'All /products/{slug} product detail pages.',           'sort_order' => 60],
+            ['key' => 'page.cinema',      'group' => 'page', 'label' => 'Cinema',       'description' => 'The /cinema page (Local Cinema movies & TV feed).',    'sort_order' => 70],
 
             // ── HOMEPAGE SECTIONS ──────────────────────────────────────
             ['key' => 'section.home.hero',              'group' => 'section', 'label' => 'Homepage: Hero',               'description' => 'Main hero banner on the homepage.',                   'sort_order' => 110],
@@ -45,6 +46,7 @@ class FeatureFlagSeeder extends Seeder
             ['key' => 'nav.portfolio',   'group' => 'nav', 'label' => 'Nav: Portfolio',  'description' => 'Portfolio link in desktop and mobile navigation.', 'sort_order' => 420],
             ['key' => 'nav.sports',      'group' => 'nav', 'label' => 'Nav: Sports',     'description' => 'Sports link in desktop and mobile navigation.',    'sort_order' => 430],
             ['key' => 'nav.contact',     'group' => 'nav', 'label' => 'Nav: Contact',    'description' => 'Contact link in desktop and mobile navigation.',   'sort_order' => 440],
+            ['key' => 'nav.cinema',      'group' => 'nav', 'label' => 'Nav: Cinema',     'description' => 'Cinema link in desktop and mobile navigation.',    'sort_order' => 435],
 
             // ── BANNER ────────────────────────────────────────────────
             ['key' => 'banner.global', 'group' => 'banner', 'label' => 'Announcement Banner',
@@ -54,8 +56,10 @@ class FeatureFlagSeeder extends Seeder
              'sort_order' => 510],
         ];
 
+        // Only add flags that don't exist yet. Existing rows are never touched,
+        // so re-running the seeder can't undo choices made in Admin > Visibility.
         foreach ($flags as $flag) {
-            FeatureFlag::updateOrCreate(
+            FeatureFlag::firstOrCreate(
                 ['key' => $flag['key']],
                 array_merge(['is_enabled' => true], $flag)
             );

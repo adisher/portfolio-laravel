@@ -58,4 +58,15 @@ return [
         'key' => env('BRAVE_SEARCH_API_KEY'),
     ],
 
+    // Local Cinema JSON Feed powering the /cinema page
+    'local_cinema' => [
+        // `?:` so a blank `KEY=` line in .env still falls back to the default
+        'feed_url'  => env('LOCAL_CINEMA_FEED_URL') ?: 'https://localcinema.xyz/feed.json',
+        'limit'     => (int) (env('LOCAL_CINEMA_FEED_LIMIT') ?: 12),
+        // Entries requested per fetch; only those with a poster are shown (the feed rejects limit=200)
+        'fetch_limit' => (int) (env('LOCAL_CINEMA_FETCH_LIMIT') ?: 60),
+        'cache_ttl' => (int) (env('LOCAL_CINEMA_CACHE_TTL') ?: 1800), // seconds
+        'timeout'   => (int) (env('LOCAL_CINEMA_TIMEOUT') ?: 8),
+    ],
+
 ];

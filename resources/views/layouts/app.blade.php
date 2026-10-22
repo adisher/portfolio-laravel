@@ -31,7 +31,7 @@
     <!-- SEO Meta Tags -->
     <link rel="canonical" href="{{ $canonicalUrl }}">
     <meta name="robots" content="@yield('robots', 'index, follow')">
-    <meta name="googlebot" content="index, follow">
+    <meta name="googlebot" content="@yield('robots', 'index, follow')">
 
     <!-- Sitemap reference -->
     <link rel="sitemap" type="application/xml" href="{{ url('/sitemap.xml') }}">
@@ -136,6 +136,12 @@
                             Sports
                         </a>
                         @endfeature
+                        @feature('nav.cinema')
+                        <a href="{{ route('cinema.index') }}"
+                            class="nav-link {{ request()->routeIs('cinema.*') ? 'active' : '' }}">
+                            Cinema
+                        </a>
+                        @endfeature
                         <a href="{{ route('about') }}"
                             class="nav-link {{ request()->routeIs('about.*') ? 'active' : '' }}">
                             About Me
@@ -146,6 +152,15 @@
                             Contact
                         </a>
                         @endfeature
+                        @if($bookingHref = \App\Support\BookingLink::href())
+                        <a href="{{ $bookingHref }}" @if(\App\Support\BookingLink::opensExternally()) target="_blank" rel="noopener" @endif
+                            class="inline-flex items-center gap-1.5 px-4 py-2 bg-teal hover:bg-teal-dark text-midnight text-sm font-semibold rounded-full transition-all duration-300 hover:shadow-glow whitespace-nowrap">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            Book a Call
+                        </a>
+                        @endif
                         <div class="relative" x-data="{ open: false }">
                             <button @click="open = !open" class="nav-link">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,6 +239,12 @@
                     Sports
                 </a>
                 @endfeature
+                @feature('nav.cinema')
+                <a href="{{ route('cinema.index') }}"
+                    class="mobile-nav-link {{ request()->routeIs('cinema.*') ? 'active' : '' }}">
+                    Cinema
+                </a>
+                @endfeature
                 <a href="{{ route('about') }}"
                     class="mobile-nav-link {{ request()->routeIs('about.*') ? 'active' : '' }}">
                     About Me
@@ -234,6 +255,13 @@
                     Contact
                 </a>
                 @endfeature
+
+                @if($bookingHref = \App\Support\BookingLink::href())
+                <a href="{{ $bookingHref }}" @if(\App\Support\BookingLink::opensExternally()) target="_blank" rel="noopener" @endif
+                    class="mobile-nav-link font-semibold text-teal">
+                    Book a Call
+                </a>
+                @endif
 
                 {{-- Mobile Dark Mode Toggle --}}
                 @feature('feature.dark_mode_toggle')

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CollectedArticle;
 use App\Models\AutoPublishSetting;
+use App\Models\BlogPost;
 use App\Models\WorkItem;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -170,7 +171,7 @@ class AiContentService
     /**
      * Call the Claude API.
      */
-    protected function callApi(string $prompt, int $maxTokens = 2500, ?string $model = null): ?array
+    protected function callApi(string $prompt, int $maxTokens = 2500, ?string $model = null, array $extra = []): ?array
     {
         if (!$this->apiKey) {
             Log::error('Anthropic API key not configured');
@@ -181,13 +182,13 @@ class AiContentService
             'x-api-key' => $this->apiKey,
             'anthropic-version' => '2023-06-01',
             'content-type' => 'application/json',
-        ])->timeout(90)->post($this->apiUrl, [
+        ])->timeout(90)->post($this->apiUrl, array_merge([
             'model' => $model ?? $this->model,
             'max_tokens' => $maxTokens,
             'messages' => [
                 ['role' => 'user', 'content' => $prompt]
             ]
-        ]);
+        ], $extra));
 
         if (!$response->successful()) {
             Log::error('Claude API error: ' . $response->body());
@@ -842,6 +843,170 @@ PROMPT;
                 'suggested_title' => null,
             ];
         }
+    }
+
+    /**
+     * Write a short vertical-video script (scenes) plus Instagram and YouTube
+     * captions for a published blog post. Returns the decoded JSON
+     * (['scenes' => [...], 'instagram' => [...], 'youtube' => [...]]) or null.
+     *
+     * Uses structured outputs (output_config.format json_schema) so the reply
+     * is always schema-valid JSON; lengths and counts are checked by the caller.
+     */
+    public function generateReelScript(BlogPost $post, ?string $feedback = null): ?array
+    {
+        if (!$this->isEnabled()) {
+            Log::warning('Reel script generation skipped: AI disabled or budget exhausted');
+            return null;
+        }
+
+        $model = config('social.reels.ai_model', $this->model);
+
+        try {
+            $response = $this->callApi($this->buildReelScriptPrompt($post, $feedback), 4000, $model, [
+                'output_config' => [
+                    'format' => ['type' => 'json_schema', 'schema' => $this->reelScriptSchema()],
+                ],
+            ]);
+            if (!$response) {
+                return null;
+            }
+
+            $this->budgetService->logUsage(
+                'social_reel_script',
+                $response['input_tokens'],
+                $response['output_tokens'],
+                null,
+                $post->id,
+                model: $model
+            );
+
+            $data = json_decode($response['content'], true);
+
+            return is_array($data) ? $data : null;
+
+        } catch (Exception $e) {
+            Log::error('Reel script generation failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    protected function reelScriptSchema(): array
+    {
+        $string = ['type' => 'string'];
+
+        return [
+            'type' => 'object',
+            'properties' => [
+                'scenes' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'type'             => ['type' => 'string', 'enum' => ['hook', 'context', 'point', 'end']],
+                            'on_screen_text'   => $string,
+                            'voice_line'       => $string,
+                            'visual'           => ['type' => 'string', 'enum' => ['featured_image', 'portrait', 'screenshot', 'text', 'code']],
+                            'visual_note'      => $string,
+                        ],
+                        'required' => ['type', 'on_screen_text', 'voice_line', 'visual', 'visual_note'],
+                        'additionalProperties' => false,
+                    ],
+                ],
+                'instagram' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'caption'  => $string,
+                        'hashtags' => ['type' => 'array', 'items' => $string],
+                    ],
+                    'required' => ['caption', 'hashtags'],
+                    'additionalProperties' => false,
+                ],
+                'youtube' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'title'       => $string,
+                        'description' => $string,
+                        'tags'        => ['type' => 'array', 'items' => $string],
+                    ],
+                    'required' => ['title', 'description', 'tags'],
+                    'additionalProperties' => false,
+                ],
+                'pronunciations' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => ['word' => $string, 'say' => $string],
+                        'required' => ['word', 'say'],
+                        'additionalProperties' => false,
+                    ],
+                ],
+            ],
+            'required' => ['scenes', 'instagram', 'youtube', 'pronunciations'],
+            'additionalProperties' => false,
+        ];
+    }
+
+    protected function buildReelScriptPrompt(BlogPost $post, ?string $feedback = null): string
+    {
+        $post->loadMissing('category');
+
+        $isNews = $post->source_type === 'curated';
+        $body   = trim(preg_replace('/\s+/', ' ', strip_tags(str_replace(['#', '*', '`', '>'], ' ', (string) $post->content))));
+        $body   = mb_substr($body, 0, 12000);
+        $min    = config('social.reels.min_seconds', 25);
+        $max    = config('social.reels.max_seconds', 45);
+        $minW   = config('social.reels.min_words', 60);
+        $maxW   = config('social.reels.max_words', 105);
+        $retry  = $feedback ? "\n\nREVISION NEEDED\n{$feedback}" : '';
+
+        $source = $post->original_author ?: 'the original outlet';
+        $kind = $isNews
+            ? "This is a NEWS article (a rewrite of reporting by {$source}). Make a fast \"news in 30 seconds\" reel. Credit the source once in passing, inside a sentence (for example \"... this week, according to {$source}.\"), but never tell viewers to read, visit or check it: the only place you send them is Adil's own article."
+            : 'This is Adil\'s own article (his product, project or guide). Make a reel that teaches or shows the one idea that makes it worth reading.';
+
+        return <<<PROMPT
+You write short vertical videos (Instagram Reels and YouTube Shorts) for Adil Sher, a full-stack developer in Islamabad who builds Laravel and Python products. The voiceover is Adil's own cloned voice, so every voice_line is spoken by him in the first person, in plain conversational English.
+
+{$kind}
+
+ARTICLE
+Title: {$post->title}
+Category: {$post->category?->name}
+Summary: {$post->excerpt}
+Body: {$body}
+
+THE REEL
+- Total length {$min}-{$max} seconds. Speech runs about 2.5 words per second and scene timing is calculated from the words, so the whole voiceover must be between {$minW} and {$maxW} words. Count them. This is a hard limit.
+- Scenes, in order: exactly one "hook" (an idea that stops the scroll: a surprising claim, a number, or a question; never "In this video"), one "context" (the problem or news in one sentence), 3 or 4 "point" scenes (one idea each), and exactly one "end" scene.
+- Word budget per voice_line: hook max 12, context max 16, each point max 18, end max 12. Short sentences. The voice_line is also shown word by word as captions, so write every word the normal written way: "GPT-5.6", "dev.to", "3,000", "40%", "AI". Never spell anything out in a voice_line (no "G P T", "dev dot to", "five point six"); how it is said goes in pronunciations.
+- on_screen_text: what appears in big type. Max 8 words, no hashtags, no emojis. It may differ from the voice_line.
+- The "end" scene voice_line sends people to the full article on Adil's own site, for example "Full breakdown is on my site, link in my bio." Never send viewers to the original source or any other website. Its on_screen_text names it, for example "Full article: link in bio".
+- visual: what fills the frame behind the text. featured_image (the article's header image), portrait (Adil's photo, use for hook or end only), screenshot (a product screen, only for Adil's own products), text (brand background only), code (a short snippet; put the snippet in visual_note, max 6 lines). visual_note says what should be shown.
+- Only state facts that are in the article. No invented numbers, quotes or claims.
+
+WRITE FOR THE EAR (this is narration for a reel, not text being read out)
+- The hook is the most energetic line: a punchy statement, a sharp question, or a surprising number. It may end with "?" or "!". The end line is warm and confident and may end with "!". The lines in between are conversational and lively.
+- Vary sentence length: a short punch, then a longer explanation. Use one clear contrast ("X costs more. Y costs nothing.").
+- Put the most important word at the end of the sentence, where the voice naturally lands on it.
+- Never start a line with a weak opener: no "As", "So", "Well", "Now", "Basically", "According to". Start with the subject or the point.
+- Use commas where a speaker would pause. No ellipses, no parentheses, no slashes.
+
+PRONUNCIATIONS
+- List every word in the voice lines that a text-to-speech voice could misread, with how to say it (this is only for the voice; captions show the word as written): brand and product names, acronyms (spell letters with spaces: "GPT" says "G P T"), versions and model names ("GPT-5.6-Cyber" says "G P T five point six Cyber"), domains ("dev.to" says "dev dot to"; a dot between letters is "dot", between digits it is "point"), code and tech terms ("cache" says "cash", "SQL" says "sequel", "nginx" says "engine x"), and unusual names. Never list an ordinary English word that a voice already says correctly (a product called "Muse" or "Glimmer" needs no entry), and never invent phonetic spellings like "Myooz": a "say" must be real English words or spaced letters. Numbers, prices, percentages and website names are said correctly without an entry. The "word" must appear exactly as written in a voice_line. Use an empty list if there are none.
+
+CAPTIONS
+- instagram.caption: 2-4 short paragraphs, hook in the first line, ends with "Full article: link in bio." No hashtags inside the caption.
+- instagram.hashtags: 5 to 8 specific hashtags without the # sign.
+- youtube.title: max 90 characters, ends with " #Shorts".
+- youtube.description: 2-3 sentences. Do not include any links; the article link is added automatically.
+- youtube.tags: 5 to 10 plain keywords.
+
+STYLE RULES (strict)
+- Never use em dashes or en dashes anywhere. Use commas, periods or colons.
+- No clickbait words like "insane", "crazy", "game-changer", "you won't believe".
+- Sound like a developer talking to developers.{$retry}
+PROMPT;
     }
 
     /**
