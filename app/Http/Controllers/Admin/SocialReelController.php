@@ -130,6 +130,20 @@ class SocialReelController extends Controller
         return back()->with('success', 'Rendering started. It takes about 10 to 15 minutes; you will get an email when it is ready.');
     }
 
+    /**
+     * Stop waiting for a render that will never report back (the job failed
+     * or was cancelled on GitHub). A late upload from that job is refused,
+     * since the draft is no longer rendering.
+     */
+    public function stopRender(SocialDraft $draft)
+    {
+        if ($draft->status === SocialDraft::STATUS_RENDERING) {
+            $this->reels->markRenderFailed($draft, 'Render stopped from the admin.', notify: false);
+        }
+
+        return back()->with('success', 'Stopped waiting for that render. You can render again.');
+    }
+
     /** Lightweight status for the review page to poll while a render runs. */
     public function status(SocialDraft $draft)
     {

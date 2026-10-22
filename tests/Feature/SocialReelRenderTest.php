@@ -221,6 +221,20 @@ class SocialReelRenderTest extends TestCase
         $this->assertSame('draft', $draft->fresh()->status);
     }
 
+    public function test_a_stuck_render_can_be_stopped_from_the_admin(): void
+    {
+        $token = $this->studio();
+        $draft = $this->draft();
+
+        $this->actingAs($this->admin)->post(route('admin.social.reels.stop-render', $draft))->assertSessionHas('success');
+
+        $this->assertSame('render_failed', $draft->fresh()->status);
+        Mail::assertNothingSent();
+
+        // A late upload from the abandoned job is refused.
+        $this->postJson("/api/social/render/{$draft->id}/complete", [], ['Authorization' => "Bearer {$token}"])->assertStatus(409);
+    }
+
     public function test_renders_that_never_report_back_time_out(): void
     {
         $draft = $this->draft();

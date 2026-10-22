@@ -315,6 +315,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
             Route::put('/{draft}', 'update')->whereNumber('draft')->name('update');
             Route::post('/{draft}/regenerate', 'regenerate')->whereNumber('draft')->name('regenerate');
             Route::post('/{draft}/render', 'render')->whereNumber('draft')->name('render');
+            Route::post('/{draft}/stop-render', 'stopRender')->whereNumber('draft')->name('stop-render');
             Route::patch('/{draft}/targets/{target}/approve', 'approveTarget')->whereNumber('draft')->name('targets.approve');
             Route::patch('/{draft}/targets/{target}/reject', 'rejectTarget')->whereNumber('draft')->name('targets.reject');
             Route::delete('/{draft}', 'destroy')->whereNumber('draft')->name('destroy');

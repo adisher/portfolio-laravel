@@ -29,8 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      # Pinned here, not taken from the input, so the token is only ever sent to the real site.
-      SITE_URL: https://adilsher.pro
+      # Pinned here, not taken from the input, so the token is only ever sent to
+      # the real site. Must be the www host: the bare domain answers with a 301
+      # (public/.htaccess), and a redirected POST never reaches the site.
+      SITE_URL: https://www.adilsher.pro
       RENDER_TOKEN: ${{ secrets.SOCIAL_RENDER_TOKEN }}
       DRAFT_ID: ${{ inputs.draft_id }}
       HF_HUB_DISABLE_PROGRESS_BARS: '1'
@@ -100,27 +102,37 @@ jobs:
           duration=$(python -c "import json;print(json.load(open('public/render/meta.json'))['duration_seconds'])")
           auth=(-H "Authorization: Bearer $RENDER_TOKEN" -H "Accept: application/json")
 
+          # Only a 2xx counts. curl --fail lets redirects through as success.
+          post() {
+            code=$(curl -sS -o resp.txt -w '%{http_code}' --retry 3 --retry-delay 10 "$@") || return 1
+            [[ "$code" == 2* ]] || { echo "Site answered HTTP $code: $(head -c 300 resp.txt)"; return 1; }
+          }
+
           # Shared hosting caps upload size, so send the video in 1.5 MB pieces.
           mkdir -p out/parts && split -b 1500k -d -a 3 out/reel.mp4 out/parts/part-
           i=0; offset=0
           for part in out/parts/part-*; do
-            curl -fsS --retry 3 --retry-delay 10 --max-time 120 "${auth[@]}" \
+            post --max-time 120 "${auth[@]}" \
               -F "index=$i" -F "offset=$offset" -F "chunk=@$part;type=application/octet-stream" \
-              "$SITE_URL/api/social/render/$DRAFT_ID/chunk" > /dev/null
+              "$SITE_URL/api/social/render/$DRAFT_ID/chunk"
             i=$((i + 1)); offset=$((offset + $(stat -c %s "$part")))
           done
           echo "Sent video in $i parts"
 
-          curl -fsS --retry 3 --retry-delay 10 --max-time 300 "${auth[@]}" \
+          post --max-time 300 "${auth[@]}" \
             -F "cover=@out/cover.jpg;type=image/jpeg" \
             -F "duration_seconds=$duration" "${args[@]}" \
-            "$SITE_URL/api/social/render/$DRAFT_ID/complete" > /dev/null
+            "$SITE_URL/api/social/render/$DRAFT_ID/complete"
           echo "Uploaded"
 
       - name: Report failure to site
         if: failure()
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          curl -fsS --retry 3 -H "Authorization: Bearer $RENDER_TOKEN" -H "Accept: application/json" \
+          code=$(curl -sS -o resp.txt -w '%{http_code}' --retry 3 --retry-delay 10 \
+            -H "Authorization: Bearer $RENDER_TOKEN" -H "Accept: application/json" \
             --data-urlencode "error=The render job failed. Open the run to see which step: $RUN_URL" \
-            "$SITE_URL/api/social/render/$DRAFT_ID/failed" > /dev/null || true
+            "$SITE_URL/api/social/render/$DRAFT_ID/failed") || code=000
+          # Shown in the log so a missed report is visible; the site's timeout catches it either way.
+          echo "Site answered HTTP $code"
+          [[ "$code" == 2* ]] || echo "::warning::The site did not accept the failure report (HTTP $code)"

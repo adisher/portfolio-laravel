@@ -89,6 +89,11 @@
                         Started {{ $draft->render_requested_at?->diffForHumans() }}. Takes about 10 to 15 minutes; this page refreshes when it's done.
                         <a href="{{ $runsUrl }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Watch on GitHub</a>
                     </p>
+                    <form method="POST" action="{{ route('admin.social.reels.stop-render', $draft) }}" class="mt-2 text-center"
+                        onsubmit="return confirm('Stop waiting for this render? Use this if the run failed or was cancelled on GitHub.')">
+                        @csrf
+                        <button type="submit" class="text-xs text-red-600 hover:underline">Stop waiting</button>
+                    </form>
                 </div>
             @elseif(! $studioReady)
                 <a href="{{ route('admin.social.reels.settings') }}" class="btn-primary w-full mt-4 text-sm py-2">Set up voice and GitHub to render</a>

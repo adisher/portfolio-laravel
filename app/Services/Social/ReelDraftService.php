@@ -119,14 +119,16 @@ class ReelDraftService
         $this->alert(new ReelReadyForReview($draft->fresh(['blogPost', 'targets'])));
     }
 
-    public function markRenderFailed(SocialDraft $draft, string $error): void
+    public function markRenderFailed(SocialDraft $draft, string $error, bool $notify = true): void
     {
         $draft->update([
             'status' => SocialDraft::STATUS_RENDER_FAILED,
             'error'  => Str::limit($error, 2000),
         ]);
 
-        $this->alert(new ReelRenderFailed($draft->fresh('blogPost')));
+        if ($notify) {
+            $this->alert(new ReelRenderFailed($draft->fresh('blogPost')));
+        }
     }
 
     /**
