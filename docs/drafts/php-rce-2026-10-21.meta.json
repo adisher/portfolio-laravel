@@ -1,0 +1,26 @@
+{
+    "title": "PHP Shipped Two 9.2 RCEs. My Server Says 8.3.35, and That Answer Is Not Good Enough",
+    "slug": "php-critical-rce-cve-2026-109618-109619",
+    "excerpt": "PHP patched two critical remote code execution bugs on 21 October. Checking my own server turned a simple version check into a lesson about shared hosting.",
+    "meta_title": "PHP Critical RCE October 2026: CVE-2026-109618 and CVE-2026-109619",
+    "meta_description": "PHP fixed two unauthenticated RCE bugs on 21 October 2026. What they break, who is exposed, and why your version string may not answer the question.",
+    "meta_keywords": [
+        "PHP security",
+        "CVE-2026-109618",
+        "CVE-2026-109619",
+        "PHP 8.3.36",
+        "remote code execution",
+        "mod_php",
+        "shared hosting"
+    ],
+    "image_alt": "The PHP logo beside a terminal showing a php -v version check",
+    "category_slug": "tech-news",
+    "status": "draft",
+    "source_type": "original",
+    "tags": [
+        "php",
+        "security",
+        "devops",
+        "laravel"
+    ]
+}
