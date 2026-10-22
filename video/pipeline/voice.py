@@ -48,7 +48,9 @@ def reference_clip(sample: pathlib.Path) -> pathlib.Path:
     tap at the start of the recording)."""
     import librosa
 
-    full = RENDER / "voice_sample.wav"
+    # A distinct name: the upload itself may already be voice_sample.wav, and
+    # ffmpeg refuses to write over its own input.
+    full = RENDER / "voice_sample_24k_mono.wav"
     to_wav(sample, full)
     audio, _ = librosa.load(full, sr=SR)
     intervals = librosa.effects.split(audio, top_db=30)
