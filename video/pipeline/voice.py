@@ -94,11 +94,17 @@ def number_words(token: str) -> str:
     return said + (" percent" if percent else "")
 
 
+MONEY = re.compile(r"\$(\d[\d,]*(?:\.\d+)?)(k|m|bn|b|million|billion|trillion)?", re.I)
+SCALE = {"k": "thousand", "m": "million", "b": "billion", "bn": "billion"}
+
+
 def speak_numbers(core: str) -> str | None:
     """Say every number inside a word, and split it from letters around it:
-    "GPT-5.6" -> "GPT five point six". None when there is no number."""
+    "GPT-5.6" -> "GPT five point six", "$75" -> "seventy-five dollars",
+    "$1.5M" -> "one point five million dollars". None when there is no number."""
     if not re.search(r"\d", core):
         return None
+    core = MONEY.sub(lambda m: " " + number_words(m.group(1)) + (" " + SCALE.get(m.group(2).lower(), m.group(2).lower()) if m.group(2) else "") + " dollars ", core)
     said = re.sub(r"\d[\d,]*(?:\.\d+)?%?", lambda m: " " + number_words(m.group(0).rstrip(",")) + " ", core)
     said = re.sub(r"(?<=\s)-|-(?=\s)", " ", said)
     return " ".join(said.split())
@@ -139,6 +145,8 @@ def pronounce(text: str, pairs: list) -> tuple[str, list[tuple[str, int, int]]]:
                 else:
                     if trail.startswith("%"):  # "40%," : the sign is part of the number
                         core, trail = core + "%", trail[1:]
+                    if lead.endswith("$"):  # "($75" : so is a currency sign
+                        core, lead = "$" + core, lead[:-1]
                     replacement = speak_numbers(core)
             if replacement or size == 1:
                 parts = words_of(f"{lead}{replacement}{trail}") if replacement else [group[0]]
@@ -157,6 +165,8 @@ NUMBER_WORDS = set(
     "seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred thousand "
     "million billion trillion percent point and half quarter dozen x".split()
 )
+# Words Whisper may write as their sound-alike ("dev dot to" heard as "dev .2").
+SOUNDS_ALIKE = {"to": "two", "too": "two", "for": "four"}
 FILLERS = {"uh", "um", "uhm", "ah", "er", "erm", "hmm", "hm", "mm", "huh"}
 
 
@@ -175,11 +185,13 @@ def pieces(words: list[str]) -> list[tuple[str, int]]:
         t = word.lower()
         if re.fullmatch(r"(?:[a-z]\.){2,}[a-z]?\.?[,!?;:]*", t):
             t = t.replace(".", "")  # an acronym written "G.P.T.", not a domain
-        t = re.sub(r"(?<=[a-z])\.(?=[a-z])|^\.(?=[a-z])", " dot ", t)
+        t = re.sub(r"(?<=[a-z])\.(?=[a-z])|^\.(?=[a-z0-9])", " dot ", t)
+        if re.match(r"^\$\d", t):
+            t = t[1:] + " dollars"
         t = re.sub(r"[-/_]", " ", t)
         t = re.sub(r"(?<=\d)\.(?=\d)", " point ", t)
         for part in t.split():
-            n = norm(part)
+            n = SOUNDS_ALIKE.get(norm(part), norm(part))
             if n:
                 out.append((n, idx))
     return out
@@ -540,6 +552,13 @@ def slow_down(audio: np.ndarray, words, pace: float):
     return slowed, [(w, s / tempo, e / tempo) for w, s, e in words]
 
 
+def letters_joined(text: str) -> str:
+    """The same line with spelled letters as one acronym: "G P T five" ->
+    "GPT five". The voice garbles either form now and then, so takes
+    alternate between the two and the checker treats them as equal."""
+    return re.sub(r"\b[A-Z](?: [A-Z]\b)+", lambda m: m.group(0).replace(" ", ""), text)
+
+
 def speak(model, asr, text: str, voice: dict, seed: int, energy: dict | None = None):
     """Up to TAKES attempts at one line; keep the cleanest. Each take is judged
     on what Whisper hears (every word as written, no fillers or extra words,
@@ -550,13 +569,14 @@ def speak(model, asr, text: str, voice: dict, seed: int, energy: dict | None = N
     import torch
 
     spoken = words_of(text)
+    forms = [text] + ([letters_joined(text)] if letters_joined(text) != text else [])
     best = None
     takes = []
     for take in range(TAKES):
         torch.manual_seed(seed + take)
         params = {**voice, **(energy or {})}
         wav = model.generate(
-            text,
+            forms[take % len(forms)],
             exaggeration=params["exaggeration"],
             cfg_weight=params["cfg_weight"],
             temperature=params["temperature"],
@@ -579,7 +599,7 @@ def speak(model, asr, text: str, voice: dict, seed: int, energy: dict | None = N
         score = take_score(cmp, quality, sounds)
         print(f"  take {take + 1}: {len(audio) / SR:.1f} s, {cmp['mismatches']} wrong/extra words, match {match:.2f}, pace {quality['pace']:.1f} w/s, "
               f"extra sound {quality['noise']:.1f} s{f', {sounds} non-word sounds' if sounds else ''}, score {score:.2f}")
-        takes.append({"take": take + 1, "seconds": round(len(audio) / SR, 2), "match": round(match, 3), "wrong_words": cmp["mismatches"],
+        takes.append({"take": take + 1, "seconds": round(len(audio) / SR, 2), "match": round(match, 3), "wrong_words": cmp["mismatches"], "text": forms[take % len(forms)],
                       "pace": round(quality["pace"], 2), "extra_sound": round(quality["noise"], 2),
                       "non_word_sounds": sounds, "score": round(score, 3)})
         if best is None or score > best["score"]:
