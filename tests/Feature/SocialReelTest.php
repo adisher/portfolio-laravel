@@ -72,6 +72,7 @@ class SocialReelTest extends TestCase
             ],
             'instagram' => ['caption' => "Redis ate my queue.\n\nFull article: link in bio.", 'hashtags' => ['#Laravel', 'Redis', 'queues']],
             'youtube'   => ['title' => 'Redis lost 3,000 of my jobs', 'description' => 'What happened and the fix.', 'tags' => ['laravel', 'redis']],
+            'pronunciations' => [['word' => 'cache', 'say' => 'cash'], ['word' => 'Cache', 'say' => 'cash'], ['word' => '', 'say' => 'x']],
         ];
 
         Http::fake([
@@ -228,6 +229,35 @@ class SocialReelTest extends TestCase
         // The video no longer matches the script: back to draft, approvals cleared.
         $this->assertSame('draft', $draft->status);
         $this->assertSame('pending', $draft->target('instagram')->status);
+    }
+
+    public function test_each_reel_keeps_its_own_pronunciations_and_editing_them_needs_a_new_render(): void
+    {
+        $this->fakeClaude();
+        $service = app(ReelDraftService::class);
+        $draft = $service->createForPost($this->article());
+
+        // From the AI, deduplicated by word (the later one wins), blanks dropped.
+        $this->assertSame([['Cache', 'cash']], $draft->pronunciations());
+
+        $service->markRendered($draft, 'reels/1.mp4', 'reels/1.jpg', 18);
+
+        $this->actingAs($this->admin)->put(route('admin.social.reels.update', $draft), [
+            'scenes'              => $draft->scenes(),
+            'pronunciations'      => "cache = cash\nLRU = L R U\nnot a rule",
+            'instagram_caption'   => $draft->caption('instagram', 'caption'),
+            'instagram_hashtags'  => '#laravel',
+            'youtube_title'       => 'Title #Shorts',
+            'youtube_description' => 'Description',
+            'youtube_tags'        => 'laravel',
+        ])->assertSessionHas('success');
+
+        $draft->refresh();
+        $this->assertSame([['cache', 'cash'], ['LRU', 'L R U']], $draft->pronunciations());
+        $this->assertSame('draft', $draft->status);
+
+        $this->actingAs($this->admin)->get(route('admin.social.reels.show', $draft))
+            ->assertOk()->assertSee('LRU = L R U');
     }
 
     public function test_targets_cannot_be_approved_before_a_render(): void

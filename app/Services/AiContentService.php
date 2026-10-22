@@ -932,8 +932,17 @@ PROMPT;
                     'required' => ['title', 'description', 'tags'],
                     'additionalProperties' => false,
                 ],
+                'pronunciations' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => ['word' => $string, 'say' => $string],
+                        'required' => ['word', 'say'],
+                        'additionalProperties' => false,
+                    ],
+                ],
             ],
-            'required' => ['scenes', 'instagram', 'youtube'],
+            'required' => ['scenes', 'instagram', 'youtube', 'pronunciations'],
             'additionalProperties' => false,
         ];
     }
@@ -953,7 +962,7 @@ PROMPT;
 
         $source = $post->original_author ?: 'the original outlet';
         $kind = $isNews
-            ? "This is a NEWS article (a rewrite of reporting by {$source}). Make a fast \"news in 30 seconds\" reel. Credit the source once in passing (for example \"as {$source} reported\"), but never tell viewers to read, visit or check it: the only place you send them is Adil's own article."
+            ? "This is a NEWS article (a rewrite of reporting by {$source}). Make a fast \"news in 30 seconds\" reel. Credit the source once in passing, inside a sentence (for example \"... this week, according to {$source}.\"), but never tell viewers to read, visit or check it: the only place you send them is Adil's own article."
             : 'This is Adil\'s own article (his product, project or guide). Make a reel that teaches or shows the one idea that makes it worth reading.';
 
         return <<<PROMPT
@@ -975,6 +984,16 @@ THE REEL
 - The "end" scene voice_line sends people to the full article on Adil's own site, for example "Full breakdown is on my site, link in my bio." Never send viewers to the original source or any other website. Its on_screen_text names it, for example "Full article: link in bio".
 - visual: what fills the frame behind the text. featured_image (the article's header image), portrait (Adil's photo, use for hook or end only), screenshot (a product screen, only for Adil's own products), text (brand background only), code (a short snippet; put the snippet in visual_note, max 6 lines). visual_note says what should be shown.
 - Only state facts that are in the article. No invented numbers, quotes or claims.
+
+WRITE FOR THE EAR (this is narration for a reel, not text being read out)
+- The hook is the most energetic line: a punchy statement, a sharp question, or a surprising number. It may end with "?" or "!". The end line is warm and confident and may end with "!". The lines in between are conversational and lively.
+- Vary sentence length: a short punch, then a longer explanation. Use one clear contrast ("X costs more. Y costs nothing.").
+- Put the most important word at the end of the sentence, where the voice naturally lands on it.
+- Never start a line with a weak opener: no "As", "So", "Well", "Now", "Basically", "According to". Start with the subject or the point.
+- Use commas where a speaker would pause. No ellipses, no parentheses, no slashes.
+
+PRONUNCIATIONS
+- List every word in the voice lines that a text-to-speech voice could misread, with how to say it: brand and product names, acronyms (spell letters with spaces: "GPT" says "G P T"), versions and model names ("GPT-5.6-Cyber" says "G P T five point six Cyber"), domains ("dev.to" says "dev dot to"), code and tech terms ("cache" says "cash", "SQL" says "sequel", "nginx" says "engine x"), and unusual names. The "word" must appear exactly as written in a voice_line. Use an empty list if there are none.
 
 CAPTIONS
 - instagram.caption: 2-4 short paragraphs, hook in the first line, ends with "Full article: link in bio." No hashtags inside the caption.

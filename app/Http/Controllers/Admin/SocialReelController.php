@@ -84,6 +84,7 @@ class SocialReelController extends Controller
             'youtube_title'               => 'required|string|max:100',
             'youtube_description'         => 'nullable|string|max:5000',
             'youtube_tags'                => 'nullable|string|max:500',
+            'pronunciations'              => 'nullable|string|max:5000',
         ]);
 
         $split = fn (?string $list) => preg_split('/[\s,]+/', (string) $list, -1, PREG_SPLIT_NO_EMPTY);
@@ -98,7 +99,7 @@ class SocialReelController extends Controller
                 'description' => $validated['youtube_description'] ?? '',
                 'tags'        => array_map('trim', explode(',', (string) ($validated['youtube_tags'] ?? ''))),
             ],
-        ]);
+        ], $request->has('pronunciations') ? (string) ($validated['pronunciations'] ?? '') : null);
 
         return back()->with('success', 'Reel saved.');
     }

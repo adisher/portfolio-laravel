@@ -26,17 +26,19 @@ class SocialStudioSettings extends Model
      * consistent between scenes.
      */
     public const VOICE_STYLES = [
-        // Natural matches the first render (0.5/0.5/0.7), which kept the
-        // owner's accent best. Above ~0.7 exaggeration Chatterbox rushes and
-        // adds non-word sounds (tried 0.85), so Expressive stays well below.
-        // Lower cfg_weight slows delivery, offsetting exaggeration's speed-up.
-        'calm'       => ['label' => 'Calm', 'help' => 'Even and steady, like a narration.', 'exaggeration' => 0.4, 'cfg_weight' => 0.55, 'temperature' => 0.65],
-        'natural'    => ['label' => 'Natural', 'help' => 'Conversational, closest to your own voice.', 'exaggeration' => 0.5, 'cfg_weight' => 0.5, 'temperature' => 0.7],
-        'expressive' => ['label' => 'Expressive', 'help' => 'A little more energy and emphasis.', 'exaggeration' => 0.6, 'cfg_weight' => 0.42, 'temperature' => 0.7],
+        // Natural started at the first render's 0.5/0.5/0.7 and was lifted a
+        // touch for energy. Above ~0.75 exaggeration Chatterbox rushes and adds
+        // non-word sounds (tried 0.85). Lower cfg_weight slows delivery,
+        // offsetting exaggeration's speed-up.
+        // `lift` is used for the hook and end lines only, so the opening and
+        // the sign-off sound like an intro and an outro, not more narration.
+        'calm'       => ['label' => 'Calm', 'help' => 'Even and steady, like a narration.', 'exaggeration' => 0.42, 'cfg_weight' => 0.55, 'temperature' => 0.65, 'lift' => ['exaggeration' => 0.55, 'cfg_weight' => 0.5]],
+        'natural'    => ['label' => 'Natural', 'help' => 'Conversational, closest to your own voice.', 'exaggeration' => 0.55, 'cfg_weight' => 0.5, 'temperature' => 0.7, 'lift' => ['exaggeration' => 0.7, 'cfg_weight' => 0.45]],
+        'expressive' => ['label' => 'Expressive', 'help' => 'A little more energy and emphasis.', 'exaggeration' => 0.62, 'cfg_weight' => 0.45, 'temperature' => 0.7, 'lift' => ['exaggeration' => 0.75, 'cfg_weight' => 0.4]],
     ];
 
     /** Words the voice should always say a particular way. Editable in the admin. */
-    public const DEFAULT_PRONUNCIATIONS = "adilsher.pro = Adil Sher dot pro\nnginx = engine x\nkubectl = cube control";
+    public const DEFAULT_PRONUNCIATIONS = "adilsher.pro = Adil Sher dot pro\nnginx = engine x\nkubectl = cube control\ncache = cash";
 
     protected $casts = [
         'github_token'           => 'encrypted',
@@ -57,7 +59,7 @@ class SocialStudioSettings extends Model
     {
         $style = static::VOICE_STYLES[$this->voice_style] ?? static::VOICE_STYLES['natural'];
 
-        return array_intersect_key($style, array_flip(['exaggeration', 'cfg_weight', 'temperature']));
+        return array_intersect_key($style, array_flip(['exaggeration', 'cfg_weight', 'temperature', 'lift']));
     }
 
     public function pronunciationText(): string

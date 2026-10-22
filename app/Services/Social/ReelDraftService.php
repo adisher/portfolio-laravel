@@ -38,7 +38,10 @@ class ReelDraftService
             'blog_post_id' => $post->id,
             'kind'         => SocialDraft::KIND_REEL,
             'status'       => SocialDraft::STATUS_DRAFT,
-            'script'       => ['scenes' => $this->normaliseScenes($generated['scenes'] ?? [])],
+            'script'       => [
+                'scenes'         => $this->normaliseScenes($generated['scenes'] ?? []),
+                'pronunciations' => $this->normalisePronunciations($generated['pronunciations'] ?? []),
+            ],
             'captions'     => $this->normaliseCaptions($generated, $post),
         ]);
 
@@ -59,7 +62,10 @@ class ReelDraftService
 
         $draft->update([
             'status'   => SocialDraft::STATUS_DRAFT,
-            'script'   => ['scenes' => $this->normaliseScenes($generated['scenes'] ?? [])],
+            'script'   => [
+                'scenes'         => $this->normaliseScenes($generated['scenes'] ?? []),
+                'pronunciations' => $this->normalisePronunciations($generated['pronunciations'] ?? []),
+            ],
             'captions' => $this->normaliseCaptions($generated, $draft->blogPost),
             'error'    => null,
         ]);
@@ -72,15 +78,20 @@ class ReelDraftService
      * Save the owner's edits. A changed script means the existing video no
      * longer matches it, so the draft drops back to "draft" (needs a render).
      */
-    public function saveEdits(SocialDraft $draft, array $scenes, array $captions): void
+    public function saveEdits(SocialDraft $draft, array $scenes, array $captions, ?string $pronunciationText = null): void
     {
         $scenes = $this->normaliseScenes($scenes);
-        // Timing is derived, so compare only what the owner can edit.
+        $pronunciations = $pronunciationText === null
+            ? $draft->pronunciations()
+            : $this->parsePronunciationText($pronunciationText);
+        // Timing is derived, so compare only what the owner can edit. A new
+        // pronunciation changes the voice too, so it also needs a render.
         $comparable = fn (array $list) => array_map(fn ($s) => array_diff_key($s, ['duration_seconds' => 1]), $list);
-        $scriptChanged = $comparable($scenes) !== $comparable($draft->scenes());
+        $scriptChanged = $comparable($scenes) !== $comparable($draft->scenes())
+            || $pronunciations !== $draft->pronunciations();
 
         $draft->update([
-            'script'   => ['scenes' => $scenes],
+            'script'   => ['scenes' => $scenes, 'pronunciations' => $pronunciations],
             'captions' => $this->normaliseCaptions($captions, $draft->blogPost, appendLinks: false),
             'status'   => $scriptChanged && $draft->status !== SocialDraft::STATUS_RENDERING
                 ? SocialDraft::STATUS_DRAFT
@@ -218,6 +229,40 @@ class ReelDraftService
     public function rejectTarget(SocialDraftTarget $target): void
     {
         $target->update(['status' => SocialDraftTarget::STATUS_REJECTED, 'scheduled_for' => null]);
+    }
+
+    /**
+     * This reel's pronunciations as [word, how to say it] pairs, from the AI's
+     * [{word, say}] list or from pairs. Duplicates keep the last entry.
+     *
+     * @return array<int, array{0: string, 1: string}>
+     */
+    public function normalisePronunciations(array $items): array
+    {
+        $map = [];
+        foreach ($items as $item) {
+            [$word, $say] = isset($item['word']) ? [$item['word'], $item['say'] ?? ''] : [($item[0] ?? ''), ($item[1] ?? '')];
+            $word = trim((string) $word);
+            $say  = trim(Text::stripEmDashes((string) $say));
+            if ($word !== '' && $say !== '' && mb_strlen($word) <= 80 && mb_strlen($say) <= 120) {
+                $map[mb_strtolower($word)] = [$word, $say];
+            }
+        }
+
+        return array_values($map);
+    }
+
+    /** Parse "word = how to say it" lines (":" also works). */
+    public function parsePronunciationText(string $text): array
+    {
+        $pairs = [];
+        foreach (preg_split('/\R/', $text) as $line) {
+            if (preg_match('/^\s*([^=]+?)\s*=\s*(.+?)\s*$/u', $line, $m)) {
+                $pairs[] = [$m[1], $m[2]];
+            }
+        }
+
+        return $this->normalisePronunciations($pairs);
     }
 
     /** Clean, clamp and house-style the scene list (AI output or form input). */

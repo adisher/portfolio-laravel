@@ -35,7 +35,12 @@ class ReelRenderController extends Controller
                 'handle' => config('social.reels.handle'),
             ],
             'voice' => SocialStudioSettings::instance()->voiceParams() + [
-                'pronunciations' => SocialStudioSettings::instance()->pronunciationList(),
+                // Global list first, then this reel's own list, which wins on the same word.
+                'pronunciations' => collect(SocialStudioSettings::instance()->pronunciationList())
+                    ->merge($draft->pronunciations())
+                    ->keyBy(fn ($p) => mb_strtolower($p[0]))
+                    ->values()
+                    ->all(),
                 'seed'           => $draft->id,
             ],
             'assets' => [

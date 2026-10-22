@@ -351,10 +351,26 @@ class SocialReelRenderTest extends TestCase
 
         $this->getJson("/api/social/render/{$draft->id}", ['Authorization' => "Bearer {$token}"])
             ->assertOk()
-            ->assertJsonPath('voice.exaggeration', 0.6)
-            ->assertJsonPath('voice.cfg_weight', 0.42)
+            ->assertJsonPath('voice.exaggeration', 0.62)
+            ->assertJsonPath('voice.cfg_weight', 0.45)
+            ->assertJsonPath('voice.lift.exaggeration', 0.75)
             ->assertJsonPath('voice.seed', $draft->id)
             ->assertJsonPath('voice.pronunciations', [['Laravel', 'Lara vel'], ['kubectl', 'cube control']]);
+    }
+
+    public function test_a_reels_own_pronunciations_are_merged_over_the_global_list(): void
+    {
+        $token = $this->studio();
+        $draft = $this->draft();
+        $draft->update(['script' => array_merge($draft->script, ['pronunciations' => [['GPT-5', 'G P T five'], ['kubectl', 'kube C T L']]])]);
+
+        $voice = $this->getJson("/api/social/render/{$draft->id}", ['Authorization' => "Bearer {$token}"])
+            ->assertOk()->json('voice.pronunciations');
+
+        $this->assertContains(['GPT-5', 'G P T five'], $voice);
+        $this->assertContains(['kubectl', 'kube C T L'], $voice);
+        $this->assertNotContains(['kubectl', 'cube control'], $voice);
+        $this->assertContains(['cache', 'cash'], $voice);
     }
 
     public function test_default_pronunciations_cover_the_site_name(): void

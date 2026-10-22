@@ -244,6 +244,26 @@
             <button type="button" class="btn-secondary text-sm py-2 px-4 mt-4" @click="add()" x-show="scenes.length < 10">Add scene</button>
         </div>
 
+        <div class="admin-card p-6" id="reel-pronunciations"
+            x-data="{ text: @js($draft->pronunciationText()) }"
+            @add-pronunciation.window="
+                const word = $event.detail.replace(/[.,!?;:]+$/, '');
+                if (! text.split(/\n/).some(l => l.split('=')[0].trim().toLowerCase() === word.toLowerCase())) {
+                    text = (text.trim() ? text.trim() + '\n' : '') + word + ' = ';
+                }
+                $el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                $nextTick(() => { $refs.box.focus(); $refs.box.setSelectionRange(text.length, text.length); });
+            ">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-1">This reel's pronunciations</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                Written by the AI with the script, for the names, acronyms and terms in this reel. One per line: <span class="font-mono">word = how to say it</span>,
+                for example <span class="font-mono">GPT-5.6 = G P T five point six</span>. These win over your
+                <a href="{{ route('admin.social.reels.settings') }}" class="text-blue-600 hover:underline">global list</a>. Only the voice changes; captions keep the real spelling.
+            </p>
+            <textarea name="pronunciations" rows="5" x-ref="box" x-model="text"
+                class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white font-mono text-sm"></textarea>
+        </div>
+
         <div class="admin-card p-6" x-data="{ tab: 'instagram' }">
             <div class="flex gap-4 border-b border-gray-200 dark:border-gray-700 mb-4">
                 <button type="button" class="pb-2 text-sm font-medium" @click="tab = 'instagram'"
@@ -311,7 +331,7 @@
         </div>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
             After rendering, a speech recogniser listened to each line. Words it heard differently are marked red: usually a mispronunciation.
-            To fix one, add it to the pronunciation list in <a href="{{ route('admin.social.reels.settings') }}" class="text-blue-600 hover:underline">Studio settings</a> and render again.
+            Click a red word to add it to this reel's pronunciations, type how it should be said, save, and render again.
             The recogniser can miss a slightly odd pronunciation, so trust your ears too.
         </p>
 
@@ -331,7 +351,8 @@
                             @if($word['ok'])
                                 <span>{{ $word['text'] }}</span>
                             @else
-                                <span class="bg-red-100 text-red-800 rounded px-1" title="Heard differently">{{ $word['text'] }}</span>
+                                <button type="button" class="bg-red-100 text-red-800 rounded px-1 hover:underline" title="Heard differently. Click to add it to this reel's pronunciations."
+                                    onclick="window.dispatchEvent(new CustomEvent('add-pronunciation', { detail: @js($word['text']) }))">{{ $word['text'] }}</button>
                             @endif
                         @endforeach
                     </p>

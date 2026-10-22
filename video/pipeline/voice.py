@@ -31,8 +31,8 @@ SR = 24000            # Chatterbox's output rate
 PACE = 2.5            # words per second, same as config/social.php
 BREATH = 0.35         # pause after each scene's line
 LEAD = 0.15           # pause before each scene's line
-TAKES = 3             # attempts per scene
-GOOD_ENOUGH = 0.88    # take score that stops further takes
+TAKES = 4             # attempts per scene
+GOOD_ENOUGH = 0.93    # take score that stops further takes: needs every word heard as written
 TRUST_TIMING = 0.75   # below this match, captions use even timing instead of Whisper's
 # Pace is measured from the first to the last word of a line, so it excludes
 # pauses: natural speech runs about 3 to 4 words a second on that measure.
@@ -62,62 +62,156 @@ def pronounce(text: str, pairs: list) -> tuple[str, list[tuple[str, int, int]]]:
 
     Returns the text to speak and, for each original word, the range of spoken
     words it became, so captions can show the real spelling with real timing.
-    Matching is per word, ignores case and surrounding punctuation.
+    Matching ignores case and surrounding punctuation; an entry may span
+    several words ("Muse Glimmer"), longest match first.
     """
-    lookup = {norm(k): v for k, v in pairs if norm(k)}
+    lookup = {}
+    for k, v in pairs:
+        key = tuple(norm(w) for w in words_of(k))
+        if key and all(key):
+            lookup[key] = v
+    longest = max((len(k) for k in lookup), default=1)
+
+    words = words_of(text)
     spoken: list[str] = []
     mapping = []
-    for word in words_of(text):
-        m = re.match(r"^(\W*)(.*?)(\W*)$", word)
-        lead, core, trail = m.groups() if m else ("", word, "")
-        replacement = lookup.get(norm(core))
-        if not replacement and (d := DOMAIN.match(core)):
-            # "dev.to" is otherwise read as one odd word ("deev-to").
-            replacement = f"{d.group(1)} dot {d.group(2)}"
-        parts = words_of(f"{lead}{replacement}{trail}") if replacement else [word]
-        mapping.append((word, len(spoken), len(spoken) + len(parts)))
-        spoken.extend(parts)
+    i = 0
+    while i < len(words):
+        for size in range(min(longest, len(words) - i), 0, -1):
+            group = words[i:i + size]
+            m_first = re.match(r"^(\W*)", group[0])
+            m_last = re.match(r"^.*?(\W*)$", group[-1])
+            lead, trail = m_first.group(1), m_last.group(1)
+            key = tuple(norm(w) for w in group)
+            replacement = lookup.get(key)
+            if not replacement and size == 1:
+                core = group[0][len(lead):len(group[0]) - len(trail) if trail else None]
+                if d := DOMAIN.match(core):
+                    # "dev.to" is otherwise read as one odd word ("deev-to").
+                    replacement = f"{d.group(1)} dot {d.group(2)}"
+            if replacement or size == 1:
+                parts = words_of(f"{lead}{replacement}{trail}") if replacement else [group[0]]
+                start = len(spoken)
+                spoken.extend(parts)
+                # Every original word of the group shares the spoken range.
+                for w in group:
+                    mapping.append((w, start, len(spoken)))
+                i += size
+                break
     return " ".join(spoken), mapping
 
 
 NUMBER_WORDS = set(
     "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
     "seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred thousand "
-    "million billion trillion percent point and".split()
+    "million billion trillion percent point and half quarter dozen x".split()
 )
+FILLERS = {"uh", "um", "uhm", "ah", "er", "erm", "hmm", "hm", "mm", "huh"}
 
 
 def is_number(word: str) -> bool:
     return any(c.isdigit() for c in word) or word in NUMBER_WORDS
 
 
+def pieces(words: list[str]) -> list[tuple[str, int]]:
+    """Comparable pieces of each word, with the index of the word they came
+    from. Splits hyphens and slashes ("GPT-5.6-Cyber" -> gpt, 5, 6, cyber, so a
+    misheard "GPT" is caught instead of hiding inside a number), and reads a
+    dot between letters as "dot" ("dev.to" and Whisper's ".to" both match
+    "dev dot to")."""
+    out = []
+    for idx, word in enumerate(words):
+        t = word.lower()
+        if re.fullmatch(r"(?:[a-z]\.){2,}[a-z]?\.?[,!?;:]*", t):
+            t = t.replace(".", "")  # an acronym written "G.P.T.", not a domain
+        t = re.sub(r"(?<=[a-z])\.(?=[a-z])|^\.(?=[a-z])", " dot ", t)
+        t = re.sub(r"[-/_]", " ", t)
+        t = re.sub(r"(?<=\d)\.(?=\d)", " point ", t)
+        for part in t.split():
+            n = norm(part)
+            if n:
+                out.append((n, idx))
+    return out
+
+
+def numberish(ps: list[tuple[str, int]]) -> list[bool]:
+    """Which pieces are numbers, and so not compared ("two and a half" vs
+    "2.5"): digits, number words, and "a" right before a number word."""
+    flags = [is_number(p) for p, _ in ps]
+    for k in range(len(ps) - 1):
+        if ps[k][0] == "a" and ps[k + 1][0] in NUMBER_WORDS:
+            flags[k] = True
+    return flags
+
+
+def join_letters(ps: list[tuple[str, int]]) -> list[tuple[str, list[int]]]:
+    """Pieces with the words they came from, with runs of two or more single
+    letters joined, so a spelled-out "G P T" matches Whisper's "GPT" (and
+    "G. P. T.") as one piece."""
+    out: list[tuple[str, list[int]]] = []
+    k = 0
+    while k < len(ps):
+        j = k
+        while j < len(ps) and len(ps[j][0]) == 1 and ps[j][0].isalpha():
+            j += 1
+        if j - k >= 2:
+            out.append(("".join(p for p, _ in ps[k:j]), sorted({w for _, w in ps[k:j]})))
+            k = j
+        else:
+            out.append((ps[k][0], [ps[k][1]]))
+            k += 1
+    return out
+
+
+def compare(spoken: list[str], heard: list[str]) -> dict:
+    """Line up what was meant (spoken words) with what Whisper heard.
+
+    Returns per spoken word whether it was heard, per heard word whether it
+    was an extra (a filler, a mumble, a word tacked on), the number of
+    mismatched pieces either way, the overall similarity, and for each spoken
+    word the heard word it matched (for caption timing)."""
+    sp, hp = pieces(spoken), pieces(heard)
+    sn, hn = numberish(sp), numberish(hp)
+    a = join_letters([(p, w) for (p, w), num in zip(sp, sn) if not num])
+    b = join_letters([(p, w) for (p, w), num in zip(hp, hn) if not num])
+    matcher = difflib.SequenceMatcher(None, [p for p, _ in a], [p for p, _ in b], autojunk=False)
+    a_hit, b_hit = [False] * len(a), [False] * len(b)
+    spoken_to_heard: dict[int, int] = {}
+    for block in matcher.get_matching_blocks():
+        for k in range(block.size):
+            a_hit[block.a + k] = b_hit[block.b + k] = True
+            for w in a[block.a + k][1]:
+                spoken_to_heard.setdefault(w, b[block.b + k][1][0])
+
+    spoken_ok = [True] * len(spoken)
+    for (p, ws), hit in zip(a, a_hit):
+        if not hit:
+            for w in ws:
+                spoken_ok[w] = False
+    heard_extra = [False] * len(heard)
+    for (p, ws), hit in zip(b, b_hit):
+        if not hit or p in FILLERS:
+            for w in ws:
+                heard_extra[w] = True
+
+    return {
+        "spoken_ok": spoken_ok,
+        "heard_extra": heard_extra,
+        "mismatches": a_hit.count(False) + b_hit.count(False),
+        "ratio": matcher.ratio() if a else 1.0,
+        "spoken_to_heard": spoken_to_heard,
+    }
+
+
 def match_ratio(spoken: list[str], heard: list[str]) -> float:
-    """How closely Whisper's transcript matches what was meant to be said.
-    Numbers are ignored on both sides: "three thousand" is often transcribed
-    "3,000", which is not a mistake."""
-    a = [w for w in map(norm, spoken) if w and not is_number(w)]
-    b = [w for w in map(norm, heard) if w and not is_number(w)]
-    if not a:
-        return 1.0
-    return difflib.SequenceMatcher(None, a, b, autojunk=False).ratio()
+    return compare(spoken, heard)["ratio"]
 
 
 def word_flags(mapping, spoken: list[str], heard: list[str]) -> list[dict]:
     """For the review page: each original word of the line, marked ok or not
-    depending on whether Whisper heard it. Numbers always count as ok (Whisper
-    writes "three thousand" as "3,000")."""
-    a = [norm(w) for w in spoken]
-    b = [norm(w) for w in heard]
-    matched = [False] * len(spoken)
-    for block in difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks():
-        for k in range(block.size):
-            matched[block.a + k] = True
-    flags = []
-    for orig, start, end in mapping:
-        toks = range(start, end)
-        ok = all(matched[k] or not a[k] or is_number(a[k]) for k in toks)
-        flags.append({"text": orig, "ok": ok})
-    return flags
+    depending on whether Whisper heard it as meant."""
+    ok = compare(spoken, heard)["spoken_ok"]
+    return [{"text": orig, "ok": all(ok[k] for k in range(start, end))} for orig, start, end in mapping]
 
 
 def time_words(mapping, spoken: list[str], heard: list[tuple[str, float, float]], speech_seconds: float, match: float = 1.0) -> list[dict]:
@@ -128,18 +222,16 @@ def time_words(mapping, spoken: list[str], heard: list[tuple[str, float, float]]
     Whisper's times are only trusted when the take matched the script well,
     and only while they move forward; otherwise words are spread evenly over
     the speech, which looks calm rather than jumpy."""
-    a = [norm(w) for w in spoken]
-    b = [norm(w) for w, _, _ in heard]
     spoken_times: list[tuple[float, float] | None] = [None] * len(spoken)
     if match >= TRUST_TIMING:
         last_end = 0.0
-        for block in difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks():
-            for k in range(block.size):
-                _, s, e = heard[block.b + k]
-                if s + 0.02 < last_end or e <= s:
-                    continue  # out of order or empty: let the gap filler time it
-                spoken_times[block.a + k] = (s, max(e, s + 0.08))
-                last_end = e
+        pairs = compare(spoken, [w for w, _, _ in heard])["spoken_to_heard"]
+        for k in sorted(pairs):
+            _, s, e = heard[pairs[k]]
+            if s + 0.02 < last_end or e <= s:
+                continue  # out of order or empty: let the gap filler time it
+            spoken_times[k] = (s, max(e, s + 0.08))
+            last_end = e
 
     out = []
     for orig, start, end in mapping:
@@ -291,9 +383,11 @@ def take_quality(audio: np.ndarray, words: list[tuple[str, float, float]], n_spo
     return {"pace": pace, "noise": noise, "start": start, "end": end}
 
 
-def take_score(match: float, quality: dict, sounds: int) -> float:
-    """Word match, minus penalties for non-word sounds and for rushing."""
-    score = match
+def take_score(cmp: dict, quality: dict, sounds: int) -> float:
+    """Start from 1 and take 0.1 off per word heard wrong, missing, or extra
+    (a filler like "uh", a mumble, a word tacked on), so a single bad word
+    forces another take. Then penalties for non-word sound and rushing."""
+    score = 1.0 - 0.1 * cmp["mismatches"]
     score -= 0.4 * max(0.0, quality["noise"] - 0.25)       # more than a breath of non-word sound
     score -= 0.15 * sounds                                  # Whisper heard a laugh/gasp/etc.
     score -= 0.2 * max(0.0, quality["pace"] - MAX_PACE)     # rushed
@@ -316,6 +410,12 @@ def trim_to_words(audio: np.ndarray, words, quality: dict):
         return audio, words
     start = max(0, keep[0][0] - int(0.03 * SR))
     end = min(len(audio), max(keep[-1][1] + int(0.12 * SR), int((last + 0.3) * SR)))
+    # Words Whisper heard after the line ended ("Dental?") or a filler before
+    # it began are cut, even when they run straight on from the speech.
+    if quality.get("cut_after") is not None:
+        end = min(end, int(max(last + 0.1, quality["cut_after"] - 0.04) * SR))
+    if quality.get("cut_before") is not None:
+        start = max(start, int(max(0.0, first - 0.12) * SR))
     shift = start / SR
     return audio[start:end], [(w, s - shift, e - shift) for w, s, e in words]
 
@@ -346,10 +446,12 @@ def slow_down(audio: np.ndarray, words, pace: float):
     return slowed, [(w, s / tempo, e / tempo) for w, s, e in words]
 
 
-def speak(model, asr, text: str, voice: dict, seed: int):
+def speak(model, asr, text: str, voice: dict, seed: int, energy: dict | None = None):
     """Up to TAKES attempts at one line; keep the cleanest. Each take is judged
-    on what Whisper hears (right words, no extra sounds, natural pace).
-    Returns (audio, heard words, match ratio of the kept take)."""
+    on what Whisper hears (every word as written, no fillers or extra words,
+    no non-word sounds, natural pace). `energy` overrides exaggeration and
+    cfg_weight for this line (hook and end lines get more).
+    Returns (audio, heard words, match ratio of the kept take, report info)."""
     import librosa
     import torch
 
@@ -358,21 +460,32 @@ def speak(model, asr, text: str, voice: dict, seed: int):
     takes = []
     for take in range(TAKES):
         torch.manual_seed(seed + take)
+        params = {**voice, **(energy or {})}
         wav = model.generate(
             text,
-            exaggeration=voice["exaggeration"],
-            cfg_weight=voice["cfg_weight"],
-            temperature=voice["temperature"],
+            exaggeration=params["exaggeration"],
+            cfg_weight=params["cfg_weight"],
+            temperature=params["temperature"],
         )
         audio = wav.squeeze(0).cpu().numpy().astype(np.float32)
         audio, _ = librosa.effects.trim(audio, top_db=50)  # only true silence; the tail of the last word stays
-        words, sounds = split_non_speech(transcribe(asr, audio))
-        match = match_ratio(spoken, [w for w, _, _ in words])
+        heard_all, sounds = split_non_speech(transcribe(asr, audio))
+        cmp = compare(spoken, [w for w, _, _ in heard_all])
+        match = cmp["ratio"]
+        real = [h for h, extra in zip(heard_all, cmp["heard_extra"]) if not extra]
+        words = real or heard_all
         quality = take_quality(audio, words, len(spoken))
-        score = take_score(match, quality, sounds)
-        print(f"  take {take + 1}: {len(audio) / SR:.1f} s, match {match:.2f}, pace {quality['pace']:.1f} w/s, "
+        if real:
+            first_i = heard_all.index(real[0])
+            last_i = heard_all.index(real[-1])
+            after = [h[1] for h in heard_all[last_i + 1:]]
+            before = heard_all[:first_i]
+            quality["cut_after"] = min(after) if after else None
+            quality["cut_before"] = bool(before) or None
+        score = take_score(cmp, quality, sounds)
+        print(f"  take {take + 1}: {len(audio) / SR:.1f} s, {cmp['mismatches']} wrong/extra words, match {match:.2f}, pace {quality['pace']:.1f} w/s, "
               f"extra sound {quality['noise']:.1f} s{f', {sounds} non-word sounds' if sounds else ''}, score {score:.2f}")
-        takes.append({"take": take + 1, "seconds": round(len(audio) / SR, 2), "match": round(match, 3),
+        takes.append({"take": take + 1, "seconds": round(len(audio) / SR, 2), "match": round(match, 3), "wrong_words": cmp["mismatches"],
                       "pace": round(quality["pace"], 2), "extra_sound": round(quality["noise"], 2),
                       "non_word_sounds": sounds, "score": round(score, 3)})
         if best is None or score > best["score"]:
@@ -430,7 +543,9 @@ def main() -> None:
             info = None
         else:
             print(f"Scene {i}/{len(draft['scenes'])}: {len(spoken)} words")
-            speech, heard, score, info = speak(model, asr, spoken_text, voice, seed=int(voice["seed"]) * 100 + i * 10)
+            energy = voice.get("lift") if scene.get("type") in ("hook", "end") else None
+            speech, heard, score, info = speak(model, asr, spoken_text, voice, seed=int(voice["seed"]) * 100 + i * 10, energy=energy)
+            info["energy"] = "lifted" if energy else "body"
             matches.append(score)
 
         if text and info is not None:

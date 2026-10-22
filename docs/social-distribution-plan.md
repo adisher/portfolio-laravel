@@ -193,9 +193,14 @@ Rounds 1-3 changed several things at once without hearing the output, so fixes a
 
 **Step 2 DONE: captions.** Root cause found: in a gap between two words `Captions.tsx` fell back to the scene's last word, so the caption jumped to the final line and back (replayed: 9 backward jumps in one 12-word sentence; first render had no gaps, so no jumps). `captionTiming.ts` now keeps the last spoken word current. Done when: captions only ever move forward.
 
-**Step 3 TODO: pronunciation.** From the Voice check evidence; add a "suggest fixes" button that pre-fills the pronunciation list from flagged words. Done when: no flagged words on a re-render.
+**Step 3 built (2026-10-22): pronunciation per reel.** Evidence from the owner's Voice check: an "aa/ur" filler before "As dev.to reported", "cache" said as "say", "GPT" heard as "DPT", a stray "Dental?" after a line.
+- Each reel now carries its own pronunciation list. The AI writes it with the script (acronyms as spaced letters, versions, domains, cache = cash, SQL = sequel) and it is editable on the review page under "This reel's pronunciations". Clicking a flagged word in the Voice check adds it there. The render merges it over the global list in Studio settings, the reel's entry winning.
+- The script prompt now writes for the ear: no weak openers ("As", "So", "Well", "According to"), the source credited inside a sentence, varied sentence length, the key word last.
+- Takes are judged on exact words: one wrong, missing or extra word (fillers included) costs 0.1, a take must score 0.93 to stop early, up to 4 takes. Spelled acronyms ("G P T") match Whisper's "GPT" or "G.P.T.".
+- Fillers before a line and words tacked on after it are cut from the kept take.
+- Done when: a re-render shows no flagged words in the Voice check.
 
-**Step 4 TODO: voice energy.** One small nudge to Natural only (owner: "just slightly more energy"). Done when: owner signs off.
+**Step 4 built (2026-10-22): voice energy.** Natural body lifted 0.5 to 0.55 exaggeration. Hook and end lines get their own lift (Natural 0.7 / cfg 0.45) so they sound like an intro and an outro. Calm and Expressive moved the same way. The optional second "energetic" reference recording is held back: only if the lift is not enough. Done when: the owner signs off on the hook and outro energy.
 
 ## Roadmap: where the reel needs to go (owner's direction, 2026-10-22)
 

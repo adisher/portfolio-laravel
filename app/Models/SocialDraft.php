@@ -65,6 +65,17 @@ class SocialDraft extends Model
         return $this->script['scenes'] ?? [];
     }
 
+    /** @return array<int, array{0: string, 1: string}> This reel's own pronunciations. */
+    public function pronunciations(): array
+    {
+        return $this->script['pronunciations'] ?? [];
+    }
+
+    public function pronunciationText(): string
+    {
+        return collect($this->pronunciations())->map(fn ($p) => "{$p[0]} = {$p[1]}")->implode("\n");
+    }
+
     /** The full voiceover, scene by scene, as it will be spoken. */
     public function voiceover(): string
     {
