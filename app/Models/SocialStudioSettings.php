@@ -26,13 +26,13 @@ class SocialStudioSettings extends Model
      * consistent between scenes.
      */
     public const VOICE_STYLES = [
-        // Above ~0.7 exaggeration Chatterbox rushes and adds non-word sounds
-        // (tried 0.85: excited noises, garbled captions), so Expressive stops
-        // there. Lower cfg_weight slows delivery, which offsets the speed-up
-        // that more exaggeration brings.
-        'calm'       => ['label' => 'Calm', 'help' => 'Even and steady, like a narration.', 'exaggeration' => 0.4, 'cfg_weight' => 0.5, 'temperature' => 0.6],
-        'natural'    => ['label' => 'Natural', 'help' => 'Conversational, with normal ups and downs.', 'exaggeration' => 0.55, 'cfg_weight' => 0.45, 'temperature' => 0.65],
-        'expressive' => ['label' => 'Expressive', 'help' => 'A bit more energy and emphasis, still at a natural pace.', 'exaggeration' => 0.7, 'cfg_weight' => 0.35, 'temperature' => 0.65],
+        // Natural matches the first render (0.5/0.5/0.7), which kept the
+        // owner's accent best. Above ~0.7 exaggeration Chatterbox rushes and
+        // adds non-word sounds (tried 0.85), so Expressive stays well below.
+        // Lower cfg_weight slows delivery, offsetting exaggeration's speed-up.
+        'calm'       => ['label' => 'Calm', 'help' => 'Even and steady, like a narration.', 'exaggeration' => 0.4, 'cfg_weight' => 0.55, 'temperature' => 0.65],
+        'natural'    => ['label' => 'Natural', 'help' => 'Conversational, closest to your own voice.', 'exaggeration' => 0.5, 'cfg_weight' => 0.5, 'temperature' => 0.7],
+        'expressive' => ['label' => 'Expressive', 'help' => 'A little more energy and emphasis.', 'exaggeration' => 0.6, 'cfg_weight' => 0.42, 'temperature' => 0.7],
     ];
 
     /** Words the voice should always say a particular way. Editable in the admin. */

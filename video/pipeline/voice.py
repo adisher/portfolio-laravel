@@ -33,10 +33,17 @@ LEAD = 0.15           # pause before each scene's line
 TAKES = 3             # attempts per scene
 GOOD_ENOUGH = 0.88    # take score that stops further takes
 TRUST_TIMING = 0.75   # below this match, captions use even timing instead of Whisper's
-TARGET_PACE = 2.7     # words per second a rushed take is slowed towards
-MAX_PACE = 2.95       # faster than this counts as rushed
-MAX_SLOWDOWN = 0.85   # never slow a take below 85% speed (it starts to sound stretched)
-DEFAULT_VOICE = {"exaggeration": 0.55, "cfg_weight": 0.45, "temperature": 0.65, "pronunciations": [], "seed": 1}
+# Pace is measured from the first to the last word of a line, so it excludes
+# pauses: natural speech runs about 3 to 4 words a second on that measure.
+# (2.95 was too strict and slowed almost every take, which sounded accented.)
+TARGET_PACE = 3.5     # words per second a rushed take is slowed towards
+MAX_PACE = 3.9        # faster than this counts as rushed
+MAX_SLOWDOWN = 0.92   # never slow a take below 92% speed (more starts to sound stretched)
+FADE_IN = 0.015       # seconds; avoids clicks where a line starts
+FADE_OUT = 0.08       # seconds; lets the last word decay instead of stopping dead
+ROOM_TONE = 0.0008    # ~-62 dBFS noise bed so pauses never drop to dead digital silence
+DOMAIN = re.compile(r"^([a-z0-9-]+)\.(to|io|com|dev|pro|ai|app|net|org|co|sh|so|gg|me|tv)$", re.I)
+DEFAULT_VOICE = {"exaggeration": 0.5, "cfg_weight": 0.5, "temperature": 0.7, "pronunciations": [], "seed": 1}
 
 
 # ── Text ────────────────────────────────────────────────────────────────────
@@ -63,6 +70,9 @@ def pronounce(text: str, pairs: list) -> tuple[str, list[tuple[str, int, int]]]:
         m = re.match(r"^(\W*)(.*?)(\W*)$", word)
         lead, core, trail = m.groups() if m else ("", word, "")
         replacement = lookup.get(norm(core))
+        if not replacement and (d := DOMAIN.match(core)):
+            # "dev.to" is otherwise read as one odd word ("deev-to").
+            replacement = f"{d.group(1)} dot {d.group(2)}"
         parts = words_of(f"{lead}{replacement}{trail}") if replacement else [word]
         mapping.append((word, len(spoken), len(spoken) + len(parts)))
         spoken.extend(parts)
@@ -156,8 +166,10 @@ def to_wav(src: pathlib.Path, dst: pathlib.Path) -> None:
 
 
 def liveliest_window(speech: np.ndarray, seconds: float = 12.0) -> int:
-    """Start sample of the most animated stretch of speech: the window whose
-    voiced pitch moves the most, among windows that are mostly voiced."""
+    """Start sample of a lively but typical stretch of speech. Windows are
+    ranked by how much the voiced pitch moves; the 70th percentile is used,
+    not the maximum, because the most animated stretch of a recording is
+    also its least typical (it made the clone sound more accented)."""
     import librosa
 
     win = int(seconds * SR)
@@ -168,15 +180,18 @@ def liveliest_window(speech: np.ndarray, seconds: float = 12.0) -> int:
     rms = librosa.feature.rms(y=speech, frame_length=2048, hop_length=hop)[0][: len(f0)]
     voiced = rms > np.percentile(rms, 35)
     frames_per_win = win // hop
-    best, best_score = 0, -1.0
+    candidates = []
     for start in range(0, len(f0) - frames_per_win, max(1, SR // hop)):  # 1 s steps
         v = voiced[start:start + frames_per_win]
         if v.mean() < 0.5:
             continue
         pitch = np.log(f0[start:start + frames_per_win][v])
-        score = float(np.std(pitch)) * float(v.mean())
-        if score > best_score:
-            best, best_score = start, score
+        candidates.append((float(np.std(pitch)) * float(v.mean()), start))
+    if not candidates:
+        return 0
+    scores = np.array([c[0] for c in candidates])
+    target = np.percentile(scores, 70)
+    best = min(candidates, key=lambda c: abs(c[0] - target))[1]
     return best * hop
 
 
@@ -191,10 +206,16 @@ def reference_clip(sample: pathlib.Path) -> pathlib.Path:
     intervals = librosa.effects.split(audio, top_db=30)
     speech = np.concatenate([audio[s:e] for s, e in intervals]) if len(intervals) else audio
     start = liveliest_window(speech)
-    clip = speech[start:start + SR * 12]
+    window = speech[start:start + SR * 12]
+    # Chatterbox reads the start of the reference for delivery (6-10 s) but
+    # averages its speaker embedding over the whole file, so the rest of the
+    # recording follows the window: it anchors the timbre and accent.
+    rest = np.concatenate([speech[:start], speech[start + SR * 12:]])[: SR * 48]
+    clip = np.concatenate([window, rest])
     out = RENDER / "reference.wav"
     sf.write(out, clip, SR)
-    print(f"Reference clip: {len(clip) / SR:.1f} s of speech, from {start / SR:.0f} s into the recording")
+    print(f"Reference: 12 s delivery window from {start / SR:.0f} s into the recording, "
+          f"{len(clip) / SR:.0f} s in total for the voice print")
     return out
 
 
@@ -260,11 +281,35 @@ def take_score(match: float, quality: dict, sounds: int) -> float:
 
 
 def trim_to_words(audio: np.ndarray, words, quality: dict):
-    """Cut sounds before the first word and after the last one."""
-    start = max(0, int((quality["start"] - 0.08) * SR))
-    end = min(len(audio), int((quality["end"] + 0.15) * SR))
+    """Drop separate bursts of sound before the first word or after the last
+    one (an excited noise, a breath), without touching the words themselves.
+
+    Boundaries come from the audio's own sound segments, not Whisper's word
+    times: Whisper marks word endings early, and cutting there clipped the
+    last syllable of every line."""
+    import librosa
+
+    segments = librosa.effects.split(audio, top_db=40, frame_length=1024, hop_length=256)
+    first, last = quality["start"], quality["end"]
+    keep = [(s, e) for s, e in segments if s / SR <= last + 0.25 and e / SR >= first - 0.25]
+    if not keep:
+        return audio, words
+    start = max(0, keep[0][0] - int(0.03 * SR))
+    end = min(len(audio), max(keep[-1][1] + int(0.12 * SR), int((last + 0.3) * SR)))
     shift = start / SR
     return audio[start:end], [(w, s - shift, e - shift) for w, s, e in words]
+
+
+def fade(audio: np.ndarray) -> np.ndarray:
+    """Short fade in and a softer fade out, so lines never start or stop with
+    a click (the "mic switching on and off")."""
+    audio = audio.copy()
+    n_in, n_out = min(len(audio) // 2, int(FADE_IN * SR)), min(len(audio) // 2, int(FADE_OUT * SR))
+    if n_in:
+        audio[:n_in] *= np.linspace(0, 1, n_in, dtype=np.float32)
+    if n_out:
+        audio[-n_out:] *= np.linspace(1, 0, n_out, dtype=np.float32) ** 2
+    return audio
 
 
 def slow_down(audio: np.ndarray, words, pace: float):
@@ -299,7 +344,7 @@ def speak(model, asr, text: str, voice: dict, seed: int):
             temperature=voice["temperature"],
         )
         audio = wav.squeeze(0).cpu().numpy().astype(np.float32)
-        audio, _ = librosa.effects.trim(audio, top_db=35)
+        audio, _ = librosa.effects.trim(audio, top_db=50)  # only true silence; the tail of the last word stays
         words, sounds = split_non_speech(transcribe(asr, audio))
         match = match_ratio(spoken, [w for w, _, _ in words])
         quality = take_quality(audio, words, len(spoken))
@@ -362,7 +407,7 @@ def main() -> None:
         length = max(floor_for(scene), LEAD + speech_seconds + BREATH)
         clip = np.zeros(int(round(length * SR)), dtype=np.float32)
         start = int(LEAD * SR)
-        clip[start:start + len(speech)] = speech
+        clip[start:start + len(speech)] = fade(speech) if len(speech) else speech
 
         pieces.append(clip)
         seconds.append(round(length, 2))
@@ -373,7 +418,13 @@ def main() -> None:
         })
 
     voice_audio = np.concatenate(pieces)
-    sf.write(RENDER / "voice.wav", voice_audio if dummy else normalise(voice_audio), SR)
+    if not dummy:
+        voice_audio = normalise(voice_audio)
+        # A faint, constant noise floor: pauses sound like a quiet room rather
+        # than the signal cutting out between lines.
+        rng = np.random.default_rng(7)
+        voice_audio = np.clip(voice_audio + rng.normal(0, ROOM_TONE, len(voice_audio)).astype(np.float32), -0.99, 0.99)
+    sf.write(RENDER / "voice.wav", voice_audio, SR)
 
     props = {
         "title": draft["title"],

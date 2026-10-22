@@ -176,6 +176,15 @@ Owner tried Expressive (exaggeration 0.85, cfg 0.3): excited non-word sounds, ru
 - Kept take is trimmed to its first/last word, and if still rushed slowed towards 2.7 words/s with ffmpeg atempo (never below 85% speed).
 - Captions only use Whisper timing when the take matched >= 0.75 and times move forward; otherwise even spacing.
 
+## Third voice pass (2026-10-22), from the owner's render logs
+
+Feedback: more accent, last words of sentences cut, a "mic on/off" sound between sentences, "dev.to" said as "deev.to".
+- Cut endings: takes were trimmed at Whisper's last-word end + 0.15 s, and Whisper marks endings early. Trimming now follows the audio's own sound segments (keeps the tail, still drops separate bursts after the line), and the initial silence trim is gentler (top_db 50).
+- "Mic on/off": hard cuts into digital silence. Each line now gets a 15 ms fade in and 80 ms fade out, and a ~-62 dBFS room-tone bed runs under the whole voiceover.
+- Accent: (1) pace threshold was 2.95 w/s on a pause-free measure, so nearly every take was slowed up to 15%; now 3.9 w/s, target 3.5, max 8% slowdown. (2) the "liveliest" window picked the most animated (least typical) stretch; now the 70th-percentile window, followed by up to 48 s more of the recording so Chatterbox's speaker embedding (averaged over the whole reference) anchors timbre and accent. (3) Natural preset back to the first render's 0.5/0.5/0.7; Calm 0.4/0.55/0.65; Expressive 0.6/0.42/0.7.
+- Domains (`word.to/io/com/dev/pro/ai/...`) are spoken as "word dot tld" automatically; the owner's pronunciation list still wins.
+- `TQDM_DISABLE=1` in the render workflow hides the per-token progress bars; per-take summary lines remain.
+
 ## Data model (sketch)
 
 - `social_drafts`: blog_post_id, kind (reel | carousel | post), status, script (json scenes), captions (json per platform), media paths (mp4, cover, slides), render run id, error, timestamps.

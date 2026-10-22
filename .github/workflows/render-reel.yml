@@ -36,6 +36,8 @@ jobs:
       RENDER_TOKEN: ${{ secrets.SOCIAL_RENDER_TOKEN }}
       DRAFT_ID: ${{ inputs.draft_id }}
       HF_HUB_DISABLE_PROGRESS_BARS: '1'
+      # Hide the voice model's per-token progress bar; each take still logs a summary line.
+      TQDM_DISABLE: '1'
 
     steps:
       - name: Check input
