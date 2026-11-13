@@ -71,6 +71,10 @@ jobs:
           pip install --quiet torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
           pip install --quiet -r video/pipeline/requirements.txt
 
+      - name: Check voice script
+        # Seconds, so a broken voice step fails here and not 25 minutes in.
+        run: python video/pipeline/test_voice.py
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

@@ -244,7 +244,7 @@ class SocialReelTest extends TestCase
 
         $this->actingAs($this->admin)->put(route('admin.social.reels.update', $draft), [
             'scenes'              => $draft->scenes(),
-            'pronunciations'      => "cache = cash\nLRU = L R U\nnot a rule",
+            'pronunciations'      => "cache = cash\nLRU = L R U\nnot a rule\nnginx: engine x\nQ3: Q = Q three",
             'instagram_caption'   => $draft->caption('instagram', 'caption'),
             'instagram_hashtags'  => '#laravel',
             'youtube_title'       => 'Title #Shorts',
@@ -253,7 +253,8 @@ class SocialReelTest extends TestCase
         ])->assertSessionHas('success');
 
         $draft->refresh();
-        $this->assertSame([['cache', 'cash'], ['LRU', 'L R U']], $draft->pronunciations());
+        // ":" works like on the global list; "=" wins when a line has both.
+        $this->assertSame([['cache', 'cash'], ['LRU', 'L R U'], ['nginx', 'engine x'], ['Q3: Q', 'Q three']], $draft->pronunciations());
         $this->assertSame('draft', $draft->status);
 
         $this->actingAs($this->admin)->get(route('admin.social.reels.show', $draft))
