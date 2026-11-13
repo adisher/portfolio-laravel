@@ -644,6 +644,55 @@ def line_bounds(n_spoken: int, heard: list[tuple[str, float, float]], cmp: dict)
     return line, (before[-1][2] if before else None), (after[0][1] if after else None)
 
 
+QUIET_DB = -30.0       # below the line's speech level by this much counts as a pause
+FRAME = 0.01           # seconds per loudness frame
+
+
+def frame_db(audio: np.ndarray, level: float) -> np.ndarray:
+    """Loudness of each 10 ms frame in dB relative to the line's speech level."""
+    n = int(FRAME * SR)
+    frames = audio[: len(audio) // n * n].reshape(-1, n)
+    return 20 * np.log10(np.sqrt(np.mean(frames ** 2, axis=1)) + 1e-9) - 20 * np.log10(level)
+
+
+def speech_level(audio: np.ndarray) -> float:
+    n = int(FRAME * SR)
+    frames = audio[: len(audio) // n * n].reshape(-1, n)
+    return float(np.percentile(np.sqrt(np.mean(frames ** 2, axis=1)), 90)) + 1e-9
+
+
+def quiet_gap(audio: np.ndarray, t0: float, t1: float, level: float, min_len: float = 0.06, last_gap: bool = False):
+    """The first (or last) pause of at least min_len seconds between t0 and t1,
+    as (start, end) in seconds, or None when the sound runs straight through."""
+    db = frame_db(audio, level)
+    lo, hi = max(0, int(t0 / FRAME)), min(len(db), int(np.ceil(t1 / FRAME)))
+    need = max(1, int(round(min_len / FRAME)))
+    gaps, run = [], None
+    for k in range(lo, hi):
+        if db[k] < QUIET_DB:
+            run = k if run is None else run
+        else:
+            if run is not None and k - run >= need:
+                gaps.append((run * FRAME, k * FRAME))
+            run = None
+    if run is not None and hi - run >= need:
+        gaps.append((run * FRAME, hi * FRAME))
+    if not gaps:
+        return None
+    return gaps[-1] if last_gap else gaps[0]
+
+
+def run_to_quiet(audio: np.ndarray, end: int, level: float, limit: float = 0.4) -> int:
+    """Move a cut point forward to the next quiet frame if it lands mid-sound."""
+    db = frame_db(audio, level)
+    n = int(FRAME * SR)
+    k = max(0, end // n - 1)
+    stop = min(len(db), k + int(limit / FRAME))
+    while k < stop and db[k] >= QUIET_DB:
+        k += 1
+    return int(min(len(audio), max(end, (k + 1) * n)))
+
+
 def trim_to_words(audio: np.ndarray, words, quality: dict):
     """Drop separate bursts of sound before the first word or after the last
     one (an excited noise, a breath), without touching the words themselves.
@@ -655,23 +704,36 @@ def trim_to_words(audio: np.ndarray, words, quality: dict):
 
     segments = librosa.effects.split(audio, top_db=40, frame_length=1024, hop_length=256)
     first, last = quality["start"], quality["end"]
-    keep = [(s, e) for s, e in segments if s / SR <= last + 0.25 and e / SR >= first - 0.25]
-    info = {"trimmed_start_ms": 0, "trimmed_end_ms": 0, "cut_extra_after": False, "cut_extra_before": False}
+    keep = [(int(s), int(e)) for s, e in segments if s / SR <= last + 0.25 and e / SR >= first - 0.25]
+    info = {"trimmed_start_ms": 0, "trimmed_end_ms": 0, "cut_extra_after": False, "cut_extra_before": False,
+            "extended_end_ms": 0}
     if not keep:
         return audio, words, info
     start = max(0, keep[0][0] - int(0.03 * SR))
     end = min(len(audio), max(keep[-1][1] + int(0.12 * SR), int((last + 0.3) * SR)))
-    # Words Whisper heard after the line ended ("Dental?") or a filler before
-    # it began are cut, even when they run straight on from the speech.
+    level = speech_level(audio)
+    # Sound Whisper heard after the line ended ("Dental?") or a filler before
+    # it began is cut, but only at a real pause in the audio. Whisper marks
+    # word endings early, so an "extra word" straight after the line is
+    # usually the tail of the last word: cutting it at Whisper's times
+    # chopped the ending (render of 13 Nov 2026: three lines cut at -2 to
+    # -10 dB). With no pause, the sound stays.
     if quality.get("cut_after") is not None:
-        cut = int(max(last + 0.1, quality["cut_after"] - 0.04) * SR)
-        info["cut_extra_after"] = cut < end
-        end = min(end, cut)
+        # 120 ms: a stop consonant's closure inside a word ("subscri_bed") is shorter.
+        gap = quiet_gap(audio, last, quality["cut_after"] + 0.15, level, min_len=0.12)
+        if gap and int(gap[0] * SR) + int(0.08 * SR) < end:
+            end = int(gap[0] * SR) + int(0.08 * SR)
+            info["cut_extra_after"] = True
     if quality.get("cut_before") is not None:
-        # Right after the filler, but never into the first real word.
-        cut = int(max(0.0, min(first - 0.02, max(quality["cut_before"] + 0.02, first - 0.12))) * SR)
-        info["cut_extra_before"] = cut > start
-        start = max(start, cut)
+        gap = quiet_gap(audio, max(0.0, quality["cut_before"] - 0.15), first + 0.05, level, min_len=0.08, last_gap=True)
+        if gap and int(gap[1] * SR) - int(0.03 * SR) > start:
+            start = int(gap[1] * SR) - int(0.03 * SR)
+            info["cut_extra_before"] = True
+    # Never stop while the voice is still sounding: run on to the next quiet
+    # moment (at most 0.4 s), so the last word always decays naturally.
+    extended = run_to_quiet(audio, end, level)
+    info["extended_end_ms"] = round((extended - end) / SR * 1000)
+    end = extended
     info["trimmed_start_ms"] = round(start / SR * 1000)
     info["trimmed_end_ms"] = round((len(audio) - end) / SR * 1000)
     shift = start / SR
@@ -694,7 +756,7 @@ def ending_check(audio: np.ndarray, words) -> dict:
     speech = np.percentile(rms, 90)
     tail_db = float(20 * np.log10(rms[-1] / speech))
     after = round((len(audio) / SR - words[-1][2]) * 1000) if words else None
-    return {"tail_db": round(tail_db, 1), "after_last_word_ms": after, "clipped": tail_db > ENDING_LOUD_DB}
+    return {"tail_db": round(tail_db, 1), "after_last_word_ms": None if after is None else int(after), "clipped": bool(tail_db > ENDING_LOUD_DB)}
 
 
 def fade(audio: np.ndarray) -> np.ndarray:
@@ -851,6 +913,19 @@ def normalise(audio: np.ndarray) -> np.ndarray:
     return np.clip(audio, -0.99, 0.99)
 
 
+def json_safe(o):
+    """numpy numbers and flags in the report or props, as plain JSON values."""
+    if isinstance(o, np.bool_):
+        return bool(o)
+    if isinstance(o, np.integer):
+        return int(o)
+    if isinstance(o, np.floating):
+        return float(o)
+    if isinstance(o, np.ndarray):
+        return o.tolist()
+    raise TypeError(f"{type(o).__name__} is not JSON serializable")
+
+
 def log_scene(i: int, scene: dict) -> None:
     """One summary line per scene for the public render log: positions and
     measurements only, never script text (the repository is public). The
@@ -952,14 +1027,14 @@ def main() -> None:
         "portrait": f"render/{files['portrait']}" if files.get("portrait") else None,
         "brand": draft["brand"],
     }
-    (RENDER / "props.json").write_text(json.dumps(props, indent=2))
-    (RENDER / "meta.json").write_text(json.dumps({"duration_seconds": round(sum(seconds) + 0.5, 2), "scene_seconds": seconds}))
+    (RENDER / "props.json").write_text(json.dumps(props, indent=2, default=json_safe))
+    (RENDER / "meta.json").write_text(json.dumps({"duration_seconds": round(sum(seconds) + 0.5, 2), "scene_seconds": seconds}, default=json_safe))
     # What the speech check heard, per scene, shown on the review page.
     (RENDER / "report.json").write_text(json.dumps({
         "voice": {k: voice[k] for k in ("exaggeration", "cfg_weight", "temperature")},
         "reference": REFERENCE_INFO,
         "scenes": report,
-    }))
+    }, default=json_safe))
     low = [f"{i + 1}" for i, m in enumerate(matches) if m < GOOD_ENOUGH]
     print(f"Voiceover: {sum(seconds):.1f} s across {len(seconds)} scenes"
           + (f"; scenes {', '.join(low)} never matched cleanly" if low else ""))
