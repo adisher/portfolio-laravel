@@ -117,6 +117,60 @@ def test_ending_check_flags_a_chopped_line():
     assert v.ending_check(decayed, words)["clipped"] is False
 
 
+def test_report_values_are_json_safe():
+    import json
+    out = json.dumps({"a": np.bool_(True), "b": np.int64(3), "c": np.float32(0.5)}, default=v.json_safe)
+    assert json.loads(out) == {"a": True, "b": 3, "c": 0.5}
+
+
+def burst(seconds, freq=180.0, decay=0.12):
+    t = np.arange(int(seconds * v.SR)) / v.SR
+    env = np.minimum(1, t / 0.02) * np.clip((seconds - t) / decay, 0, 1)
+    return (0.4 * np.sin(2 * np.pi * freq * t) * env).astype(np.float32)
+
+
+def silence(seconds):
+    return np.zeros(int(seconds * v.SR), np.float32)
+
+
+def have_librosa():
+    try:
+        import librosa  # noqa: F401
+        return True
+    except ImportError:
+        print("skip (librosa not installed)")
+        return False
+
+
+def test_tail_heard_as_an_extra_word_is_not_cut():
+    # Render of 13 Nov 2026: Whisper heard an "extra word" right after the
+    # line, which was really the tail of the last word, and the cut at
+    # Whisper's early word end left the line ending at -2 to -10 dB.
+    if not have_librosa():
+        return
+    audio = np.concatenate([silence(0.1), burst(0.4), silence(0.05), burst(0.5), silence(0.3)])
+    words = [("one", 0.1, 0.4), ("two", 0.55, 0.8)]          # Whisper ends "two" early (real end 1.05)
+    quality = {"start": 0.1, "end": 0.8, "cut_after": 0.85, "cut_before": None}
+    out, _, info = v.trim_to_words(audio, words, quality)
+    assert info["cut_extra_after"] is False
+    assert len(out) / v.SR >= 1.05
+    assert v.ending_check(out, words)["clipped"] is False
+
+
+def test_separate_word_after_a_pause_is_cut():
+    if not have_librosa():
+        return
+    audio = np.concatenate([silence(0.1), burst(0.4), silence(0.05), burst(0.5), silence(0.35), burst(0.3, 300), silence(0.2)])
+    words = [("one", 0.1, 0.4), ("two", 0.55, 0.95)]
+    quality = {"start": 0.1, "end": 0.95, "cut_after": 1.45, "cut_before": None}
+    out, _, info = v.trim_to_words(audio, words, quality)
+    assert info["cut_extra_after"] is True
+    assert 1.05 <= len(out) / v.SR < 1.45                      # whole of "two", none of the extra word
+    assert v.ending_check(out, words)["clipped"] is False
+    import json
+    json.dumps(info)                                             # plain types, no numpy
+
+
 if __name__ == "__main__":
     tests = [f for name, f in sorted(globals().items()) if name.startswith("test_")]
     for f in tests:
