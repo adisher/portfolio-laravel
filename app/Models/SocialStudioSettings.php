@@ -77,10 +77,26 @@ class SocialStudioSettings extends Model
      */
     public function pronunciationList(): array
     {
+        return static::parsePronunciationLines($this->pronunciationText());
+    }
+
+    /**
+     * "word = how to say it" lines, one per line, for both the global list
+     * and each reel's own list. "=" is the separator when a line has one, so
+     * a word may contain a colon; otherwise ":" works too ("nginx: engine x").
+     *
+     * @return array<int, array{0: string, 1: string}>
+     */
+    public static function parsePronunciationLines(string $text): array
+    {
         $list = [];
-        foreach (preg_split('/\R/', $this->pronunciationText()) as $line) {
-            if (preg_match('/^\s*([^=:]+?)\s*[=:]\s*(.+?)\s*$/u', $line, $m)) {
-                $list[] = [$m[1], $m[2]];
+        foreach (preg_split('/\R/', $text) as $line) {
+            $sep = str_contains($line, '=') ? '=' : ':';
+            [$word, $say] = array_pad(explode($sep, $line, 2), 2, '');
+            $word = trim($word);
+            $say  = trim($say);
+            if ($word !== '' && $say !== '') {
+                $list[] = [$word, $say];
             }
         }
 

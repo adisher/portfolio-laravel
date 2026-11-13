@@ -7,6 +7,7 @@ use App\Mail\ReelRenderFailed;
 use App\Models\BlogPost;
 use App\Models\SocialDraft;
 use App\Models\SocialDraftTarget;
+use App\Models\SocialStudioSettings;
 use App\Services\AiContentService;
 use App\Support\SocialUrl;
 use App\Support\Text;
@@ -252,17 +253,10 @@ class ReelDraftService
         return array_values($map);
     }
 
-    /** Parse "word = how to say it" lines (":" also works). */
+    /** Parse "word = how to say it" lines (":" also works), same rules as the global list. */
     public function parsePronunciationText(string $text): array
     {
-        $pairs = [];
-        foreach (preg_split('/\R/', $text) as $line) {
-            if (preg_match('/^\s*([^=]+?)\s*=\s*(.+?)\s*$/u', $line, $m)) {
-                $pairs[] = [$m[1], $m[2]];
-            }
-        }
-
-        return $this->normalisePronunciations($pairs);
+        return $this->normalisePronunciations(SocialStudioSettings::parsePronunciationLines($text));
     }
 
     /** Clean, clamp and house-style the scene list (AI output or form input). */

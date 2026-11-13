@@ -96,58 +96,137 @@ def number_words(token: str) -> str:
 
 MONEY = re.compile(r"\$(\d[\d,]*(?:\.\d+)?)(k|m|bn|b|million|billion|trillion)?", re.I)
 SCALE = {"k": "thousand", "m": "million", "b": "billion", "bn": "billion"}
+# Units written straight after a number ("24h", "300ms", "1.5MB", "10x").
+UNITS = {
+    "ms": ("millisecond", "milliseconds"), "h": ("hour", "hours"), "hr": ("hour", "hours"), "hrs": ("hour", "hours"),
+    "min": ("minute", "minutes"), "mins": ("minute", "minutes"), "sec": ("second", "seconds"), "secs": ("second", "seconds"),
+    "kb": ("kilobyte", "kilobytes"), "mb": ("megabyte", "megabytes"), "gb": ("gigabyte", "gigabytes"), "tb": ("terabyte", "terabytes"),
+    "k": ("thousand", "thousand"), "x": ("times", "times"), "fps": ("frame per second", "frames per second"),
+    "px": ("pixel", "pixels"), "mbps": ("megabit per second", "megabits per second"), "gbps": ("gigabit per second", "gigabits per second"),
+}
+WITH_UNIT = re.compile(r"(\d[\d,]*(?:\.\d+)?)(" + "|".join(sorted(UNITS, key=len, reverse=True)) + r")", re.I)
+VERSION = re.compile(r"(v)?(\d+(?:\.\d+)*)")  # lower-case v only: "V8" is a name
+ID = re.compile(r"([A-Za-z]{2,})-(\d{4})-(\d{4,})")  # CVE-2026-109618, GHSA-style ids
+
+
+def digits_words(digits: str) -> str:
+    return " ".join(ONES[int(c)] for c in digits)
 
 
 def speak_numbers(core: str) -> str | None:
     """Say every number inside a word, and split it from letters around it:
     "GPT-5.6" -> "GPT five point six", "$75" -> "seventy-five dollars",
-    "$1.5M" -> "one point five million dollars". None when there is no number."""
+    "$1.5M" -> "one point five million dollars", "24h" -> "twenty-four hours",
+    "v2.1.0" -> "version two point one point zero", "CVE-2026-109618" ->
+    "CVE twenty twenty-six one zero nine six one eight". None when there is
+    no number."""
     if not re.search(r"\d", core):
         return None
+    if m := ID.fullmatch(core):
+        return f"{m.group(1)} {number_words(m.group(2))} {digits_words(m.group(3))}"
+    if m := VERSION.fullmatch(core):
+        parts = m.group(2).split(".")
+        # A "v" or two or more dots means a version: every part is a whole
+        # number ("3.10" after a v is "three point ten").
+        if m.group(1) or len(parts) > 2:
+            return ("version " if m.group(1) else "") + " point ".join(int_words(int(p)) if len(p) < 6 else digits_words(p) for p in parts)
+    if m := WITH_UNIT.fullmatch(core):
+        singular, plural = UNITS[m.group(2).lower()]
+        return number_words(m.group(1)) + " " + (singular if m.group(1) == "1" else plural)
     core = MONEY.sub(lambda m: " " + number_words(m.group(1)) + (" " + SCALE.get(m.group(2).lower(), m.group(2).lower()) if m.group(2) else "") + " dollars ", core)
-    said = re.sub(r"\d[\d,]*(?:\.\d+)?%?", lambda m: " " + number_words(m.group(0).rstrip(",")) + " ", core)
+    # A long run of digits with no commas is an id, read digit by digit.
+    said = re.sub(r"\d[\d,]*(?:\.\d+)?%?", lambda m: " " + (digits_words(m.group(0)) if re.fullmatch(r"\d{6,}", m.group(0)) else number_words(m.group(0).rstrip(","))) + " ", core)
     said = re.sub(r"(?<=\s)-|-(?=\s)", " ", said)
     return " ".join(said.split())
 
 
-def pronounce(text: str, pairs: list) -> tuple[str, list[tuple[str, int, int]]]:
+# Said the same way in every reel; an entry in a pronunciation list wins.
+BUILT_IN = [("vs", "versus"), ("e.g.", "for example"), ("i.e.", "that is"), ("etc.", "et cetera")]
+SPLIT = re.compile(r"^([\"'“‘(\[{]*)(.*?)([.,!?;:\"'”’)\]}]*)$")
+
+
+def split_token(word: str) -> tuple[str, str, str]:
+    """Leading punctuation, the word itself, trailing punctuation. Symbols
+    that belong to a name stay with it: "C#", "C++", ".NET", "$75", "40%"."""
+    lead, core, trail = SPLIT.match(word).groups()
+    if not core:  # all punctuation ("..."): keep it as is
+        return "", word, ""
+    return lead, core, trail
+
+
+def is_acronym(word: str) -> bool:
+    """All capitals, at least two letters ("US", "AI", "GPT"): matched with
+    case, so an entry for "US" never touches the word "us"."""
+    letters = re.sub(r"[^A-Za-z]", "", word)
+    return len(letters) >= 2 and letters.isupper()
+
+
+class Lexicon:
+    """A pronunciation list, looked up by word (or run of words)."""
+
+    def __init__(self, pairs: list):
+        self.entries: dict[tuple, list[tuple[tuple | None, str]]] = {}
+        for k, v in list(BUILT_IN) + list(pairs or []):
+            cores = tuple(split_token(w)[1] for w in words_of(k))
+            v = (v or "").strip()
+            if not cores or not all(cores) or not v:
+                continue
+            exact = cores if any(is_acronym(c) for c in cores) else None
+            key = tuple(c.lower() for c in cores)
+            # A later entry for the same word replaces an earlier one.
+            self.entries[key] = [e for e in self.entries.get(key, []) if e[0] != exact] + [(exact, v)]
+        self.longest = max((len(k) for k in self.entries), default=1)
+
+    def find(self, cores: tuple) -> str | None:
+        options = self.entries.get(tuple(c.lower() for c in cores), [])
+        # An acronym entry matched with case beats a plain one for the same word.
+        return next((say for exact, say in options if exact == cores), None) \
+            or next((say for exact, say in options if exact is None), None)
+
+
+def say_word(core: str, lex: Lexicon) -> str | None:
+    """How one word with no entry of its own is said, or None to leave it."""
+    if (m := re.fullmatch(r"(.+?)(['’]s)", core)) and (say := lex.find((m.group(1),))):
+        return say + m.group(2)  # "GPT's" uses the entry for "GPT"
+    if re.search(r"[A-Za-z].*[-/]|[-/].*[A-Za-z]", core) and not ID.fullmatch(core):
+        # A compound ("GPT-5.6-Cyber", "Cache-Control"): entries apply to each part.
+        parts = [p for p in re.split(r"[-/]", core) if p]
+        said = [lex.find((p,)) for p in parts]
+        if any(said):
+            return " ".join(s or speak_numbers(p) or p for p, s in zip(parts, said))
+    if m := re.fullmatch(r"([A-Za-z]+)\.js", core, re.I):
+        return f"{m.group(1)} J S"  # "Next.js" -> "Next J S", never "next dot j s"
+    if d := DOMAIN.match(core):
+        # "dev.to" is otherwise read as one odd word ("deev-to").
+        return f"{d.group(1)} dot {d.group(2)}"
+    return speak_numbers(core)
+
+
+def pronounce(text: str, pairs: list | Lexicon) -> tuple[str, list[tuple[str, int, int]]]:
     """Apply "word = how to say it" pairs to one line.
 
     Returns the text to speak and, for each original word, the range of spoken
     words it became, so captions can show the real spelling with real timing.
-    Matching ignores case and surrounding punctuation; an entry may span
-    several words ("Muse Glimmer"), longest match first.
+    Matching ignores surrounding punctuation, and ignores case except for
+    acronyms; an entry may span several words ("Muse Glimmer"), longest match
+    first, and applies inside compounds ("GPT" inside "GPT-5.6").
     """
-    lookup = {}
-    for k, v in pairs:
-        key = tuple(norm(w) for w in words_of(k))
-        if key and all(key):
-            lookup[key] = v
-    longest = max((len(k) for k in lookup), default=1)
-
+    lex = pairs if isinstance(pairs, Lexicon) else Lexicon(pairs)
     words = words_of(text)
     spoken: list[str] = []
     mapping = []
     i = 0
     while i < len(words):
-        for size in range(min(longest, len(words) - i), 0, -1):
+        for size in range(min(lex.longest, len(words) - i), 0, -1):
             group = words[i:i + size]
-            m_first = re.match(r"^(\W*)", group[0])
-            m_last = re.match(r"^.*?(\W*)$", group[-1])
-            lead, trail = m_first.group(1), m_last.group(1)
-            key = tuple(norm(w) for w in group)
-            replacement = lookup.get(key)
+            split = [split_token(w) for w in group]
+            lead, trail = split[0][0], split[-1][2]
+            # Inside a run of words, only the outer punctuation may differ.
+            if any(s[0] for s in split[1:]) or any(s[2] for s in split[:-1]):
+                continue
+            replacement = lex.find(tuple(s[1] for s in split))
             if not replacement and size == 1:
-                core = group[0][len(lead):len(group[0]) - len(trail) if trail else None]
-                if d := DOMAIN.match(core):
-                    # "dev.to" is otherwise read as one odd word ("deev-to").
-                    replacement = f"{d.group(1)} dot {d.group(2)}"
-                else:
-                    if trail.startswith("%"):  # "40%," : the sign is part of the number
-                        core, trail = core + "%", trail[1:]
-                    if lead.endswith("$"):  # "($75" : so is a currency sign
-                        core, lead = "$" + core, lead[:-1]
-                    replacement = speak_numbers(core)
+                replacement = say_word(split[0][1], lex)
             if replacement or size == 1:
                 parts = words_of(f"{lead}{replacement}{trail}") if replacement else [group[0]]
                 start = len(spoken)
@@ -168,10 +247,6 @@ NUMBER_WORDS = set(
 # Words Whisper may write as their sound-alike ("dev dot to" heard as "dev .2").
 SOUNDS_ALIKE = {"to": "two", "too": "two", "for": "four"}
 FILLERS = {"uh", "um", "uhm", "ah", "er", "erm", "hmm", "hm", "mm", "huh"}
-
-
-def is_number(word: str) -> bool:
-    return any(c.isdigit() for c in word) or word in NUMBER_WORDS
 
 
 def pieces(words: list[str]) -> list[tuple[str, int]]:
@@ -198,13 +273,34 @@ def pieces(words: list[str]) -> list[tuple[str, int]]:
 
 
 def numberish(ps: list[tuple[str, int]]) -> list[bool]:
-    """Which pieces are numbers, and so not compared ("two and a half" vs
-    "2.5"): digits, number words, and "a" right before a number word."""
-    flags = [is_number(p) for p, _ in ps]
+    """Pieces left out of the comparison: joining words that come and go
+    with how a number is written ("a hundred", "one hundred and five").
+    Number words themselves are compared, because both sides are said the
+    same way first (see said_as), so a misspoken price is caught."""
+    flags = [False] * len(ps)
     for k in range(len(ps) - 1):
         if ps[k][0] == "a" and ps[k + 1][0] in NUMBER_WORDS:
             flags[k] = True
+    for k in range(1, len(ps) - 1):
+        if ps[k][0] == "and" and ps[k - 1][0] in NUMBER_WORDS and ps[k + 1][0] in NUMBER_WORDS:
+            flags[k] = True
     return flags
+
+
+def said_as(heard: list[str]) -> tuple[list[str], list[int]]:
+    """Whisper's words in the form the script is spoken in ("$75" -> "seventy-five
+    dollars", "GPT-5.6" -> "GPT five point six"), with the heard word each came
+    from. Without this, every number Whisper wrote as digits looked wrong, so
+    numbers were left out of the check altogether."""
+    # Whisper writes "dev dot to" as "dev .2": that dot is spoken, not a decimal point.
+    text = [re.sub(r"^\.(?=\d)", "dot ", w) for w in heard]
+    out, owner = [], []
+    for k, w in enumerate(text):
+        said, _ = pronounce(w, [])
+        for part in words_of(said):
+            out.append(part)
+            owner.append(k)
+    return out, owner
 
 
 def join_letters(ps: list[tuple[str, int]]) -> list[tuple[str, list[int]]]:
@@ -233,7 +329,9 @@ def compare(spoken: list[str], heard: list[str]) -> dict:
     was an extra (a filler, a mumble, a word tacked on), the number of
     mismatched pieces either way, the overall similarity, and for each spoken
     word the heard word it matched (for caption timing)."""
-    sp, hp = pieces(spoken), pieces(heard)
+    heard_said, owner = said_as(heard)
+    sp = pieces(spoken)
+    hp = [(p, owner[w]) for p, w in pieces(heard_said)]
     sn, hn = numberish(sp), numberish(hp)
     a = join_letters([(p, w) for (p, w), num in zip(sp, sn) if not num])
     b = join_letters([(p, w) for (p, w), num in zip(hp, hn) if not num])
@@ -251,11 +349,18 @@ def compare(spoken: list[str], heard: list[str]) -> dict:
         if not hit:
             for w in ws:
                 spoken_ok[w] = False
-    heard_extra = [False] * len(heard)
+    # A heard word is extra when none of it matched ("$75" heard for "seventy
+    # dollars" half matches: a wrong word, but part of the line, not extra).
+    # Words with nothing compared ("and" inside a number) are not extra.
+    matched = [True] * len(heard)
+    filler = [False] * len(heard)
+    for w in {w for _, ws in b for w in ws}:
+        matched[w] = False
     for (p, ws), hit in zip(b, b_hit):
-        if not hit or p in FILLERS:
-            for w in ws:
-                heard_extra[w] = True
+        for w in ws:
+            matched[w] |= hit and p not in FILLERS
+            filler[w] |= p in FILLERS
+    heard_extra = [f or not m for m, f in zip(matched, filler)]
 
     return {
         "spoken_ok": spoken_ok,
@@ -499,6 +604,46 @@ def take_score(cmp: dict, quality: dict, sounds: int) -> float:
     return score
 
 
+def line_bounds(n_spoken: int, heard: list[tuple[str, float, float]], cmp: dict):
+    """Which heard words belong to the line, and where anything before or
+    after it starts or ends (for cutting).
+
+    The line runs from the first to the last heard word that matched the
+    script, plus, at either edge, as many unmatched heard words as there are
+    unmatched script words there: a misheard last word ("bio" heard as
+    "bile") is still the last word of the line. Only words beyond those
+    (a tacked-on "Dental?", an "um" before the line) are cut.
+
+    The previous version treated every unmatched word at the edges as extra,
+    so whenever Whisper misheard the final word, the cut landed at its start
+    and the word was chopped in half.
+
+    Returns (line words, end of what to cut before, start of what to cut after)."""
+    if not heard:
+        return heard, None, None
+    s2h = cmp["spoken_to_heard"]
+    if not s2h:
+        return heard, None, None
+    first_h, last_h = min(s2h.values()), max(s2h.values())
+    missing_head = min(s2h)                  # script words before the first match
+    missing_tail = n_spoken - 1 - max(s2h)   # script words after the last match
+
+    def take(words, n):
+        kept = []
+        for w in words:
+            if len(kept) == n or norm(w[0]) in FILLERS:
+                break
+            kept.append(w)
+        return kept
+
+    tail = take(heard[last_h + 1:], missing_tail)
+    head = take(list(reversed(heard[:first_h])), missing_head)[::-1]
+    line = head + heard[first_h:last_h + 1] + tail
+    after = heard[last_h + 1 + len(tail):]
+    before = heard[:first_h - len(head)]
+    return line, (before[-1][2] if before else None), (after[0][1] if after else None)
+
+
 def trim_to_words(audio: np.ndarray, words, quality: dict):
     """Drop separate bursts of sound before the first word or after the last
     one (an excited noise, a breath), without touching the words themselves.
@@ -511,19 +656,45 @@ def trim_to_words(audio: np.ndarray, words, quality: dict):
     segments = librosa.effects.split(audio, top_db=40, frame_length=1024, hop_length=256)
     first, last = quality["start"], quality["end"]
     keep = [(s, e) for s, e in segments if s / SR <= last + 0.25 and e / SR >= first - 0.25]
+    info = {"trimmed_start_ms": 0, "trimmed_end_ms": 0, "cut_extra_after": False, "cut_extra_before": False}
     if not keep:
-        return audio, words
+        return audio, words, info
     start = max(0, keep[0][0] - int(0.03 * SR))
     end = min(len(audio), max(keep[-1][1] + int(0.12 * SR), int((last + 0.3) * SR)))
     # Words Whisper heard after the line ended ("Dental?") or a filler before
     # it began are cut, even when they run straight on from the speech.
     if quality.get("cut_after") is not None:
-        end = min(end, int(max(last + 0.1, quality["cut_after"] - 0.04) * SR))
+        cut = int(max(last + 0.1, quality["cut_after"] - 0.04) * SR)
+        info["cut_extra_after"] = cut < end
+        end = min(end, cut)
     if quality.get("cut_before") is not None:
         # Right after the filler, but never into the first real word.
-        start = max(start, int(max(0.0, min(first - 0.02, max(quality["cut_before"] + 0.02, first - 0.12))) * SR))
+        cut = int(max(0.0, min(first - 0.02, max(quality["cut_before"] + 0.02, first - 0.12))) * SR)
+        info["cut_extra_before"] = cut > start
+        start = max(start, cut)
+    info["trimmed_start_ms"] = round(start / SR * 1000)
+    info["trimmed_end_ms"] = round((len(audio) - end) / SR * 1000)
     shift = start / SR
-    return audio[start:end], [(w, s - shift, e - shift) for w, s, e in words]
+    return audio[start:end], [(w, s - shift, e - shift) for w, s, e in words], info
+
+
+ENDING_LOUD_DB = -20.0  # end of a line louder than this (vs its speech) was cut mid-sound
+
+
+def ending_check(audio: np.ndarray, words) -> dict:
+    """How a kept line ends, for the log and the review page: how loud its
+    last 40 ms are compared with its speech (a word that decays naturally is
+    far quieter; a chopped one is not), and how long the audio runs past the
+    last word Whisper placed. Needs no script text, so it is safe to log."""
+    n = int(0.04 * SR)
+    if len(audio) < n * 3:
+        return {"tail_db": None, "after_last_word_ms": None, "clipped": False}
+    frames = audio[: len(audio) // n * n].reshape(-1, n)
+    rms = np.sqrt(np.mean(frames ** 2, axis=1)) + 1e-9
+    speech = np.percentile(rms, 90)
+    tail_db = float(20 * np.log10(rms[-1] / speech))
+    after = round((len(audio) / SR - words[-1][2]) * 1000) if words else None
+    return {"tail_db": round(tail_db, 1), "after_last_word_ms": after, "clipped": tail_db > ENDING_LOUD_DB}
 
 
 def fade(audio: np.ndarray) -> np.ndarray:
@@ -572,6 +743,8 @@ def speak(model, asr, text: str, voice: dict, seed: int, energy: dict | None = N
     forms = [text] + ([letters_joined(text)] if letters_joined(text) != text else [])
     best = None
     takes = []
+    stopped = None
+    previous_wrong = None
     for take in range(TAKES):
         torch.manual_seed(seed + take)
         params = {**voice, **(energy or {})}
@@ -586,16 +759,9 @@ def speak(model, asr, text: str, voice: dict, seed: int, energy: dict | None = N
         heard_all, sounds = split_non_speech(transcribe(asr, audio))
         cmp = compare(spoken, [w for w, _, _ in heard_all])
         match = cmp["ratio"]
-        real = [h for h, extra in zip(heard_all, cmp["heard_extra"]) if not extra]
-        words = real or heard_all
+        words, cut_before, cut_after = line_bounds(len(spoken), heard_all, cmp)
         quality = take_quality(audio, words, len(spoken))
-        if real:
-            first_i = heard_all.index(real[0])
-            last_i = heard_all.index(real[-1])
-            after = [h[1] for h in heard_all[last_i + 1:]]
-            before = heard_all[:first_i]
-            quality["cut_after"] = min(after) if after else None
-            quality["cut_before"] = before[-1][2] if before else None  # where the filler ends
+        quality["cut_before"], quality["cut_after"] = cut_before, cut_after
         score = take_score(cmp, quality, sounds)
         print(f"  take {take + 1}: {len(audio) / SR:.1f} s, {cmp['mismatches']} wrong/extra words, match {match:.2f}, pace {quality['pace']:.1f} w/s, "
               f"extra sound {quality['noise']:.1f} s{f', {sounds} non-word sounds' if sounds else ''}, score {score:.2f}")
@@ -606,16 +772,27 @@ def speak(model, asr, text: str, voice: dict, seed: int, energy: dict | None = N
             best = {"audio": audio, "words": words, "match": match, "quality": quality, "score": score, "take": take + 1}
         if score >= GOOD_ENOUGH:
             break
+        # The same script words missed by two takes in a row are not bad luck:
+        # the voice or the checker cannot say or hear them as written, and
+        # more takes only cost minutes. The word needs a pronunciation entry.
+        wrong = frozenset(k for k, ok in enumerate(cmp["spoken_ok"]) if not ok)
+        if wrong and wrong == previous_wrong:
+            stopped = f"same {len(wrong)} word(s) missed in takes {take} and {take + 1}"
+            print(f"  stopped: {stopped}; another take will not fix that, a pronunciation entry will")
+            break
+        previous_wrong = wrong
 
     audio, words = best["audio"], best["words"]
     slowed = None
+    trim = None
     if words and best["match"] >= TRUST_TIMING:
-        audio, words = trim_to_words(audio, words, best["quality"])
+        audio, words, trim = trim_to_words(audio, words, best["quality"])
         before = len(audio)
         audio, words = slow_down(audio, words, best["quality"]["pace"])
         if len(audio) != before:
             slowed = round(before / len(audio), 3)
-    info = {"takes": takes, "kept_take": best["take"], "slowed_to": slowed}
+    ending = {**ending_check(audio, words), **(trim or {})}
+    info = {"takes": takes, "kept_take": best["take"], "slowed_to": slowed, "ending": ending, "stopped_early": stopped}
     return audio, words, best["match"], info
 
 
@@ -674,6 +851,33 @@ def normalise(audio: np.ndarray) -> np.ndarray:
     return np.clip(audio, -0.99, 0.99)
 
 
+def log_scene(i: int, scene: dict) -> None:
+    """One summary line per scene for the public render log: positions and
+    measurements only, never script text (the repository is public). The
+    words themselves are on the reel's review page. Problems are also raised
+    as GitHub warnings so they show on the run's summary page."""
+    flags = scene["words"]
+    wrong = [k + 1 for k, w in enumerate(flags) if not w["ok"]]
+    end = scene.get("ending") or {}
+    final_wrong = bool(flags) and not flags[-1]["ok"]
+    parts = [f"kept take {scene['kept_take']}",
+             f"wrong words at {', '.join(map(str, wrong))} of {len(flags)}" + (" (incl. the final word)" if final_wrong else "") if wrong else f"all {len(flags)} words heard as written"]
+    if end.get("tail_db") is not None:
+        parts.append(f"line end {end['tail_db']:.0f} dB vs speech ({'CUT MID-SOUND' if end['clipped'] else 'decays cleanly'})")
+    if end.get("after_last_word_ms") is not None:
+        parts.append(f"audio runs {end['after_last_word_ms']} ms past the last word")
+    if end.get("trimmed_end_ms") or end.get("trimmed_start_ms"):
+        parts.append(f"trimmed {end.get('trimmed_start_ms', 0)} ms before / {end.get('trimmed_end_ms', 0)} ms after"
+                     + (" (cut a tacked-on word)" if end.get("cut_extra_after") else ""))
+    if scene.get("stopped_early"):
+        parts.append(f"stopped early: {scene['stopped_early']}")
+    print(f"  Scene {i} result: " + "; ".join(parts))
+    if end.get("clipped"):
+        print(f"::warning::Scene {i}: the line ends while still sounding ({end['tail_db']:.0f} dB), the last word may be cut")
+    if wrong:
+        print(f"::warning::Scene {i}: words {', '.join(map(str, wrong))} of {len(flags)} not heard as written; see the Voice check on the review page")
+
+
 def main() -> None:
     dummy = "--dummy" in sys.argv
     draft = json.loads((RENDER / "draft.json").read_text())
@@ -715,6 +919,7 @@ def main() -> None:
                 "match": round(matches[-1], 3),
                 **info,
             })
+            log_scene(i, report[-1])
 
         speech_seconds = len(speech) / SR
         length = max(floor_for(scene), LEAD + speech_seconds + BREATH)

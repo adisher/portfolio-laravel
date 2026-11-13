@@ -360,6 +360,12 @@
                     @if(($line['spoken'] ?? '') !== ($line['script'] ?? ''))
                         <p class="text-xs text-gray-400 mt-1">Spoken as: {{ $line['spoken'] }}</p>
                     @endif
+                    @if(! empty($line['ending']['clipped']))
+                        <p class="text-xs text-red-700 dark:text-red-400 mt-1">The line ends while still sounding ({{ $line['ending']['tail_db'] }} dB): the last word may be cut. Listen to this scene.</p>
+                    @endif
+                    @if(! empty($line['stopped_early']))
+                        <p class="text-xs text-amber-700 dark:text-amber-400 mt-1">Stopped retrying: {{ $line['stopped_early'] }}. Add the red word(s) to this reel's pronunciations.</p>
+                    @endif
                 </div>
             @endforeach
         </div>
