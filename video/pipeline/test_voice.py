@@ -171,6 +171,37 @@ def test_separate_word_after_a_pause_is_cut():
     json.dumps(info)                                             # plain types, no numpy
 
 
+def test_a_take_that_ends_loud_scores_lower():
+    base = {"mismatches": 0}
+    q = {"noise": 0.0, "pace": 3.0}
+    clean = v.take_score(base, {**q, "end_db": -40.0}, 0)
+    loud = v.take_score(base, {**q, "end_db": -20.0}, 0)
+    cut = v.take_score(base, {**q, "end_db": -2.0}, 0)
+    assert clean == 1.0 and abs(loud - 0.9) < 1e-9 and abs(cut - 0.7) < 1e-9
+    assert loud < v.GOOD_ENOUGH                                  # earns another take
+
+
+def test_soften_end_lets_a_loud_line_trail_off():
+    tone = burst(1.0, decay=0.001)                               # still loud at its last sample
+    words = [("word", 0.0, 0.9)]
+    assert v.ending_check(tone, words)["clipped"] is True
+    soft = v.soften_end(tone)
+    assert v.ending_check(soft[: len(tone)], words)["clipped"] is False
+    assert len(soft) > len(tone)                                 # a moment of silence after
+
+
+def test_limiter_eases_peaks_without_clipping():
+    t = np.arange(v.SR) / v.SR
+    audio = (0.3 * np.sin(2 * np.pi * 200 * t)).astype(np.float32)
+    audio[12000:12240] *= 4.0                                    # a 10 ms peak at 1.2, over full scale
+    out, reduced, deepest = v.limit(audio)
+    assert np.abs(out).max() <= v.CEILING + 1e-3
+    assert reduced > 0 and deepest < 0
+    assert np.allclose(out[:6000], audio[:6000])                 # quiet speech before the peak untouched
+    same, none, _ = v.limit(audio * 0.5 / 1.2)
+    assert none == 0 and np.array_equal(same, audio * 0.5 / 1.2)
+
+
 if __name__ == "__main__":
     tests = [f for name, f in sorted(globals().items()) if name.startswith("test_")]
     for f in tests:

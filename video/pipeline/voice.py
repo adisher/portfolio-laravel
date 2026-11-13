@@ -601,6 +601,12 @@ def take_score(cmp: dict, quality: dict, sounds: int) -> float:
     score -= 0.4 * max(0.0, quality["noise"] - 0.25)       # more than a breath of non-word sound
     score -= 0.15 * sounds                                  # Whisper heard a laugh/gasp/etc.
     score -= 0.2 * max(0.0, quality["pace"] - MAX_PACE)     # rushed
+    # A line that is still sounding where the take ends: the model stopped
+    # mid-word or added a sound after it (render of 13 Nov 2026, scene 2).
+    # 0.02 per dB above -25: -20 dB costs 0.1, a hard cut up to 0.3, so a
+    # clean take of the same line wins.
+    if quality.get("end_db") is not None:
+        score -= min(0.3, 0.02 * max(0.0, quality["end_db"] - ENDING_OK_DB))
     return score
 
 
@@ -741,6 +747,19 @@ def trim_to_words(audio: np.ndarray, words, quality: dict):
 
 
 ENDING_LOUD_DB = -20.0  # end of a line louder than this (vs its speech) was cut mid-sound
+ENDING_OK_DB = -25.0    # quieter than this is a clean ending; louder costs the take points
+SOFT_TAIL = 0.25        # seconds of fade for a line that still ends loud
+
+
+def soften_end(audio: np.ndarray) -> np.ndarray:
+    """A longer, gentle fade over the last SOFT_TAIL seconds plus a moment of
+    silence, for a line whose best take still ends while sounding: it
+    trails off like a speaker finishing, rather than cutting out."""
+    n = min(len(audio) // 3, int(SOFT_TAIL * SR))
+    audio = audio.copy()
+    if n:
+        audio[-n:] *= (0.5 + 0.5 * np.cos(np.linspace(0, np.pi, n))).astype(np.float32)
+    return np.concatenate([audio, np.zeros(int(0.05 * SR), np.float32)])
 
 
 def ending_check(audio: np.ndarray, words) -> dict:
@@ -824,12 +843,18 @@ def speak(model, asr, text: str, voice: dict, seed: int, energy: dict | None = N
         words, cut_before, cut_after = line_bounds(len(spoken), heard_all, cmp)
         quality = take_quality(audio, words, len(spoken))
         quality["cut_before"], quality["cut_after"] = cut_before, cut_after
+        # Judge the ending as it would be kept: after the same trim.
+        probe, probe_words = audio, words
+        if words and match >= TRUST_TIMING:
+            probe, probe_words, _ = trim_to_words(audio, words, quality)
+        quality["end_db"] = ending_check(probe, probe_words)["tail_db"]
         score = take_score(cmp, quality, sounds)
+        end_note = f", line end {quality['end_db']:.0f} dB" if quality["end_db"] is not None else ""
         print(f"  take {take + 1}: {len(audio) / SR:.1f} s, {cmp['mismatches']} wrong/extra words, match {match:.2f}, pace {quality['pace']:.1f} w/s, "
-              f"extra sound {quality['noise']:.1f} s{f', {sounds} non-word sounds' if sounds else ''}, score {score:.2f}")
+              f"extra sound {quality['noise']:.1f} s{f', {sounds} non-word sounds' if sounds else ''}{end_note}, score {score:.2f}")
         takes.append({"take": take + 1, "seconds": round(len(audio) / SR, 2), "match": round(match, 3), "wrong_words": cmp["mismatches"], "text": forms[take % len(forms)],
                       "pace": round(quality["pace"], 2), "extra_sound": round(quality["noise"], 2),
-                      "non_word_sounds": sounds, "score": round(score, 3)})
+                      "non_word_sounds": sounds, "end_db": quality["end_db"], "score": round(score, 3)})
         if best is None or score > best["score"]:
             best = {"audio": audio, "words": words, "match": match, "quality": quality, "score": score, "take": take + 1}
         if score >= GOOD_ENOUGH:
@@ -853,7 +878,12 @@ def speak(model, asr, text: str, voice: dict, seed: int, energy: dict | None = N
         audio, words = slow_down(audio, words, best["quality"]["pace"])
         if len(audio) != before:
             slowed = round(before / len(audio), 3)
-    ending = {**ending_check(audio, words), **(trim or {})}
+    ending = {**ending_check(audio, words), **(trim or {}), "softened": False}
+    if ending["clipped"]:
+        # Even the best take ends loud: let it trail off instead of stopping dead.
+        audio = soften_end(audio)
+        ending["softened"] = True
+        ending["tail_db_after"] = ending_check(audio, words)["tail_db"]
     info = {"takes": takes, "kept_take": best["take"], "slowed_to": slowed, "ending": ending, "stopped_early": stopped}
     return audio, words, best["match"], info
 
@@ -900,16 +930,60 @@ def polish(audio: np.ndarray) -> np.ndarray:
         return audio
 
 
+CEILING = 10 ** (-1.0 / 20)   # -1 dBFS: peaks never reach full scale
+
+
+def limit(audio: np.ndarray, ceiling: float = CEILING, lookahead: float = 0.005, release: float = 0.08):
+    """A look-ahead peak limiter: turns the gain down smoothly just before a
+    peak and lets it recover over `release` seconds, instead of flattening
+    the peak (hard clipping sounds harsh). Works on 1 ms blocks, so it is
+    fast in plain numpy. Returns (audio, number of blocks reduced, deepest
+    reduction in dB)."""
+    block = max(1, int(0.001 * SR))
+    n = len(audio) // block * block
+    if n == 0:
+        return audio, 0, 0.0
+    peaks = np.abs(audio[:n]).reshape(-1, block).max(axis=1)
+    need = np.minimum(1.0, ceiling / np.maximum(peaks, 1e-9))
+    if need.min() >= 1.0:
+        return audio, 0, 0.0
+    ahead = max(1, int(lookahead * 1000))
+    # Each block takes the lowest gain needed within the look-ahead window.
+    padded = np.concatenate([need, np.ones(ahead)])
+    target = np.min(np.stack([padded[k:k + len(need)] for k in range(ahead + 1)]), axis=0)
+    gain = np.empty_like(target)
+    g = 1.0
+    recover = 1.0 / max(1, int(release * 1000))
+    for k, t in enumerate(target):
+        g = t if t < g else min(t, g + recover)
+        gain[k] = g
+    smooth = np.interp(np.arange(len(audio)), np.arange(len(gain)) * block + block / 2, gain).astype(np.float32)
+    # Never above the gain a block needs (the interpolation can rise early).
+    held = np.concatenate([np.repeat(gain, block), np.full(len(audio) - n, gain[-1])]).astype(np.float32)
+    smooth = np.minimum(smooth, held)
+    out = audio * smooth
+    reduced = int(np.sum(gain < 0.999))
+    return out, reduced, float(20 * np.log10(gain.min()))
+
+
 def normalise(audio: np.ndarray) -> np.ndarray:
     try:
+        import warnings
+
         import pyloudnorm
 
         meter = pyloudnorm.Meter(SR)
         loudness = meter.integrated_loudness(audio)
         if np.isfinite(loudness):
-            audio = pyloudnorm.normalize.loudness(audio, loudness, -16.0)
+            with warnings.catch_warnings():
+                # Its "possible clipped samples" warning is handled by the limiter below.
+                warnings.simplefilter("ignore")
+                audio = pyloudnorm.normalize.loudness(audio, loudness, -16.0)
     except Exception as exc:  # loudness is a nicety, never a failure
         print(f"Skipped loudness normalisation: {exc}")
+    audio, reduced, deepest = limit(audio)
+    if reduced:
+        print(f"Limiter: eased {reduced} ms of peaks, at most {deepest:.1f} dB (no hard clipping)")
     return np.clip(audio, -0.99, 0.99)
 
 
@@ -946,9 +1020,12 @@ def log_scene(i: int, scene: dict) -> None:
                      + (" (cut a tacked-on word)" if end.get("cut_extra_after") else ""))
     if scene.get("stopped_early"):
         parts.append(f"stopped early: {scene['stopped_early']}")
+    if end.get("softened"):
+        parts.append(f"softened with a {int(SOFT_TAIL * 1000)} ms fade (now {end['tail_db_after']:.0f} dB)")
     print(f"  Scene {i} result: " + "; ".join(parts))
     if end.get("clipped"):
-        print(f"::warning::Scene {i}: the line ends while still sounding ({end['tail_db']:.0f} dB), the last word may be cut")
+        print(f"::warning::Scene {i}: even the best take ends while still sounding ({end['tail_db']:.0f} dB); "
+              f"softened with a fade, listen to how its last word sounds")
     if wrong:
         print(f"::warning::Scene {i}: words {', '.join(map(str, wrong))} of {len(flags)} not heard as written; see the Voice check on the review page")
 
