@@ -287,19 +287,37 @@ def numberish(ps: list[tuple[str, int]]) -> list[bool]:
     return flags
 
 
-def said_as(heard: list[str]) -> tuple[list[str], list[int]]:
+HEARD_LEXICON: "Lexicon | None" = None  # this reel's pronunciations, set in main()
+
+
+def said_as(heard: list[str], lexicon: "Lexicon | None" = None) -> tuple[list[str], list[int]]:
     """Whisper's words in the form the script is spoken in ("$75" -> "seventy-five
     dollars", "GPT-5.6" -> "GPT five point six"), with the heard word each came
     from. Without this, every number Whisper wrote as digits looked wrong, so
-    numbers were left out of the check altogether."""
+    numbers were left out of the check altogether.
+
+    The reel's pronunciation list applies here too: Whisper hears "cash" and
+    writes the word it knows, "Cache", which is right. Compared with the
+    spoken "cash" it looked wrong (render of 13 Nov 2026, scene 5)."""
+    lexicon = lexicon or HEARD_LEXICON or Lexicon([])
     # Whisper writes "dev dot to" as "dev .2": that dot is spoken, not a decimal point.
     text = [re.sub(r"^\.(?=\d)", "dot ", w) for w in heard]
     out, owner = [], []
-    for k, w in enumerate(text):
-        said, _ = pronounce(w, [])
+    k = 0
+    while k < len(text):
+        w = text[k]
+        # "per cent" is how Whisper sometimes writes "percent": "per" carries
+        # the word and "cent" adds nothing to compare (so it is not extra).
+        if norm(w) == "per" and k + 1 < len(text) and norm(text[k + 1]) == "cent":
+            out.append("percent")
+            owner.append(k)
+            k += 2
+            continue
+        said, _ = pronounce(w, lexicon)
         for part in words_of(said):
             out.append(part)
             owner.append(k)
+        k += 1
     return out, owner
 
 
@@ -1035,6 +1053,8 @@ def main() -> None:
     draft = json.loads((RENDER / "draft.json").read_text())
     files = draft["files"]
     voice = {**DEFAULT_VOICE, **(draft.get("voice") or {})}
+    global HEARD_LEXICON
+    HEARD_LEXICON = Lexicon(voice["pronunciations"])
 
     model = asr = None
     if not dummy:

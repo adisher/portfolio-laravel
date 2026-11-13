@@ -202,6 +202,27 @@ def test_limiter_eases_peaks_without_clipping():
     assert none == 0 and np.array_equal(same, audio * 0.5 / 1.2)
 
 
+def test_heard_words_use_the_same_pronunciations():
+    # Render of 13 Nov 2026: the voice said "cash" as told, Whisper wrote the
+    # word it knows, "Cache", and the check marked a correct word red.
+    pairs = [("cache", "cash")]
+    spoken = v.words_of(v.pronounce("Cache cuts the cost.", pairs)[0])
+    v.HEARD_LEXICON = v.Lexicon(pairs)
+    try:
+        assert v.compare(spoken, v.words_of("Cache cuts the cost."))["mismatches"] == 0
+        assert v.compare(spoken, v.words_of("Cash cuts the cost."))["mismatches"] == 0
+        assert v.compare(spoken, v.words_of("Catch cuts the cost."))["mismatches"] > 0   # a real miss still shows
+    finally:
+        v.HEARD_LEXICON = None
+
+
+def test_per_cent_counts_as_percent():
+    spoken = v.words_of(said("Costs fell 2.5 percent."))
+    for heard in ["Costs fell 2.5 percent.", "Costs fell 2.5%.", "Costs fell 2.5 per cent."]:
+        c = v.compare(spoken, v.words_of(heard))
+        assert c["mismatches"] == 0 and not any(c["heard_extra"]), heard
+
+
 if __name__ == "__main__":
     tests = [f for name, f in sorted(globals().items()) if name.startswith("test_")]
     for f in tests:
