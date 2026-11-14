@@ -8,6 +8,7 @@ use App\Models\AiBudgetSetting;
 use App\Models\BlogPost;
 use App\Models\Category;
 use App\Models\SocialDraft;
+use App\Models\SocialStudioSettings;
 use App\Models\User;
 use App\Services\Social\ReelDraftService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -72,7 +73,7 @@ class SocialReelTest extends TestCase
             ],
             'instagram' => ['caption' => "Redis ate my queue.\n\nFull article: link in bio.", 'hashtags' => ['#Laravel', 'Redis', 'queues']],
             'youtube'   => ['title' => 'Redis lost 3,000 of my jobs', 'description' => 'What happened and the fix.', 'tags' => ['laravel', 'redis']],
-            'pronunciations' => [['word' => 'cache', 'say' => 'cash'], ['word' => 'Cache', 'say' => 'cash'], ['word' => '', 'say' => 'x']],
+            'pronunciations' => [['word' => 'cache', 'say' => 'cash'], ['word' => 'maxmemory', 'say' => 'max memory'], ['word' => 'Maxmemory', 'say' => 'max memory'], ['word' => '', 'say' => 'x']],
         ];
 
         Http::fake([
@@ -237,8 +238,9 @@ class SocialReelTest extends TestCase
         $service = app(ReelDraftService::class);
         $draft = $service->createForPost($this->article());
 
-        // From the AI, deduplicated by word (the later one wins), blanks dropped.
-        $this->assertSame([['Cache', 'cash']], $draft->pronunciations());
+        // From the AI, deduplicated by word (the later one wins), blanks dropped,
+        // and "cache" left out: the global list already settles it.
+        $this->assertSame([['Maxmemory', 'max memory']], $draft->pronunciations());
 
         $service->markRendered($draft, 'reels/1.mp4', 'reels/1.jpg', 18);
 
@@ -259,6 +261,51 @@ class SocialReelTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('admin.social.reels.show', $draft))
             ->assertOk()->assertSee('LRU = L R U');
+    }
+
+    public function test_the_script_prompt_lists_the_settled_words(): void
+    {
+        SocialStudioSettings::instance()->update(['pronunciations' => "Muse Glimmer = Mews Glimmer\nGPU = G P U"]);
+        $this->fakeClaude();
+        app(ReelDraftService::class)->createForPost($this->article());
+
+        Http::assertSent(fn ($request) => str_contains($request->body(), 'Muse Glimmer = Mews Glimmer')
+            && str_contains($request->body(), 'Never list them again'));
+    }
+
+    public function test_approving_a_reel_adds_its_new_words_to_the_global_list(): void
+    {
+        $this->fakeClaude();
+        $service = app(ReelDraftService::class);
+        $draft = $service->createForPost($this->article());
+        $draft->update(['script' => array_merge($draft->script, [
+            'pronunciations' => [['LRU', 'L R U'], ['cache', 'catch'], ['Maxmemory', 'max memory']],
+        ])]);
+        $service->markRendered($draft, 'reels/1.mp4', 'reels/1.jpg', 18);
+
+        $this->actingAs($this->admin)
+            ->patch(route('admin.social.reels.targets.approve', [$draft, $draft->target('instagram')]))
+            ->assertSessionHas('success', fn ($m) => str_contains($m, 'Added to the global pronunciation list: LRU, Maxmemory.')
+                && str_contains($m, 'Kept the global pronunciation for "cache" (global: cash; this reel: catch)'));
+
+        $global = SocialStudioSettings::instance()->fresh();
+        $list = collect($global->pronunciationList())->mapWithKeys(fn ($p) => [$p[0] => $p[1]])->all();
+        $this->assertSame('cash', $list['cache']);                       // never overwritten by a reel
+        $this->assertSame('L R U', $list['LRU']);
+        $this->assertSame('Adil Sher dot pro', $list['adilsher.pro']);   // the defaults stay
+
+        // Approving the second platform adds nothing twice.
+        $this->actingAs($this->admin)
+            ->patch(route('admin.social.reels.targets.approve', [$draft, $draft->target('youtube')]));
+        $this->assertSame(1, substr_count(SocialStudioSettings::instance()->fresh()->pronunciationText(), 'LRU = L R U'));
+    }
+
+    public function test_an_emptied_global_list_falls_back_to_the_defaults(): void
+    {
+        $settings = SocialStudioSettings::instance();
+        $settings->update(['pronunciations' => '   ']);
+
+        $this->assertSame(SocialStudioSettings::DEFAULT_PRONUNCIATIONS, $settings->fresh()->pronunciationText());
     }
 
     public function test_targets_cannot_be_approved_before_a_render(): void

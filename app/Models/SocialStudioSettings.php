@@ -65,9 +65,54 @@ class SocialStudioSettings extends Model
         return array_intersect_key($style, array_flip(['exaggeration', 'cfg_weight', 'temperature', 'lift']));
     }
 
+    /** The global list as text. An empty list falls back to the defaults. */
     public function pronunciationText(): string
     {
-        return $this->pronunciations ?? static::DEFAULT_PRONUNCIATIONS;
+        return trim((string) $this->pronunciations) !== '' ? $this->pronunciations : static::DEFAULT_PRONUNCIATIONS;
+    }
+
+    /**
+     * Add a reel's pronunciations to the global list, so the vocabulary grows
+     * with every approved reel. A word already on the list is never changed:
+     * if the reel says it differently, that is returned as a conflict for the
+     * owner to settle in Studio settings.
+     *
+     * @param  array<int, array{0: string, 1: string}>  $pairs
+     * @return array{added: array<int, array{0: string, 1: string}>, conflicts: array<int, array{0: string, 1: string, 2: string}>}
+     */
+    public function appendPronunciations(array $pairs): array
+    {
+        $known = [];
+        foreach ($this->pronunciationList() as [$word, $say]) {
+            $known[mb_strtolower($word)] = $say;
+        }
+
+        $added = $conflicts = [];
+        foreach ($pairs as [$word, $say]) {
+            $key = mb_strtolower(trim($word));
+            if ($key === '' || trim($say) === '') {
+                continue;
+            }
+            if (! array_key_exists($key, $known)) {
+                $added[] = [trim($word), trim($say)];
+                $known[$key] = $say;
+            } elseif (mb_strtolower(trim($known[$key])) !== mb_strtolower(trim($say))) {
+                $conflicts[] = [trim($word), $known[$key], trim($say)];
+            }
+        }
+
+        if ($added) {
+            $lines = collect($added)->map(fn ($p) => "{$p[0]} = {$p[1]}")->implode("\n");
+            $this->forceFill(['pronunciations' => rtrim($this->pronunciationText()) . "\n" . $lines])->save();
+        }
+
+        return ['added' => $added, 'conflicts' => $conflicts];
+    }
+
+    /** Lower-cased words already on the global list. @return array<string, true> */
+    public function settledWords(): array
+    {
+        return collect($this->pronunciationList())->mapWithKeys(fn ($p) => [mb_strtolower($p[0]) => true])->all();
     }
 
     /**

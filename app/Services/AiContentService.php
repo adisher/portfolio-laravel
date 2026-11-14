@@ -959,6 +959,11 @@ PROMPT;
         $minW   = config('social.reels.min_words', 60);
         $maxW   = config('social.reels.max_words', 105);
         $retry  = $feedback ? "\n\nREVISION NEEDED\n{$feedback}" : '';
+        // Words already settled in the owner's global list: applied to every
+        // reel at render, so the AI must not list them again.
+        $settled = collect(\App\Models\SocialStudioSettings::instance()->pronunciationList())
+            ->map(fn ($p) => "{$p[0]} = {$p[1]}")
+            ->implode("\n");
 
         $source = $post->original_author ?: 'the original outlet';
         $kind = $isNews
@@ -994,6 +999,8 @@ WRITE FOR THE EAR (this is narration for a reel, not text being read out)
 
 PRONUNCIATIONS
 - List every word in the voice lines that a text-to-speech voice could misread, with how to say it (this is only for the voice; captions show the word as written): brand and product names, acronyms (spell letters with spaces: "GPT" says "G P T"), versions and model names ("GPT-5.6-Cyber" says "G P T five point six Cyber"), domains ("dev.to" says "dev dot to"; a dot between letters is "dot", between digits it is "point"), code and tech terms ("cache" says "cash", "SQL" says "sequel", "nginx" says "engine x"), and unusual names. Never list an ordinary English word that a voice already says correctly (a product called "Muse" or "Glimmer" needs no entry), and never invent phonetic spellings like "Myooz": a "say" must be real English words or spaced letters. Numbers, prices, percentages, units ("24h", "300ms", "1.5MB"), versions ("v2.1.0"), IDs ("CVE-2026-1234"), "vs" and website names are said correctly without an entry. An entry for an acronym in capitals ("US") only applies to it in capitals, never to the ordinary word ("us"), and applies inside names too ("GPT" inside "GPT-5.6"). The "word" must appear exactly as written in a voice_line. Use an empty list if there are none.
+- These words are already settled (word = how it is said) and applied to every reel automatically. Never list them again. When you use one, spell it in the voice_line exactly as the word on the left:
+{$settled}
 
 CAPTIONS
 - instagram.caption: 2-4 short paragraphs, hook in the first line, ends with "Full article: link in bio." No hashtags inside the caption.
