@@ -32,6 +32,7 @@ PACE = 2.5            # words per second, same as config/social.php
 BREATH = 0.35         # pause after each scene's line
 LEAD = 0.15           # pause before each scene's line
 TAKES = 4             # attempts per scene
+ASR_MODEL = "small.en"  # the speech check; keep in step with the cache key in render-reel.yml
 GOOD_ENOUGH = 0.93    # take score that stops further takes: needs every word heard as written
 TRUST_TIMING = 0.75   # below this match, captions use even timing instead of Whisper's
 # Pace is measured from the first to the last word of a line, so it excludes
@@ -300,8 +301,16 @@ def said_as(heard: list[str], lexicon: "Lexicon | None" = None) -> tuple[list[st
     writes the word it knows, "Cache", which is right. Compared with the
     spoken "cash" it looked wrong (render of 13 Nov 2026, scene 5)."""
     lexicon = lexicon or HEARD_LEXICON or Lexicon([])
-    # Whisper writes "dev dot to" as "dev .2": that dot is spoken, not a decimal point.
-    text = [re.sub(r"^\.(?=\d)", "dot ", w) for w in heard]
+    # Whisper splits decimals ("2.5" as "2 .5"): join them back. A dot before
+    # a digit after a word is a spoken "dot" ("dev dot to" written "dev .2").
+    text: list[str] = []
+    joined_into: list[int] = []   # heard index each text item starts at
+    for k, w in enumerate(heard):
+        if re.fullmatch(r"\.\d+\W*", w) and text and re.search(r"\d$", text[-1]):
+            text[-1] += w
+            continue
+        text.append(re.sub(r"^\.(?=\d)", "dot ", w))
+        joined_into.append(k)
     out, owner = [], []
     k = 0
     while k < len(text):
@@ -310,15 +319,41 @@ def said_as(heard: list[str], lexicon: "Lexicon | None" = None) -> tuple[list[st
         # the word and "cent" adds nothing to compare (so it is not extra).
         if norm(w) == "per" and k + 1 < len(text) and norm(text[k + 1]) == "cent":
             out.append("percent")
-            owner.append(k)
+            owner.append(joined_into[k])
             k += 2
             continue
         said, _ = pronounce(w, lexicon)
         for part in words_of(said):
             out.append(part)
-            owner.append(k)
+            owner.append(joined_into[k])
         k += 1
     return out, owner
+
+
+# Letter names that rhyme on "ee" and that speech recognition mixes up.
+EE_LETTERS = set("bcdegptvz")
+
+
+def sounds_same(x: str, y: str) -> bool:
+    """Two different spellings of the same sound, as speech recognition
+    writes them: homophones ("cache"/"cash", by metaphone) and acronyms that
+    differ only in rhyming letters ("gpt"/"dpt")."""
+    if x == y:
+        return True
+    if not (x.isalpha() and y.isalpha()):
+        return False
+    acronym = lambda w: 2 <= len(w) <= 6 and not set(w) & set("aeiouy")
+    if acronym(x) and acronym(y) and len(x) == len(y):
+        same = lambda c, d: c == d or (c in EE_LETTERS and d in EE_LETTERS)
+        if all(same(c, d) for c, d in zip(x, y)) and sum(c != d for c, d in zip(x, y)) <= 1:
+            return True
+    if len(x) >= 3 and len(y) >= 3:
+        try:
+            import jellyfish
+        except ImportError:  # optional: without it, homophones are still flagged
+            return False
+        return jellyfish.metaphone(x) == jellyfish.metaphone(y)
+    return False
 
 
 def join_letters(ps: list[tuple[str, int]]) -> list[tuple[str, list[int]]]:
@@ -361,6 +396,16 @@ def compare(spoken: list[str], heard: list[str]) -> dict:
             a_hit[block.a + k] = b_hit[block.b + k] = True
             for w in a[block.a + k][1]:
                 spoken_to_heard.setdefault(w, b[block.b + k][1][0])
+    # Where Whisper swapped a word for one that sounds the same ("Cash" for
+    # "Cache", "DPT" for "GPT"), the voice said it right: only one-for-one
+    # swaps count, so a dropped or added word is still caught.
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "replace" and i2 - i1 == j2 - j1:
+            for x, y in zip(range(i1, i2), range(j1, j2)):
+                if sounds_same(a[x][0], b[y][0]):
+                    a_hit[x] = b_hit[y] = True
+                    for w in a[x][1]:
+                        spoken_to_heard.setdefault(w, b[y][1][0])
 
     spoken_ok = [True] * len(spoken)
     for (p, ws), hit in zip(a, a_hit):
@@ -566,7 +611,9 @@ def load_tts(reference: pathlib.Path, voice: dict):
 def load_asr():
     from faster_whisper import WhisperModel
 
-    return WhisperModel("base.en", device="cpu", compute_type="int8")
+    # small.en, not base.en: base.en dropped words the voice clearly said
+    # ("90 percent less" heard as "90 less", render of 13 Nov 2026).
+    return WhisperModel(ASR_MODEL, device="cpu", compute_type="int8")
 
 
 def transcribe(asr, audio: np.ndarray) -> list[tuple[str, float, float]]:

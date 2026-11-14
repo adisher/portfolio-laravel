@@ -4,3 +4,4 @@ chatterbox-tts==0.1.7
 faster-whisper==1.2.1
 soundfile
 pyloudnorm
+jellyfish  # sound-alike words in the speech check ("Cash" heard for "Cache")

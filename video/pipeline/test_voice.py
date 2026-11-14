@@ -211,7 +211,7 @@ def test_heard_words_use_the_same_pronunciations():
     try:
         assert v.compare(spoken, v.words_of("Cache cuts the cost."))["mismatches"] == 0
         assert v.compare(spoken, v.words_of("Cash cuts the cost."))["mismatches"] == 0
-        assert v.compare(spoken, v.words_of("Catch cuts the cost."))["mismatches"] > 0   # a real miss still shows
+        assert v.compare(spoken, v.words_of("Crash cuts the cost."))["mismatches"] > 0   # a real miss still shows
     finally:
         v.HEARD_LEXICON = None
 
@@ -221,6 +221,36 @@ def test_per_cent_counts_as_percent():
     for heard in ["Costs fell 2.5 percent.", "Costs fell 2.5%.", "Costs fell 2.5 per cent."]:
         c = v.compare(spoken, v.words_of(heard))
         assert c["mismatches"] == 0 and not any(c["heard_extra"]), heard
+
+
+def red_words(script, heard):
+    said_text, mapping = v.pronounce(script, [])
+    spoken = v.words_of(said_text)
+    return [w["text"] for w in v.word_flags(mapping, spoken, v.words_of(heard)) if not w["ok"]]
+
+
+def test_voice_check_of_13_nov_2026_scene_3():
+    # Whisper split both decimals ("5 .6", "2 .5") and wrote "DPT" for "GPT":
+    # three red words for a line the owner heard said correctly.
+    assert red_words("GPT-5.6-Cyber costs 2.5 times more than the flagship. That friction is intentional.",
+                     "DPT 5 .6 Cyber costs 2 .5 times more than the flagship. That friction is intentional.") == []
+    assert red_words("Read it on dev.to today.", "Read it on dev .2 today.") == []   # a spoken dot still works
+
+
+def test_voice_check_of_13_nov_2026_scene_5():
+    red = red_words("Cache reads cost 90 percent less. For agent workflows, that compounds extremely fast.",
+                    "Cash reads cost 90 less for agent workflows that compounds extremely fast.")
+    try:
+        import jellyfish  # noqa: F401
+        assert red == ["percent"]          # "Cash" is "Cache"; a word Whisper never wrote stays red
+    except ImportError:
+        assert "percent" in red
+
+
+def test_acronyms_differing_in_a_rhyming_letter_match():
+    assert v.sounds_same("gpt", "dpt")
+    assert not v.sounds_same("gpt", "gpu")            # a different sound
+    assert not v.sounds_same("gpt", "dpd")            # two letters off
 
 
 if __name__ == "__main__":
