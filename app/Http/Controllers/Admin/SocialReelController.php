@@ -173,7 +173,21 @@ class SocialReelController extends Controller
             ! empty($validated['scheduled_for']) ? Carbon::parse($validated['scheduled_for']) : null
         );
 
-        return back()->with('success', "{$target->label()} approved.");
+        // Approved means the owner has heard this reel's pronunciations work:
+        // they join the global list for every reel after it.
+        $vocab = $this->reels->promotePronunciations($draft);
+        $message = "{$target->label()} approved.";
+        if ($vocab['added']) {
+            $words = collect($vocab['added'])->pluck(0)->implode(', ');
+            $message .= ' Added to the global pronunciation list: ' . $words . '.';
+        }
+        if ($vocab['conflicts']) {
+            $message .= ' Kept the global pronunciation for ' . collect($vocab['conflicts'])
+                ->map(fn ($c) => "\"{$c[0]}\" (global: {$c[1]}; this reel: {$c[2]})")->implode(', ')
+                . '. Change it in Studio settings if this reel\'s is better.';
+        }
+
+        return back()->with('success', $message);
     }
 
     public function rejectTarget(SocialDraft $draft, SocialDraftTarget $target)

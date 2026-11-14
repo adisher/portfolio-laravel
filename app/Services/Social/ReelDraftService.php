@@ -41,7 +41,7 @@ class ReelDraftService
             'status'       => SocialDraft::STATUS_DRAFT,
             'script'       => [
                 'scenes'         => $this->normaliseScenes($generated['scenes'] ?? []),
-                'pronunciations' => $this->normalisePronunciations($generated['pronunciations'] ?? []),
+                'pronunciations' => $this->newPronunciations($generated['pronunciations'] ?? []),
             ],
             'captions'     => $this->normaliseCaptions($generated, $post),
         ]);
@@ -65,7 +65,7 @@ class ReelDraftService
             'status'   => SocialDraft::STATUS_DRAFT,
             'script'   => [
                 'scenes'         => $this->normaliseScenes($generated['scenes'] ?? []),
-                'pronunciations' => $this->normalisePronunciations($generated['pronunciations'] ?? []),
+                'pronunciations' => $this->newPronunciations($generated['pronunciations'] ?? []),
             ],
             'captions' => $this->normaliseCaptions($generated, $draft->blogPost),
             'error'    => null,
@@ -214,6 +214,33 @@ class ReelDraftService
         }
 
         return false;
+    }
+
+    /**
+     * The AI's pronunciations for a new script, minus words the global list
+     * already settles: those are applied at render anyway, and a second,
+     * different entry here would override the owner's settled one.
+     */
+    public function newPronunciations(array $items): array
+    {
+        $settled = SocialStudioSettings::instance()->settledWords();
+
+        return array_values(array_filter(
+            $this->normalisePronunciations($items),
+            fn ($p) => ! isset($settled[mb_strtolower($p[0])])
+        ));
+    }
+
+    /**
+     * Grow the global list with this reel's pronunciations, once the owner has
+     * listened and approved. Words already on the list are kept as they are;
+     * a different pronunciation from this reel comes back as a conflict.
+     *
+     * @return array{added: array, conflicts: array}
+     */
+    public function promotePronunciations(SocialDraft $draft): array
+    {
+        return SocialStudioSettings::instance()->appendPronunciations($draft->pronunciations());
     }
 
     /** Approve one platform for publishing at a time (now if null). */

@@ -56,7 +56,7 @@ class SocialStudioController extends Controller
     {
         $validated = $request->validate([
             'voice_style'    => 'required|in:' . implode(',', array_keys(SocialStudioSettings::VOICE_STYLES)),
-            'pronunciations' => 'nullable|string|max:5000',
+            'pronunciations' => 'nullable|string|max:50000',
         ]);
 
         SocialStudioSettings::instance()->forceFill([

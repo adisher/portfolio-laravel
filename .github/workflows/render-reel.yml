@@ -64,7 +64,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
-          key: chatterbox-0.1.7-whisper-base.en
+          key: chatterbox-0.1.7-whisper-small.en
 
       - name: Install voice model
         run: |

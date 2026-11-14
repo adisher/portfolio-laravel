@@ -123,6 +123,7 @@
                 <textarea id="pronunciations" name="pronunciations" rows="8"
                     class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white font-mono text-sm">{{ $settings->pronunciationText() }}</textarea>
                 <p class="text-xs text-gray-400 mt-1">One per line: <span class="font-mono">word = how to say it</span>. Use this for any word the voice gets wrong or says differently in different places, for example <span class="font-mono">Laravel = Lara vel</span>. Only the voice changes; captions keep the real spelling.</p>
+                <p class="text-xs text-gray-400 mt-1">This list grows by itself: when you approve a reel, its own pronunciations are added here, and new scripts reuse them instead of listing them again. A word already here is never changed by a reel; edit it here.</p>
             </div>
         </div>
 
