@@ -253,6 +253,19 @@ def test_acronyms_differing_in_a_rhyming_letter_match():
     assert not v.sounds_same("gpt", "dpd")            # two letters off
 
 
+def test_percent_sign_timed_as_its_own_word_is_kept():
+    # Render of 14 Nov 2026, scene 5: Whisper timed "90%" as "90" and "%";
+    # the "%" was dropped as a noise, so "percent" looked unsaid in every take.
+    heard = [("Cash", 0.0, 0.3), ("reads", 0.3, 0.6), ("cost", 0.6, 0.9), ("90", 0.9, 1.2),
+             ("%", 1.2, 1.5), ("less.", 1.5, 1.8), ("It", 1.9, 2.0), ("is", 2.0, 2.1), ("$", 2.1, 2.2), ("75.", 2.2, 2.5)]
+    words, sounds = v.split_non_speech(heard)
+    assert sounds == 0
+    assert [w for w, _, _ in words] == ["Cash", "reads", "cost", "90%", "less.", "It", "is", "$75."]
+    assert words[3][1:] == (0.9, 1.5)
+    spoken = v.words_of(said("Cache reads cost 90 percent less. It is $75."))
+    assert v.compare(spoken, [w for w, _, _ in words])["mismatches"] == 0
+
+
 if __name__ == "__main__":
     tests = [f for name, f in sorted(globals().items()) if name.startswith("test_")]
     for f in tests:

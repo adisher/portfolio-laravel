@@ -631,8 +631,33 @@ def transcribe(asr, audio: np.ndarray) -> list[tuple[str, float, float]]:
 NON_SPEECH = re.compile(r"^[\[(*].*[\])*]$")  # Whisper's "[laughs]", "(excited)", "*sighs*"
 
 
+def attach_symbols(heard: list[tuple[str, float, float]]) -> list[tuple[str, float, float]]:
+    """Put symbols Whisper times as words of their own back on their number:
+    "90" "%" -> "90%", "$" "75" -> "$75". Left alone, the "%" had no letters
+    or digits, was dropped as a noise, and "percent" looked unsaid (render
+    of 14 Nov 2026, scene 5: "90 percent less" heard as "90 less")."""
+    out: list[tuple[str, float, float]] = []
+    pending = None  # a "$" waiting for the number after it
+    for w, s, e in heard:
+        if re.fullmatch(r"[%‰]+[.,!?;:]*", w) and out and re.search(r"\d$", out[-1][0]):
+            pw, ps, _ = out[-1]
+            out[-1] = (pw + w, ps, e)
+            continue
+        if re.fullmatch(r"[$€£]", w):
+            pending = (w, s)
+            continue
+        if pending:
+            w, s = pending[0] + w, pending[1]
+            pending = None
+        out.append((w, s, e))
+    if pending:
+        out.append((pending[0], pending[1], pending[1]))
+    return out
+
+
 def split_non_speech(heard: list[tuple[str, float, float]]):
     """Separate real words from Whisper's descriptions of non-speech sounds."""
+    heard = attach_symbols(heard)
     words = [h for h in heard if not NON_SPEECH.match(h[0]) and norm(h[0])]
     return words, len(heard) - len(words)
 

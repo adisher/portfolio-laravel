@@ -65,10 +65,14 @@ class SocialStudioSettings extends Model
         return array_intersect_key($style, array_flip(['exaggeration', 'cfg_weight', 'temperature', 'lift']));
     }
 
-    /** The global list as text. An empty list falls back to the defaults. */
+    /**
+     * The global list as text. The defaults only seed a list that was never
+     * saved; after that the list is exactly what the owner and approved
+     * reels made it, even if emptied.
+     */
     public function pronunciationText(): string
     {
-        return trim((string) $this->pronunciations) !== '' ? $this->pronunciations : static::DEFAULT_PRONUNCIATIONS;
+        return $this->pronunciations ?? static::DEFAULT_PRONUNCIATIONS;
     }
 
     /**

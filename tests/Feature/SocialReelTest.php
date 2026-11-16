@@ -300,12 +300,16 @@ class SocialReelTest extends TestCase
         $this->assertSame(1, substr_count(SocialStudioSettings::instance()->fresh()->pronunciationText(), 'LRU = L R U'));
     }
 
-    public function test_an_emptied_global_list_falls_back_to_the_defaults(): void
+    public function test_the_global_list_stays_as_the_owner_left_it(): void
     {
         $settings = SocialStudioSettings::instance();
-        $settings->update(['pronunciations' => '   ']);
+        $this->assertSame(SocialStudioSettings::DEFAULT_PRONUNCIATIONS, $settings->pronunciationText()); // never saved: seeded
 
-        $this->assertSame(SocialStudioSettings::DEFAULT_PRONUNCIATIONS, $settings->fresh()->pronunciationText());
+        $settings->update(['pronunciations' => "nginx = engine x"]);
+        $this->assertSame([['nginx', 'engine x']], $settings->fresh()->pronunciationList());     // no defaults added back
+
+        $settings->update(['pronunciations' => '']);
+        $this->assertSame([], $settings->fresh()->pronunciationList());                           // emptied stays empty
     }
 
     public function test_targets_cannot_be_approved_before_a_render(): void
